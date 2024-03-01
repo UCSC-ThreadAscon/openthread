@@ -457,10 +457,12 @@ void SubMac::ProcessTransmitSecurity(void)
         mTransmitFrame.SetKeyId(mKeyId);
     }
 
-    VerifyOrExit(ShouldHandleTransmitSecurity());
-    VerifyOrExit(keyIdMode == Frame::kKeyIdMode1);
-
     mTransmitFrame.SetAesKey(GetCurrentMacKey());
+
+#if (!ASCON_DATA_ENCRYPT || IS_ASCON_RCP)
+    VerifyOrExit(ShouldHandleTransmitSecurity());
+#endif // (!ASCON_DATA_ENCRYPT || IS_ASCON_RCP)
+    VerifyOrExit(keyIdMode == Frame::kKeyIdMode1);
 
     if (!mTransmitFrame.IsHeaderUpdated())
     {
