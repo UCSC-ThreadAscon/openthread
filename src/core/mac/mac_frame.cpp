@@ -1364,6 +1364,10 @@ void TxFrame::ProcessTransmitAesCcm(const ExtAddress &aExtAddress)
     SuccessOrExit(GetSecurityLevel(securityLevel));
     SuccessOrExit(GetFrameCounter(frameCounter));
 
+#if NO_ENCRYPT_DECRYPT
+  goto exit;
+#endif // NO_ENCRYPT_DECRYPT
+
 #if ASCON_DATA_ENCRYPT
     if (AsconDataEncrypt() == kErrorNone) {
       goto exit;
