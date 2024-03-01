@@ -34,6 +34,7 @@
 #include "mac_frame.hpp"
 
 #include <stdio.h>
+#include "cse299a_encryption_flags.h"
 
 #include "common/code_utils.hpp"
 #include "common/debug.hpp"
@@ -1363,6 +1364,14 @@ void TxFrame::ProcessTransmitAesCcm(const ExtAddress &aExtAddress)
     SuccessOrExit(GetSecurityLevel(securityLevel));
     SuccessOrExit(GetFrameCounter(frameCounter));
 
+#if ASCON_DATA_ENCRYPT
+    if (AsconDataEncrypt() == kErrorNone) {
+      goto exit;
+    };
+
+    otLogWarnPlat("Fallback: Going to encrypt using AES.");
+#endif // ASCON_DATA_ENCRYPT
+
     Crypto::AesCcm::GenerateNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
     aesCcm.SetKey(GetAesKey());
@@ -1494,10 +1503,28 @@ Error RxFrame::ProcessReceiveAesCcm(const ExtAddress &aExtAddress, const KeyMate
     uint8_t        tagLength;
     Crypto::AesCcm aesCcm;
 
+#if CSE299A_ENCRYPT_DEBUG
+    dataDecryptPrintReceived();
+#endif // CSE299A_ENCRYPT_DEBUG
+
+#if NO_ENCRYPT_DECRYPT
+    error = kErrorNone;
+    goto exit;
+#endif // !AES_DATA_DECRYPT
+
     VerifyOrExit(GetSecurityEnabled(), error = kErrorNone);
 
     SuccessOrExit(GetSecurityLevel(securityLevel));
     SuccessOrExit(GetFrameCounter(frameCounter));
+
+#if ASCON_DATA_DECRYPT
+    error = AsconDataDecrypt(aMacKey);
+    if (error == kErrorNone) {
+      goto exit;
+    }
+
+    otLogWarnPlat("Fallback: Going to decrypt using AES.");
+#endif // ASCON_DATA_DECRYPT
 
     Crypto::AesCcm::GenerateNonce(aExtAddress, frameCounter, securityLevel, nonce);
 

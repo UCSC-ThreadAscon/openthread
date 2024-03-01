@@ -32,6 +32,7 @@
  */
 
 #include "sub_mac.hpp"
+#include "cse299a_encryption_flags.h"
 
 #include <stdio.h>
 
