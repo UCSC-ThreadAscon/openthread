@@ -113,9 +113,7 @@ Error TxFrame::AsconDataEncrypt() {
   CreateAsconNonce(nonce);
 
 #if CSE299A_ENCRYPT_DEBUG
-  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0]);
-  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0]);
-  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0]);
+  AsconDebugPrint(key, nonce, assocData);
 #endif // CSE299A_ENCRYPT_DEBUG
 
   uint8_t footerLength = GetFooterLength();
@@ -159,9 +157,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   CreateAsconNonce(nonce);
 
 #if CSE299A_ENCRYPT_DEBUG
-  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0]);
-  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0]);
-  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0]);
+  AsconDebugPrint(key, nonce, assocData);
 #endif // CSE299A_ENCRYPT_DEBUG
 
   uint8_t footerLength = GetFooterLength();

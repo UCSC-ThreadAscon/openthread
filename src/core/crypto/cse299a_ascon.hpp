@@ -26,7 +26,7 @@
  * Converts an AES network key object to 16-byte key that can be used with
  * the ASCON cipher.
  *
- * @param[in] aMacKey: the Thread Network key
+ * @param[in] aMacKey: the Thread Network Key
  * @param[out] asconKey: the pointer to the place in memory to set the ASCON key
  *
  * @retval keyPtr: the pointer to the network key, or NULL if failed to
@@ -34,5 +34,18 @@
 */
 void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
                        void* asconKey);
+
+/**
+ * Debugging function that prints to the serial monitor the bytes of
+ * the key, nonce, and associated data as C strings.
+ *
+ * @param[in] key: the ASCON key used for encryption
+ * @param[in] nonce: the nonce to be used in encryption
+ * @param[in] assocData: the associated data
+*/
+#define AsconDebugPrint(key, nonce, assocData)                                  \
+  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0])                      \
+  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0])    \
+  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0])                  \
 
 #endif // CSE299A_ASCON_HPP_

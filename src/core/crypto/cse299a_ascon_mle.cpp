@@ -90,9 +90,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
               aHeader.GetKeyId(), nonce);
 
 #if CSE299A_ENCRYPT_DEBUG
-  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0]);
-  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0]);
-  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0]);
+  AsconDebugPrint(key, nonce, assocData);
 #endif // CSE299A_ENCRYPT_DEBUG
 
   uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
@@ -148,9 +146,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
               aHeader.GetKeyId(), nonce);
 
 #if CSE299A_ENCRYPT_DEBUG
-  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0]);
-  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0]);
-  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0]);
+  AsconDebugPrint(key, nonce, assocData);
 #endif // CSE299A_ENCRYPT_DEBUG
 
   uint16_t cipherLen = aMessage.GetLength() - aCmdOffset;
