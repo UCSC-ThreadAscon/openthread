@@ -2486,8 +2486,14 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     keySequence  = header.GetKeyId();
     frameCounter = header.GetFrameCounter();
 
+#if AES_MLE_DECRYPT
     SuccessOrExit(
         error = ProcessMessageSecurity(Crypto::AesCcm::kDecrypt, aMessage, aMessageInfo, aMessage.GetOffset(), header));
+#endif // AES_MLE_DECRYPT
+
+#if ASCON_MLE_DECRYPT
+    SuccessOrExit(error = AsconMleDecrypt(aMessage, aMessageInfo, header, aMessage.GetOffset()));
+#endif // ASCON_MLE_DECRYPT
 
     IgnoreError(aMessage.Read(aMessage.GetOffset(), command));
     aMessage.MoveOffset(sizeof(command));
@@ -4877,8 +4883,14 @@ Error Mle::TxMessage::SendTo(const Ip6::Address &aDestination)
         Write(offset, header);
         offset += sizeof(SecurityHeader);
 
+#if AES_MLE_ENCRYPT
         SuccessOrExit(
             error = Get<Mle>().ProcessMessageSecurity(Crypto::AesCcm::kEncrypt, *this, messageInfo, offset, header));
+#endif // AES_MLE_ENCRYPT
+
+#if ASCON_MLE_ENCRYPT
+        SuccessOrExit(error = Get<Mle>().AsconMleEncrypt(*this, messageInfo, header, offset));  
+#endif // ASCON_MLE_ENCRYPT
 
         Get<KeyManager>().IncrementMleFrameCounter();
     }
