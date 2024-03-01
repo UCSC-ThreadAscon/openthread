@@ -1301,6 +1301,54 @@ private:
     void RemoveDelayedMessage(Message::SubType aSubType, MessageType aMessageType, const Ip6::Address *aDestination);
     void RemoveDelayedDataRequestMessage(const Ip6::Address &aDestination);
 
+    /** --- Start CSE299A ASCON Functions --- */
+
+    /**
+     * Encrypts MLE payload with the ASCON cipher.
+     *
+     * @param[in] aMessage: the message whose payload to encrypt
+     * @param[in] aMessageInfo: metadata about the message to encrypt
+     * @param[in] aHeader: the Aux Security Header for the message to encrypt
+     * @param[in] aCmdOffset: the memory address where the message payload begins
+     *
+     * @retval OT_ERROR_NONE: the encryption was successful
+     * @retval OT_ERROR_NO_BUFS: the ciphertext cannot fit in the message payload
+    */
+    Error AsconMleEncrypt(Message                &aMessage,
+                          const Ip6::MessageInfo &aMessageInfo,
+                          const SecurityHeader   &aHeader,
+                          uint16_t               aCmdOffset);
+
+    /**
+     * Decrypts MLE payload that has been encrypted with ASCON
+     *
+     * @param[in] aMessage: the message whose payload to decrypt
+     * @param[in] aMessageInfo: metadata about the message to decrypt
+     * @param[in] aHeader: the Aux Security Header for the message to decrypt
+     * @param[in] aCmdOffset: the memory address where the ciphertext begins
+     *
+     * @retval OT_ERROR_NONE: the encryption was successful
+     * @retval OT_ERROR_SECURITY: the payload is not valid ASCON ciphertext 
+    */
+    Error AsconMleDecrypt(Message                &aMessage,
+                          const Ip6::MessageInfo &aMessageInfo,
+                          const SecurityHeader   &aHeader,
+                          uint16_t               aCmdOffset);
+
+    /**
+     * Converts the Key ID Sequence to be used as a temporary symmetric key
+     * in ASCON encryption and decryption.
+     *
+     * @param[in] keyId: the Key ID mode from the Aux Security Header
+     * @param[out] asconKey: A pointer to the memory address to where to
+     *                       set the ASCON key
+     *
+     * @retval a pointer to the key in the heap
+    */
+    void GetAsconKey(uint32_t keyId, void *asconKey);
+
+    /** --- End CSE299A ASCON Functions --- */
+
 #if OPENTHREAD_CONFIG_MLE_INFORM_PREVIOUS_PARENT_ON_REATTACH
     void InformPreviousParent(void);
 #endif

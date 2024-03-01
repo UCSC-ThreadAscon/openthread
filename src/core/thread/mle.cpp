@@ -32,6 +32,8 @@
  */
 
 #include "mle.hpp"
+#include "cse299a_encryption_flags.h"
+#include "crypto/cse299a_ascon.hpp"
 
 #include <openthread/platform/radio.h>
 #include <openthread/platform/time.h>
@@ -2407,6 +2409,19 @@ Error Mle::ProcessMessageSecurity(Crypto::AesCcm::Mode    aMode,
 
 exit:
     return error;
+}
+
+void Mle::GetAsconKey(uint32_t keyId, void* asconKey) {
+  ot::Mle::KeyMaterial keyMaterial;
+
+  if (Get<KeyManager>().GetCurrentKeySequence() == keyId) {
+    keyMaterial = Get<KeyManager>().GetCurrentMleKey();
+  } else {
+    keyMaterial = Get<KeyManager>().GetTemporaryMleKey(keyId);
+  }
+
+  ConvertToAsconKey(keyMaterial, asconKey);
+  return;
 }
 
 void Mle::HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)

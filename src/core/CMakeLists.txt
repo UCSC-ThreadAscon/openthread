@@ -128,6 +128,9 @@ set(COMMON_SOURCES
     crypto/mbedtls.cpp
     crypto/sha256.cpp
     crypto/storage.cpp
+    crypto/ascon_aead.cpp
+    crypto/ascon_printstate.cpp
+    crypto/cse299a_ascon_mac.cpp
     diags/factory_diags.cpp
     instance/instance.cpp
     mac/channel_mask.cpp
@@ -280,6 +283,9 @@ set(RADIO_COMMON_SOURCES
     crypto/aes_ecb.cpp
     crypto/crypto_platform.cpp
     crypto/storage.cpp
+    crypto/ascon_aead.cpp
+    crypto/ascon_printstate.cpp
+    crypto/cse299a_ascon_mac.cpp
     diags/factory_diags.cpp
     instance/instance.cpp
     mac/link_raw.cpp

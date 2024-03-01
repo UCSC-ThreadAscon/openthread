@@ -714,6 +714,45 @@ public:
     Error GetFrameCounter(uint32_t &aFrameCounter) const;
 
     /**
+     * Generates the ASCON of the associated data, which is a combination
+     * of the source and destination addresses.
+     *
+     * I got the idea to use parts of the MAC Header as the Associated Data from
+     * the discussions in:
+     *  - https://security.stackexchange.com/a/179279
+     *  - https://crypto.stackexchange.com/a/84054
+     *
+     * @param[out] aAssocData: The pointer to the associated data,
+     *                          which will be CRYPTO_ABYTES in length.
+    */
+    void CreateAssocData(void* aAssocData);
+
+    /**
+     * Gets the IPv6 (short or extended) address bytes in the MAC header
+     * for and adds it as a part of the associated data.
+     *
+     * @param[in] addr:   the IPv6 address to add to the associated data
+     * @param[in] offset: the current offset in the associated data
+     *                    to add the bytes of "addr"
+     *
+     * @retval offset: pointer of next available empty memory in
+     *                 the associated data pointer
+    */
+   uint8_t* AddAddrToAd(Address addr, uint8_t *offset);
+
+    /**
+     * Generates the nonce to be used in ASCON, which is a combination
+     * of the MIC, Key ID, and Sequence Number.
+     *
+     * I got the idea to use parts of the MAC Header from the discussions in:
+     *  - https://security.stackexchange.com/a/179279
+     *  - https://crypto.stackexchange.com/a/84054
+     *
+     * @param[out] aNonce: The pointer to the nonce.
+    */
+    void CreateAsconNonce(void* aNonce);
+
+    /**
      * Sets the Frame Counter.
      *
      * @param[in]  aFrameCounter  The Frame Counter.
@@ -1233,6 +1272,17 @@ public:
      */
     Error ProcessReceiveAesCcm(const ExtAddress &aExtAddress, const KeyMaterial &aMacKey);
 
+    /**
+     * Decrypts the ASCON ciphertext. A modified implementation of
+     * `ProcessReceiveAesCcm()` in `mac/mac_frame.cpp`.
+     *
+     * @param[in] aMacKey: the Thread Network key
+     *
+     * @retval kErrorNone  The payload has been successfully decrypted
+     * @retval kErrorSecurity The payload has failed to be decrypted successfully
+    */
+    Error AsconDataDecrypt(const ot::Mac::KeyMaterial &aMacKey);
+
 #if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
     /**
      * Gets the offset to network time.
@@ -1408,6 +1458,17 @@ public:
      *
      */
     void ProcessTransmitAesCcm(const ExtAddress &aExtAddress);
+
+    /**
+     * A modified implementation of `ProcessTransmitAesCcm()` in
+     * `mac/mac_frame.cpp` that is used to encrypt the payload with ASCON.
+     *
+     * @param[in] aMacKey: the Thread Network key
+     *
+     * @retval kErrorNone  The payload has been successfully encrypted
+     * @retval kErrorSecurity     The payload has failed to be encrypted
+    */
+    Error AsconDataEncrypt();
 
     /**
      * Indicates whether or not the frame has security processed.
