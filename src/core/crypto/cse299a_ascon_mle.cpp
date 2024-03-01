@@ -37,7 +37,8 @@ void createNonce(ot::Ip6::Address sender,
 }
 
 /**
- * The Associated Data consists of the sender and receiver IPv6 addresses.
+ * The Associated Data consists of the sender and receiver 802.15.4
+ * extended addresses.
  *
  * @param[in] sender: the IPv6 address of the sender
  * @param[in] receiver: the IPv6 address of the receiver

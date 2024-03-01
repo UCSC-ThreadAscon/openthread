@@ -35,16 +35,4 @@
 void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
                        void* asconKey);
 
-/**
- * Displays a warning if the ASCON ciphertext is bigger than the
- * maximum link layer payload size.
- *
- * @param[in] payloadLen: the length of the encrypted payload
- * @param[in] maxPayloadLen: the maximum length of the link layer payload.
-*/
-#define ExceedMaxPayloadSize(payloadLen, maxPayloadLen)           \
-    if (payloadLen >= maxPayloadLen) {                            \
-      otLogCritPlat("Payload is bigger than max payload size.");  \
-    }                                                             \
-
 #endif // CSE299A_ASCON_HPP_
