@@ -137,8 +137,6 @@ Error TxFrame::AsconDataEncrypt() {
   void* end = GetPayload() + GetPayloadLength();
   memcpy(end, footerCopy, footerLength);
 
-  ExceedMaxPayloadSize(expectedCipherLen, GetMaxPayloadLength());
-
   crypto_aead_encrypt(GetPayload(), &ciphertextLength,
                       GetPayload(), plaintextLength,
                       assocData, CRYPTO_ABYTES,
