@@ -3,10 +3,10 @@
 
 #include <stdint.h>
 
-#include "ascon.h"
-#include "constants.h"
-#include "printstate.h"
-#include "round.h"
+#include "ascon.hpp"
+#include "constants.hpp"
+#include "printstate.hpp"
+#include "round.hpp"
 
 static inline void P12(ascon_state_t* s) {
   ROUND(s, 0xf0);

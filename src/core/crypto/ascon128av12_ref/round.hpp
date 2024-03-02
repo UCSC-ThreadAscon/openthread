@@ -1,9 +1,9 @@
 #ifndef ROUND_H_
 #define ROUND_H_
 
-#include "ascon.h"
-#include "constants.h"
-#include "printstate.h"
+#include "ascon.hpp"
+#include "constants.hpp"
+#include "printstate.hpp"
 
 static inline uint64_t ROR(uint64_t x, int n) {
   return x >> n | x << (-n & 63);
