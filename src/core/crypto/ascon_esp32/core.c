@@ -1,4 +1,4 @@
-#include "core.hpp"
+#include "core.h"
 
 #include <string.h>
 
@@ -101,7 +101,7 @@ void ascon_core(state* s, unsigned char* out, const unsigned char* in,
 
   // process associated data
   if (adlen) {
-    ascon_duplex(s, (unsigned char *)0, ad, adlen, ASCON_AD);
+    ascon_duplex(s, (void*)0, ad, adlen, ASCON_AD);
     P(s, PB_START_ROUND);
   }
   s->x4.l ^= 1;
