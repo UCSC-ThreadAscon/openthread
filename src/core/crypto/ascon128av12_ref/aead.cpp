@@ -1,6 +1,5 @@
 #include "api.hpp"
 #include "ascon.hpp"
-#include "crypto_aead.hpp"
 #include "permutations.hpp"
 #include "printstate.hpp"
 #include "word.hpp"
