@@ -3,8 +3,8 @@
 
 #include "cse299a_encryption_flags.h"
 
-#include "crypto/ascon_esp32/core.h"
-#include "crypto/ascon_esp32/api.h"
+#include "crypto/ascon_esp32/core.hpp"
+#include "crypto/ascon_esp32/api.hpp"
 
 #include "crypto/aes_ccm.hpp"
 #include "error.h"
