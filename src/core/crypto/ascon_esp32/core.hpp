@@ -1,9 +1,9 @@
 #ifndef CORE_H_
 #define CORE_H_
 
-#include "api.h"
-#include "bendian.h"
-#include "permutations.h"
+#include "api.hpp"
+#include "bendian.hpp"
+#include "permutations.hpp"
 
 #define ASCON_AD 0
 #define ASCON_ENC 1
