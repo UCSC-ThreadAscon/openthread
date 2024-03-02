@@ -3,9 +3,10 @@
 
 #include "cse299a_encryption_flags.h"
 
-#include "crypto/ascon_crypto_aead.hpp"
+#include "crypto/ascon_esp32/core.hpp"
+#include "crypto/ascon_esp32/api.hpp"
+
 #include "crypto/aes_ccm.hpp"
-#include "crypto/ascon_api.hpp"
 #include "error.h"
 
 #include <openthread/logging.h>
@@ -47,5 +48,17 @@ void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
   otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0])                      \
   otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0])    \
   otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0])                  \
+
+int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
+                        const unsigned char* m, unsigned long long mlen,
+                        const unsigned char* ad, unsigned long long adlen,
+                        const unsigned char* nsec, const unsigned char* npub,
+                        const unsigned char* k);
+
+int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
+                        unsigned char* nsec, const unsigned char* c,
+                        unsigned long long clen, const unsigned char* ad,
+                        unsigned long long adlen, const unsigned char* npub,
+                        const unsigned char* k);
 
 #endif // CSE299A_ASCON_HPP_
