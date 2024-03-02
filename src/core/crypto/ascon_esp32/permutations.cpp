@@ -1,6 +1,6 @@
-#include "permutations.h"
+#include "permutations.hpp"
 
-#include "bendian.h"
+#include "bendian.hpp"
 
 u32_4 ascon_rev8(u32_4 in) {
   in.words[0].h = U32BIG(in.words[0].h);
