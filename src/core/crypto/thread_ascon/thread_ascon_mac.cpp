@@ -75,11 +75,11 @@ void Frame::CreateAsconNonce(void* aNonce) {
     otLogCritPlat("Failed to get Key ID.");
   };
 
-#if CSE299A_ENCRYPT_DEBUG
+#if THREAD_ASCON_DEBUG
   otLogNotePlat("Sequence Number: %" PRIu8 "", sequenceNumber);
   otLogNotePlat("Key ID: %" PRIu8 "", keyId);
   otLogNotePlat("Footer Bits: %" PRIu32 "", ((uint32_t *) GetFooter())[0]);
-#endif // CSE299A_ENCRYPT_DEBUG
+#endif // THREAD_ASCON_DEBUG
 
   uint8_t *offset = (uint8_t *) aNonce;
 
@@ -112,9 +112,9 @@ Error TxFrame::AsconDataEncrypt() {
   unsigned char nonce[CRYPTO_NPUBBYTES];
   CreateAsconNonce(nonce);
 
-#if CSE299A_ENCRYPT_DEBUG
+#if THREAD_ASCON_DEBUG
   AsconDebugPrint(key, nonce, assocData);
-#endif // CSE299A_ENCRYPT_DEBUG
+#endif // THREAD_ASCON_DEBUG
 
   uint8_t footerLength = GetFooterLength();
   uint8_t footerCopy[footerLength];
@@ -156,9 +156,9 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   unsigned char nonce[CRYPTO_NPUBBYTES];
   CreateAsconNonce(nonce);
 
-#if CSE299A_ENCRYPT_DEBUG
+#if THREAD_ASCON_DEBUG
   AsconDebugPrint(key, nonce, assocData);
-#endif // CSE299A_ENCRYPT_DEBUG
+#endif // THREAD_ASCON_DEBUG
 
   uint8_t footerLength = GetFooterLength();
   uint8_t footerCopy[footerLength];

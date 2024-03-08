@@ -1507,9 +1507,9 @@ Error RxFrame::ProcessReceiveAesCcm(const ExtAddress &aExtAddress, const KeyMate
     uint8_t        tagLength;
     Crypto::AesCcm aesCcm;
 
-#if CSE299A_ENCRYPT_DEBUG
+#if THREAD_ASCON_DEBUG
     dataDecryptPrintReceived();
-#endif // CSE299A_ENCRYPT_DEBUG
+#endif // THREAD_ASCON_DEBUG
 
 #if NO_ENCRYPT_DECRYPT
     error = kErrorNone;

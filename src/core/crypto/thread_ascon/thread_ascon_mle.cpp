@@ -89,9 +89,9 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
-#if CSE299A_ENCRYPT_DEBUG
+#if THREAD_ASCON_DEBUG
   AsconDebugPrint(key, nonce, assocData);
-#endif // CSE299A_ENCRYPT_DEBUG
+#endif // THREAD_ASCON_DEBUG
 
   uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
 
@@ -145,9 +145,9 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
-#if CSE299A_ENCRYPT_DEBUG
+#if THREAD_ASCON_DEBUG
   AsconDebugPrint(key, nonce, assocData);
-#endif // CSE299A_ENCRYPT_DEBUG
+#endif // THREAD_ASCON_DEBUG
 
   uint16_t cipherLen = aMessage.GetLength() - aCmdOffset;
 
