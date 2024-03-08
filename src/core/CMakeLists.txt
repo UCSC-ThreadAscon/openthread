@@ -122,8 +122,6 @@ set(COMMON_SOURCES
     common/uptime.cpp
     crypto/aes_ccm.cpp
     crypto/aes_ecb.cpp
-    crypto/cse299a_ascon_mac.cpp
-    crypto/cse299a_ascon_mle.cpp
     crypto/crypto_platform.cpp
     crypto/hkdf_sha256.cpp
     crypto/hmac_sha256.cpp
@@ -280,8 +278,6 @@ set(RADIO_COMMON_SOURCES
     common/uptime.cpp
     crypto/aes_ccm.cpp
     crypto/aes_ecb.cpp
-    crypto/cse299a_ascon_mac.cpp
-    crypto/cse299a_ascon_mle.cpp
     crypto/crypto_platform.cpp
     crypto/storage.cpp
     diags/factory_diags.cpp
