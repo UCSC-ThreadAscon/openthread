@@ -1301,7 +1301,7 @@ private:
     void RemoveDelayedMessage(Message::SubType aSubType, MessageType aMessageType, const Ip6::Address *aDestination);
     void RemoveDelayedDataRequestMessage(const Ip6::Address &aDestination);
 
-    /** --- Start CSE299A ASCON Functions --- */
+    /** --- Start Thread ASCON Functions --- */
 
     /**
      * Encrypts MLE payload with the ASCON cipher.
@@ -1347,7 +1347,7 @@ private:
     */
     void GetAsconKey(uint32_t keyId, void *asconKey);
 
-    /** --- End CSE299A ASCON Functions --- */
+    /** --- End Thread ASCON Functions --- */
 
 #if OPENTHREAD_CONFIG_MLE_INFORM_PREVIOUS_PARENT_ON_REATTACH
     void InformPreviousParent(void);
