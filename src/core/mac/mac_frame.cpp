@@ -34,7 +34,7 @@
 #include "mac_frame.hpp"
 
 #include <stdio.h>
-#include "cse299a_encryption_flags.h"
+#include "thread_ascon_encryption_flags.h"
 
 #include "common/code_utils.hpp"
 #include "common/debug.hpp"

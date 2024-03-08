@@ -1,4 +1,4 @@
-#include "cse299a_encryption_flags.h"
+#include "thread_ascon_encryption_flags.h"
 
 void mleEncryptPrintTransmitted() {
   if (AES_MLE_ENCRYPT) {

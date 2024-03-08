@@ -1,7 +1,7 @@
 #ifndef CSE299A_ASCON_HPP_
 #define CSE299A_ASCON_HPP_
 
-#include "cse299a_encryption_flags.h"
+#include "thread_ascon_encryption_flags.h"
 
 #if ASCON_128A_ESP32
 #include "crypto/ascon128av12_esp32/api.hpp"

@@ -1,5 +1,5 @@
 #include "crypto/cse299a_ascon.hpp"
-#include "cse299a_encryption_flags.h"
+#include "thread_ascon_encryption_flags.h"
 
 #include "openthread/platform/radio.h"
 #include "mac/mac_frame.hpp"
