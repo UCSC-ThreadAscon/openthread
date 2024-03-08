@@ -1,5 +1,5 @@
-#ifndef CSE299A_ASCON_HPP_
-#define CSE299A_ASCON_HPP_
+#ifndef THREAD_ASCON_HPP_
+#define THREAD_ASCON_HPP_
 
 #include "thread_ascon_encryption_flags.h"
 
@@ -79,4 +79,4 @@ int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
                         unsigned long long adlen, const unsigned char* npub,
                         const unsigned char* k);
 
-#endif // CSE299A_ASCON_HPP_
+#endif // THREAD_ASCON_HPP_

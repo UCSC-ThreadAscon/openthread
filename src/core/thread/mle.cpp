@@ -33,7 +33,7 @@
 
 #include "mle.hpp"
 #include "thread_ascon_encryption_flags.h"
-#include "crypto/cse299a_ascon.hpp"
+#include "crypto/thread_ascon.hpp"
 
 #include <openthread/platform/radio.h>
 #include <openthread/platform/time.h>
