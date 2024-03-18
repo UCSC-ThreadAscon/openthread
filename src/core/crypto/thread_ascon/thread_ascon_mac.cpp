@@ -172,7 +172,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
                                    GetPayload(), ciphertextLength,
                                    assocData, CRYPTO_ABYTES,
                                    nonce, key);
-  if (status == -1) {
+  if (status != 0) {
     otLogWarnPlat("Invalid ASCON ciphertext (MAC).");
     return OT_ERROR_SECURITY;
   }
