@@ -167,7 +167,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
                                        cipherLen, CRYPTO_ABYTES);
 
   if (status == ASCON_TAG_INVALID) {
-    otLogWarnPlat("Invalid ASCON ciphertext (MLE).");
+    otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MLE).");
     return OT_ERROR_SECURITY;
   }
 
