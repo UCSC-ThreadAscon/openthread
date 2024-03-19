@@ -1,4 +1,4 @@
-#include "thread_ascon.hpp"
+#include "crypto/thread_ascon.hpp"
 #include "thread_ascon_encryption_flags.h"
 
 #include "openthread/platform/radio.h"

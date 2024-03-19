@@ -1,4 +1,4 @@
-#include "thread_ascon.hpp"
+#include "crypto/thread_ascon.hpp"
 #include "thread/mle.hpp"
 #include "mac/mac_types.hpp"
 
