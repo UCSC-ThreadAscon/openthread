@@ -165,7 +165,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 
   bool status = ascon_aead128a_decrypt(payload, key, nonce, assocData,
                                        cipherNoTag, tag, CRYPTO_ABYTES,
-                                       cipherLenNoTag, CRYPTO_ABYTES);
+                                       cipherLenNoTag, tagLen);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MLE).");

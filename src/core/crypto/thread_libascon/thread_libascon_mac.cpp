@@ -161,14 +161,16 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   uint8_t footerCopy[footerLength];
   memcpy(footerCopy, GetFooter(), footerLength);
 
-  uint16_t ciphertextLength = GetPayloadLength();
-  unsigned long long plaintextLength = ciphertextLength - CRYPTO_ABYTES;
+  uint16_t tagLength = CRYPTO_ABYTES;
+
+  uint16_t cipherLenNoTag = GetPayloadLength() - tagLength;
+  unsigned long long plaintextLength = cipherLenNoTag;
   uint8_t plaintextBuffer[plaintextLength];
 
-  uint8_t *tag = (GetPayload() + ciphertextLength) - CRYPTO_ABYTES;
+  uint8_t *tag = GetPayload() + cipherLenNoTag;
   bool status = ascon_aead128a_decrypt(plaintextBuffer, key, nonce, assocData,
                                        GetPayload(), tag, CRYPTO_ABYTES,
-                                       ciphertextLength, CRYPTO_ABYTES);
+                                       cipherLenNoTag, tagLength);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MAC).");
