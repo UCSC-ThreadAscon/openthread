@@ -11,6 +11,11 @@
 #include "crypto/ascon128av12_ref/api.hpp"
 #endif
 
+// #if LIBASCON_128A
+#include "crypto/libascon/ascon.h"
+#include "crypto/libascon/ascon_internal.h"
+// #endif
+
 #include "crypto/aes_ccm.hpp"
 #include "error.h"
 
@@ -55,7 +60,7 @@ void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
   otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0])                  \
 
 /**
- * The ASCON encryption function prototype.
+ * The encryption function prototype for the ASCON C reference implementations.
  *
  * For the source code behind this function, visit:
  * https://github.com/ascon/ascon-c
@@ -68,7 +73,7 @@ int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
 
 
 /**
- * The ASCON decryption function prototype.
+ * The decryption function prototype for the ASCON C reference implementations.
  *
  * For the source code behind this function, visit:
  * https://github.com/ascon/ascon-c
