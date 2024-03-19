@@ -11,10 +11,10 @@
 #include "crypto/ascon128av12_ref/api.hpp"
 #endif
 
-#if LIBASCON_128A
+// #if LIBASCON_128A
 #include "crypto/libascon/ascon.h"
 #include "crypto/libascon/ascon_internal.h"
-#endif
+// #endif
 
 #include "crypto/aes_ccm.hpp"
 #include "error.h"
@@ -61,10 +61,10 @@ void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
  * @param[in] nonce: the nonce to be used in encryption
  * @param[in] assocData: the associated data
 */
-#define AsconDebugPrint(key, nonce, assocData)                                  \
-  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0])                      \
-  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0])    \
-  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0])                  \
+#define AsconDebugPrint(key, nonce, assocData)                                   \
+  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0]);                      \
+  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0]);    \
+  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0]);                  \
 
 /**
  * The encryption function prototype for the ASCON C reference implementations.
