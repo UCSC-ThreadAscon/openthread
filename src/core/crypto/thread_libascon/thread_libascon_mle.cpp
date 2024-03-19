@@ -19,7 +19,7 @@ void createNonce(ot::Ip6::Address sender,
                  uint32_t keyId,
                  void* aNonce)
 {
-  EmptyMemory(aNonce, CRYPTO_NPUBBYTES);
+  EmptyMemory(aNonce, ASCON_AEAD_NONCE_LEN);
 
   ot::Mac::ExtAddress senderExt;
   sender.GetIid().ConvertToExtAddress(senderExt);
@@ -85,7 +85,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
 
-  unsigned char nonce[CRYPTO_NPUBBYTES];
+  unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
@@ -141,7 +141,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetSockAddr(),
                   assocData);
 
-  unsigned char nonce[CRYPTO_NPUBBYTES];
+  unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 

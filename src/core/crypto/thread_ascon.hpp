@@ -22,6 +22,13 @@
 #include <openthread/logging.h>
 
 /**
+ * Took the `CRYPTO_ABYTES` macro definition from the `api.h` header, which is
+ * the same in all ASCON C implementations:
+ * https://github.com/ascon/ascon-c/blob/main/crypto_aead/ascon128av12/ref/api.h
+*/
+#define CRYPTO_ABYTES 16
+
+/**
  * Empties all memory for `size` bytes starting at memory address `pointer`.
  *
  * @param[in] pointer: the pointer of the stack memory

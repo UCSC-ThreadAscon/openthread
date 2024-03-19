@@ -66,7 +66,7 @@ void Frame::CreateAssocData(void *aAssocData) {
 }
 
 void Frame::CreateAsconNonce(void* aNonce) {
-  EmptyMemory(aNonce, CRYPTO_NPUBBYTES);
+  EmptyMemory(aNonce, ASCON_AEAD_NONCE_LEN);
 
   uint8_t sequenceNumber = GetSequence();
 
@@ -109,7 +109,7 @@ Error TxFrame::AsconDataEncrypt() {
   unsigned char assocData[CRYPTO_ABYTES];
   CreateAssocData(assocData);
 
-  unsigned char nonce[CRYPTO_NPUBBYTES];
+  unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
 
 #if THREAD_ASCON_DEBUG
@@ -153,7 +153,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   unsigned char assocData[CRYPTO_ABYTES];
   CreateAssocData(assocData);
 
-  unsigned char nonce[CRYPTO_NPUBBYTES];
+  unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
 
 #if THREAD_ASCON_DEBUG
