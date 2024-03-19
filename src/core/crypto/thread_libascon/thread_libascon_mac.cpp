@@ -117,9 +117,6 @@ Error TxFrame::AsconDataEncrypt() {
   uint16_t plaintextLength = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
 
-  otLogNotePlat("Tag Length %" PRIu16 ".", tagLength);
-  otLogNotePlat("Tag: %" PRIu32 ".", ((uint32_t *) GetFooter())[0]);
-
   ascon_aead128a_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
                          GetPayload(), assocDataLen, plaintextLength,
                          tagLength);
@@ -145,9 +142,6 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   uint16_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t ciphertextLen = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
-
-  otLogNotePlat("Tag Length %" PRIu16 ".", tagLength);
-  otLogNotePlat("Tag: %" PRIu32 ".", ((uint32_t *) GetFooter())[0]);
 
   bool status = ascon_aead128a_decrypt(GetPayload(), key, nonce, assocData,
                                        GetPayload(), GetFooter(), assocDataLen,
