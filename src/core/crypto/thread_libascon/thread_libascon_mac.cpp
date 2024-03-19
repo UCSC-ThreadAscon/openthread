@@ -121,7 +121,6 @@ Error TxFrame::AsconDataEncrypt() {
   memcpy(footerCopy, GetFooter(), footerLength);
 
   uint16_t plaintextLength = GetPayloadLength();
-  unsigned long long ciphertextLength;
 
   unsigned long long expectedCipherLen = plaintextLength + CRYPTO_ABYTES;
 
@@ -135,12 +134,10 @@ Error TxFrame::AsconDataEncrypt() {
   void* end = GetPayload() + GetPayloadLength();
   memcpy(end, footerCopy, footerLength);
 
-  crypto_aead_encrypt(GetPayload(), &ciphertextLength,
-                      GetPayload(), plaintextLength,
-                      assocData, CRYPTO_ABYTES,
-                      NULL, nonce, key);
-
-  OT_ASSERT(expectedCipherLen == ciphertextLength);
+  uint8_t *tag = GetPayload() + plaintextLength;
+  ascon_aead128a_encrypt(GetPayload(), tag, key, nonce, assocData,
+                         GetPayload(), CRYPTO_ABYTES, plaintextLength,
+                         CRYPTO_ABYTES);
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
@@ -165,14 +162,15 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   memcpy(footerCopy, GetFooter(), footerLength);
 
   uint16_t ciphertextLength = GetPayloadLength();
-  unsigned long long plaintextLength;
-  uint8_t plaintextBuffer[ciphertextLength - CRYPTO_ABYTES];
+  unsigned long long plaintextLength = ciphertextLength - CRYPTO_ABYTES;
+  uint8_t plaintextBuffer[plaintextLength];
 
-  int status = crypto_aead_decrypt(plaintextBuffer, &plaintextLength, NULL,
-                                   GetPayload(), ciphertextLength,
-                                   assocData, CRYPTO_ABYTES,
-                                   nonce, key);
-  if (status != 0) {
+  uint8_t *tag = (GetPayload() + ciphertextLength) - CRYPTO_ABYTES;
+  bool status = ascon_aead128a_decrypt(plaintextBuffer, key, nonce, assocData,
+                                       GetPayload(), tag, CRYPTO_ABYTES,
+                                       ciphertextLength, CRYPTO_ABYTES);
+
+  if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (MAC).");
     return OT_ERROR_SECURITY;
   }
