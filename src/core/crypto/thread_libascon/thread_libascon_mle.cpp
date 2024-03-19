@@ -145,26 +145,27 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   AsconDebugPrint(key, nonce, assocData);
 #endif // THREAD_ASCON_DEBUG
 
-  uint16_t cipherLen = aMessage.GetLength() - aCmdOffset;
+  uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
+  uint16_t cipherLenNoTag = cipherLenTotal - CRYPTO_ABYTES;
+  uint16_t tagLen = CRYPTO_ABYTES;
 
   // Read the ciphertext payload.
-  uint8_t ciphertext[cipherLen];
-  EmptyMemory(ciphertext, cipherLen);
-  aMessage.ReadBytes(aCmdOffset, ciphertext, cipherLen);
+  uint8_t cipherNoTag[cipherLenNoTag];
+  EmptyMemory(cipherNoTag, cipherLenNoTag);
+  aMessage.ReadBytes(aCmdOffset, cipherNoTag, cipherLenNoTag);
 
-  unsigned long long expectedPayloadLen = cipherLen - ASCON_TAG_LENGTH;
-  uint8_t payload[expectedPayloadLen];
-  EmptyMemory(payload, expectedPayloadLen);
+  // Read the tag.
+  uint8_t tag[tagLen];
+  EmptyMemory(tag, tagLen);
+  aMessage.ReadBytes(aCmdOffset + cipherLenNoTag, tag, tagLen);
 
-  // Get the tag from the ciphertext payload.
-  uint8_t tag[CRYPTO_ABYTES];
-  EmptyMemory(tag, CRYPTO_ABYTES);
-  uint16_t aTagOffset = (aCmdOffset + cipherLen) - CRYPTO_ABYTES;
-  aMessage.ReadBytes(aTagOffset, tag, CRYPTO_ABYTES);
+  unsigned long long plaintextLen = cipherLenNoTag;
+  uint8_t payload[plaintextLen];
+  EmptyMemory(payload, plaintextLen);
 
   bool status = ascon_aead128a_decrypt(payload, key, nonce, assocData,
-                                       ciphertext, tag, CRYPTO_ABYTES,
-                                       cipherLen, CRYPTO_ABYTES);
+                                       cipherNoTag, tag, CRYPTO_ABYTES,
+                                       cipherLenNoTag, CRYPTO_ABYTES);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MLE).");
@@ -172,7 +173,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   }
 
   // Replace ciphertext with plaintext.
-  aMessage.WriteBytes(aCmdOffset, payload, expectedPayloadLen);
+  aMessage.WriteBytes(aCmdOffset, payload, plaintextLen);
 
   // The `CRYPTO_ABYTES` of memory for the tag is not needed for plaintext.
   aMessage.SetLength(aMessage.GetLength() - CRYPTO_ABYTES);
