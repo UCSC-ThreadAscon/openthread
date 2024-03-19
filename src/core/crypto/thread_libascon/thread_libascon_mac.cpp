@@ -116,28 +116,13 @@ Error TxFrame::AsconDataEncrypt() {
   AsconDebugPrint(key, nonce, assocData);
 #endif // THREAD_ASCON_DEBUG
 
-  uint8_t footerLength = GetFooterLength();
-  uint8_t footerCopy[footerLength];
-  memcpy(footerCopy, GetFooter(), footerLength);
-
+  uint8_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t plaintextLength = GetPayloadLength();
+  size_t assocDataLen = CRYPTO_ABYTES;
 
-  unsigned long long expectedCipherLen = plaintextLength + CRYPTO_ABYTES;
-
-  if (expectedCipherLen >= GetMaxPayloadLength()) {
-    otLogWarnPlat("Ciphertext is too big - not going to use ASCON encryption.");
-    return kErrorNoBufs;
-  }
-
-  SetPayloadLength(expectedCipherLen);
-
-  void* end = GetPayload() + GetPayloadLength();
-  memcpy(end, footerCopy, footerLength);
-
-  uint8_t *tag = GetPayload() + plaintextLength;
-  ascon_aead128a_encrypt(GetPayload(), tag, key, nonce, assocData,
-                         GetPayload(), CRYPTO_ABYTES, plaintextLength,
-                         CRYPTO_ABYTES);
+  ascon_aead128a_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
+                         GetPayload(), assocDataLen, plaintextLength,
+                         tagLength);
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
@@ -157,31 +142,20 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   AsconDebugPrint(key, nonce, assocData);
 #endif // THREAD_ASCON_DEBUG
 
-  uint8_t footerLength = GetFooterLength();
-  uint8_t footerCopy[footerLength];
-  memcpy(footerCopy, GetFooter(), footerLength);
-
-  uint16_t tagLength = CRYPTO_ABYTES;
-
+  uint16_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t cipherLenNoTag = GetPayloadLength() - tagLength;
-  unsigned long long plaintextLength = cipherLenNoTag;
-  uint8_t plaintextBuffer[plaintextLength];
+  size_t assocDataLen = CRYPTO_ABYTES;
 
-  uint8_t *tag = GetPayload() + cipherLenNoTag;
-  bool status = ascon_aead128a_decrypt(plaintextBuffer, key, nonce, assocData,
-                                       GetPayload(), tag, CRYPTO_ABYTES,
+  bool status = ascon_aead128a_decrypt(GetPayload(), key, nonce, assocData,
+                                       GetPayload(), GetFooter(), assocDataLen,
                                        cipherLenNoTag, tagLength);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MAC).");
     return OT_ERROR_SECURITY;
+  } else {
+    otLogNotePlat("Valid ASCON ciphertext (LibAscon - MAC).");
   }
-
-  memcpy(GetPayload(), plaintextBuffer, plaintextLength);
-  SetPayloadLength(plaintextLength);
-
-  void* end = GetPayload() + GetPayloadLength();
-  memcpy(end, footerCopy, footerLength);
 
   return OT_ERROR_NONE;
 }
