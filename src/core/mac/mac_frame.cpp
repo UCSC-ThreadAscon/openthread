@@ -1373,13 +1373,13 @@ void TxFrame::ProcessTransmitAesCcm(const ExtAddress &aExtAddress)
     goto exit;
 #endif // LIBASCON_128A
 
-#if ASCON_DATA_ENCRYPT
+#if (ASCON_DATA_ENCRYPT && !LIBASCON_128A)
     if (AsconDataEncrypt() == kErrorNone) {
       goto exit;
     };
 
     otLogWarnPlat("Fallback: Going to encrypt using AES.");
-#endif // ASCON_DATA_ENCRYPT
+#endif // (ASCON_DATA_ENCRYPT && !LIBASCON_128A)
 
     Crypto::AesCcm::GenerateNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
@@ -1527,18 +1527,18 @@ Error RxFrame::ProcessReceiveAesCcm(const ExtAddress &aExtAddress, const KeyMate
     SuccessOrExit(GetFrameCounter(frameCounter));
 
 #if LIBASCON_128A
-    error = AsconDataDecrypt();
+    error = AsconDataDecrypt(aMacKey);
     goto exit;
 #endif // LIBASCON_128A
 
-#if ASCON_DATA_DECRYPT
+#if (ASCON_DATA_DECRYPT && !LIBASCON_128A)
     error = AsconDataDecrypt(aMacKey);
     if (error == kErrorNone) {
       goto exit;
     }
 
     otLogWarnPlat("Fallback: Going to decrypt using AES.");
-#endif // ASCON_DATA_DECRYPT
+#endif // (ASCON_DATA_DECRYPT && !LIBASCON_128A)
 
     Crypto::AesCcm::GenerateNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
