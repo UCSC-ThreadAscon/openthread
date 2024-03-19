@@ -94,7 +94,6 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 #endif // THREAD_ASCON_DEBUG
 
   size_t assocDataLen = CRYPTO_ABYTES;
-  size_t tagLen = CRYPTO_ABYTES;
   uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
 
   // Read payload data from the Message.
@@ -109,7 +108,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   uint8_t *tagPointer = ciphertext + payloadLen;
   ascon_aead128a_encrypt(ciphertext, tagPointer, key, nonce, assocData,
                          payload, assocDataLen, payloadLen,
-                         tagLen);
+                         ASCON_TAG_LENGTH);
 
   // Replace plaintext with ciphertext.
   aMessage.WriteBytes(aCmdOffset, ciphertext, payloadLen);
@@ -150,7 +149,6 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
   uint16_t cipherLenNoTag = cipherLenTotal - CRYPTO_ABYTES;
   size_t assocDataLen = CRYPTO_ABYTES;
-  size_t tagLen = CRYPTO_ABYTES;
 
   // Read the ciphertext payload.
   uint8_t cipherNoTag[cipherLenNoTag];
@@ -158,9 +156,9 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   aMessage.ReadBytes(aCmdOffset, cipherNoTag, cipherLenNoTag);
 
   // Read the tag.
-  uint8_t tag[tagLen];
-  EmptyMemory(tag, tagLen);
-  aMessage.ReadBytes(aCmdOffset + cipherLenNoTag, tag, tagLen);
+  uint8_t tag[ASCON_TAG_LENGTH];
+  EmptyMemory(tag, ASCON_TAG_LENGTH);
+  aMessage.ReadBytes(aCmdOffset + cipherLenNoTag, tag, ASCON_TAG_LENGTH);
 
   unsigned long long plaintextLen = cipherLenNoTag;
   uint8_t payload[plaintextLen];
@@ -168,7 +166,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 
   bool status = ascon_aead128a_decrypt(payload, key, nonce, assocData,
                                        cipherNoTag, tag, assocDataLen,
-                                       cipherLenNoTag, tagLen);
+                                       cipherLenNoTag, ASCON_TAG_LENGTH);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MLE).");
@@ -181,7 +179,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   aMessage.WriteBytes(aCmdOffset, payload, plaintextLen);
 
   // The `CRYPTO_ABYTES` of memory for the tag is not needed for plaintext.
-  aMessage.SetLength(aMessage.GetLength() - tagLen);
+  aMessage.SetLength(aMessage.GetLength() - ASCON_TAG_LENGTH);
 
   return OT_ERROR_NONE;
 }
