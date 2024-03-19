@@ -1368,6 +1368,11 @@ void TxFrame::ProcessTransmitAesCcm(const ExtAddress &aExtAddress)
   goto exit;
 #endif // NO_ENCRYPT_DECRYPT
 
+#if LIBASCON_128A
+    AsconDataEncrypt();
+    goto exit;
+#endif // LIBASCON_128A
+
 #if ASCON_DATA_ENCRYPT
     if (AsconDataEncrypt() == kErrorNone) {
       goto exit;
@@ -1520,6 +1525,11 @@ Error RxFrame::ProcessReceiveAesCcm(const ExtAddress &aExtAddress, const KeyMate
 
     SuccessOrExit(GetSecurityLevel(securityLevel));
     SuccessOrExit(GetFrameCounter(frameCounter));
+
+#if LIBASCON_128A
+    error = AsconDataDecrypt();
+    goto exit;
+#endif // LIBASCON_128A
 
 #if ASCON_DATA_DECRYPT
     error = AsconDataDecrypt(aMacKey);
