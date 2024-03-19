@@ -75,6 +75,11 @@ void Frame::CreateAsconNonce(void* aNonce) {
     otLogCritPlat("Failed to get Key ID.");
   };
 
+  uint32_t frameCounter = 0;
+  if (GetFrameCounter(frameCounter) != OT_ERROR_NONE) {
+    otLogCritPlat("Failed to use frame counter to create the nonce.");
+  }
+
 #if THREAD_ASCON_DEBUG
   otLogNotePlat("Sequence Number: %" PRIu8 "", sequenceNumber);
   otLogNotePlat("Key ID: %" PRIu8 "", keyId);
@@ -89,15 +94,7 @@ void Frame::CreateAsconNonce(void* aNonce) {
   memcpy(offset, &keyId, sizeof(uint8_t));
   offset += sizeof(uint8_t);
 
-  /**
-   * AesCcm::Finalize() generates the nonces by grabbing THE FIRST 4 BYTES OF
-   * THE FOOTER (i.e. GetFooterLength() - GetFcsSize() ). We do the same
-   * when generating the Associated Data.
-   *
-   * Looking at Wireshark, I believe the first 4 bytes of the footer
-   * is the MIC.
-  */
-  memcpy(offset, GetFooter(), GetFooterLength() - GetFcsSize());
+  BigEndian::WriteUint32(frameCounter, offset);
 
   return;
 }
@@ -112,13 +109,16 @@ Error TxFrame::AsconDataEncrypt() {
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
 
-#if THREAD_ASCON_DEBUG
+// #if THREAD_ASCON_DEBUG
   AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
+// #endif // THREAD_ASCON_DEBUG
 
   uint8_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t plaintextLength = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
+
+  // otLogNotePlat("Tag Length %" PRIu16 ".", tagLength);
+  // otLogNotePlat("Tag: %" PRIu64 ".", ((uint64_t *) GetFooter())[0]);
 
   ascon_aead128a_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
                          GetPayload(), assocDataLen, plaintextLength,
@@ -138,17 +138,20 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
 
-#if THREAD_ASCON_DEBUG
+// #if THREAD_ASCON_DEBUG
   AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
+// #endif // THREAD_ASCON_DEBUG
 
   uint16_t tagLength = GetFooterLength() - GetFcsSize();
-  uint16_t cipherLenNoTag = GetPayloadLength() - tagLength;
+  uint16_t ciphertextLen = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
+
+  // otLogNotePlat("Tag Length %" PRIu16 ".", tagLength);
+  // otLogNotePlat("Tag: %" PRIu64 ".", ((uint64_t *) GetFooter())[0]);
 
   bool status = ascon_aead128a_decrypt(GetPayload(), key, nonce, assocData,
                                        GetPayload(), GetFooter(), assocDataLen,
-                                       cipherLenNoTag, tagLength);
+                                       ciphertextLen, tagLength);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MAC).");
