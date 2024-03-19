@@ -93,6 +93,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   AsconDebugPrint(key, nonce, assocData);
 #endif // THREAD_ASCON_DEBUG
 
+  size_t assocDataLen = CRYPTO_ABYTES;
   uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
 
   // Read payload data from the Message.
@@ -106,7 +107,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 
   uint8_t *tagPointer = ciphertext + payloadLen;
   ascon_aead128a_encrypt(ciphertext, tagPointer, key, nonce, assocData,
-                         payload, CRYPTO_ABYTES, payloadLen,
+                         payload, assocDataLen, payloadLen,
                          CRYPTO_ABYTES);
 
   // Replace plaintext with ciphertext.
@@ -147,6 +148,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
   uint16_t cipherLenNoTag = cipherLenTotal - CRYPTO_ABYTES;
+  size_t assocDataLen = CRYPTO_ABYTES;
   uint16_t tagLen = CRYPTO_ABYTES;
 
   // Read the ciphertext payload.
@@ -164,7 +166,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   EmptyMemory(payload, plaintextLen);
 
   bool status = ascon_aead128a_decrypt(payload, key, nonce, assocData,
-                                       cipherNoTag, tag, CRYPTO_ABYTES,
+                                       cipherNoTag, tag, assocDataLen,
                                        cipherLenNoTag, tagLen);
 
   if (status == ASCON_TAG_INVALID) {
