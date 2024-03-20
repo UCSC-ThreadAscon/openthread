@@ -101,21 +101,18 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   EmptyMemory(plaintext, plaintextLen);
   aMessage.ReadBytes(aCmdOffset, plaintext, plaintextLen);
 
-  unsigned long long ciphertextLen = plaintextLen + ASCON_TAG_LENGTH;
-  uint8_t ciphertext[ciphertextLen];
-  EmptyMemory(ciphertext, ciphertextLen);
+  uint8_t ciphertext[plaintextLen];
+  EmptyMemory(ciphertext, plaintextLen);
 
-  uint8_t *tagPointer = ciphertext + plaintextLen;
-  ascon_aead128a_encrypt(ciphertext, tagPointer, key, nonce, assocData,
+  uint8_t tag[ASCON_TAG_LENGTH];
+  EmptyMemory(tag, ASCON_TAG_LENGTH);
+
+  ascon_aead128a_encrypt(ciphertext, tag, key, nonce, assocData,
                          plaintext, assocDataLen, plaintextLen,
                          ASCON_TAG_LENGTH);
 
   // Replace plaintext with ciphertext.
   aMessage.WriteBytes(aCmdOffset, ciphertext, plaintextLen);
-
-  uint8_t tag[ASCON_TAG_LENGTH];
-  uint8_t *tagOffset = ciphertext + plaintextLen;
-  memcpy(&tag, tagOffset, ASCON_TAG_LENGTH);
 
   // Add the ASCON tag at the end of the ciphertext.
   error = aMessage.Append(tag);
