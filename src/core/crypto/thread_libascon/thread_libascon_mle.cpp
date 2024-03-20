@@ -69,7 +69,7 @@ namespace ot
 namespace Mle
 {
 
-#define ASCON_TAG_LENGTH CRYPTO_ABYTES
+#define ASCON_TAG_LENGTH 16
 
 Error Mle::AsconMleEncrypt(Message                &aMessage,
                            const Ip6::MessageInfo &aMessageInfo,
@@ -178,7 +178,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   // Replace ciphertext with plaintext.
   aMessage.WriteBytes(aCmdOffset, payload, plaintextLen);
 
-  // The `CRYPTO_ABYTES` of memory for the tag is not needed for plaintext.
+  // The tag is not needed in the plaintext payload.
   aMessage.SetLength(aMessage.GetLength() - ASCON_TAG_LENGTH);
 
   return OT_ERROR_NONE;
