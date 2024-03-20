@@ -111,6 +111,9 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
                          plaintext, assocDataLen, plaintextLen,
                          ASCON_TAG_LENGTH);
 
+  otLogNotePlat("Tag Length: %d", ASCON_TAG_LENGTH);
+  otLogNotePlat("Tag bytes: %" PRIu32 "", ((uint32_t *) tag)[0]);
+
   // Replace plaintext with ciphertext.
   aMessage.WriteBytes(aCmdOffset, ciphertext, plaintextLen);
 
@@ -156,6 +159,9 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   uint8_t tag[ASCON_TAG_LENGTH];
   EmptyMemory(tag, ASCON_TAG_LENGTH);
   aMessage.ReadBytes(aCmdOffset + cipherLenNoTag, tag, ASCON_TAG_LENGTH);
+
+  otLogNotePlat("Tag Length: %d", ASCON_TAG_LENGTH);
+  otLogNotePlat("Tag bytes: %" PRIu32 "", ((uint32_t *) tag)[0]);
 
   unsigned long long plaintextLen = cipherLenNoTag;
   uint8_t plaintext[plaintextLen];
