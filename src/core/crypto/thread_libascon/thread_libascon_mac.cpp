@@ -150,8 +150,6 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MAC).");
     return OT_ERROR_SECURITY;
-  } else {
-    otLogNotePlat("Valid ASCON ciphertext (LibAscon - MAC).");
   }
 
   return OT_ERROR_NONE;
