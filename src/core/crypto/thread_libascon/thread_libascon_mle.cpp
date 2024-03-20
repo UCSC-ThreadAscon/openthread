@@ -161,10 +161,10 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   aMessage.ReadBytes(aCmdOffset + cipherLenNoTag, tag, ASCON_TAG_LENGTH);
 
   unsigned long long plaintextLen = cipherLenNoTag;
-  uint8_t payload[plaintextLen];
-  EmptyMemory(payload, plaintextLen);
+  uint8_t plaintext[plaintextLen];
+  EmptyMemory(plaintext, plaintextLen);
 
-  bool status = ascon_aead128a_decrypt(payload, key, nonce, assocData,
+  bool status = ascon_aead128a_decrypt(plaintext, key, nonce, assocData,
                                        cipherNoTag, tag, assocDataLen,
                                        cipherLenNoTag, ASCON_TAG_LENGTH);
 
@@ -176,7 +176,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   }
 
   // Replace ciphertext with plaintext.
-  aMessage.WriteBytes(aCmdOffset, payload, plaintextLen);
+  aMessage.WriteBytes(aCmdOffset, plaintext, plaintextLen);
 
   // The tag is not needed in the plaintext payload.
   aMessage.SetLength(aMessage.GetLength() - ASCON_TAG_LENGTH);
