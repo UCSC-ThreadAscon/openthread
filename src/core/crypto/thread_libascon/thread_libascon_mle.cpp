@@ -94,27 +94,27 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 #endif // THREAD_ASCON_DEBUG
 
   size_t assocDataLen = CRYPTO_ABYTES;
-  uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
+  uint16_t plaintextLen = aMessage.GetLength() - aCmdOffset;
 
-  // Read payload data from the Message.
-  uint8_t payload[payloadLen];
-  EmptyMemory(payload, payloadLen);
-  aMessage.ReadBytes(aCmdOffset, payload, payloadLen);
+  // Read plaintext data from the Message.
+  uint8_t plaintext[plaintextLen];
+  EmptyMemory(plaintext, plaintextLen);
+  aMessage.ReadBytes(aCmdOffset, plaintext, plaintextLen);
 
-  unsigned long long expectedCipherLen = payloadLen + ASCON_TAG_LENGTH;
-  uint8_t ciphertext[expectedCipherLen];
-  EmptyMemory(ciphertext, expectedCipherLen);
+  unsigned long long ciphertextLen = plaintextLen + ASCON_TAG_LENGTH;
+  uint8_t ciphertext[ciphertextLen];
+  EmptyMemory(ciphertext, ciphertextLen);
 
-  uint8_t *tagPointer = ciphertext + payloadLen;
+  uint8_t *tagPointer = ciphertext + plaintextLen;
   ascon_aead128a_encrypt(ciphertext, tagPointer, key, nonce, assocData,
-                         payload, assocDataLen, payloadLen,
+                         plaintext, assocDataLen, plaintextLen,
                          ASCON_TAG_LENGTH);
 
   // Replace plaintext with ciphertext.
-  aMessage.WriteBytes(aCmdOffset, ciphertext, payloadLen);
+  aMessage.WriteBytes(aCmdOffset, ciphertext, plaintextLen);
 
   uint8_t tag[ASCON_TAG_LENGTH];
-  uint8_t *tagOffset = ciphertext + payloadLen;
+  uint8_t *tagOffset = ciphertext + plaintextLen;
   memcpy(&tag, tagOffset, ASCON_TAG_LENGTH);
 
   // Add the ASCON tag at the end of the ciphertext.
