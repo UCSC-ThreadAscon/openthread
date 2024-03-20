@@ -69,7 +69,7 @@ namespace ot
 namespace Mle
 {
 
-#define ASCON_TAG_LENGTH 16
+#define ASCON_TAG_LENGTH 4
 
 Error Mle::AsconMleEncrypt(Message                &aMessage,
                            const Ip6::MessageInfo &aMessageInfo,
@@ -147,7 +147,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 #endif // THREAD_ASCON_DEBUG
 
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
-  uint16_t cipherLenNoTag = cipherLenTotal - CRYPTO_ABYTES;
+  uint16_t cipherLenNoTag = cipherLenTotal - ASCON_TAG_LENGTH;
   size_t assocDataLen = CRYPTO_ABYTES;
 
   // Read the ciphertext payload.
