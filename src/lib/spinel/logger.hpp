@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2022, The OpenThread Authors.
+ *  Copyright (c) 2024, The OpenThread Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -26,29 +26,44 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * @file
- *   This file includes definitions for Thread Version.
- */
-
-#ifndef VERSION_HPP_
-#define VERSION_HPP_
+#ifndef SPINEL_LOGGER_HPP_
+#define SPINEL_LOGGER_HPP_
 
 #include "openthread-core-config.h"
 
-#include <stdint.h>
+#include <openthread/error.h>
+#include <openthread/platform/toolchain.h>
+
+#include "ncp/ncp_config.h"
 
 namespace ot {
+namespace Spinel {
 
-constexpr uint16_t kThreadVersion = OPENTHREAD_CONFIG_THREAD_VERSION; ///< Thread Version of this device.
+class Logger
+{
+protected:
+    explicit Logger(const char *aModuleName);
 
-constexpr uint16_t kThreadVersion1p1 = OT_THREAD_VERSION_1_1; ///< Thread Version 1.1
-constexpr uint16_t kThreadVersion1p2 = OT_THREAD_VERSION_1_2; ///< Thread Version 1.2
-constexpr uint16_t kThreadVersion1p3 = OT_THREAD_VERSION_1_3; ///< Thread Version 1.3
-// Support projects on legacy "1.3.1" version, which is now "1.4"
-constexpr uint16_t kThreadVersion1p3p1 = OT_THREAD_VERSION_1_3_1; ///< Thread Version 1.3.1
-constexpr uint16_t kThreadVersion1p4   = OT_THREAD_VERSION_1_4;   ///< Thread Version 1.4
+    void LogIfFail(const char *aText, otError aError);
 
+    void LogCrit(const char *aFormat, ...) OT_TOOL_PRINTF_STYLE_FORMAT_ARG_CHECK(2, 3);
+    void LogWarn(const char *aFormat, ...) OT_TOOL_PRINTF_STYLE_FORMAT_ARG_CHECK(2, 3);
+    void LogNote(const char *aFormat, ...) OT_TOOL_PRINTF_STYLE_FORMAT_ARG_CHECK(2, 3);
+    void LogInfo(const char *aFormat, ...) OT_TOOL_PRINTF_STYLE_FORMAT_ARG_CHECK(2, 3);
+    void LogDebg(const char *aFormat, ...) OT_TOOL_PRINTF_STYLE_FORMAT_ARG_CHECK(2, 3);
+
+    uint32_t Snprintf(char *aDest, uint32_t aSize, const char *aFormat, ...);
+    void     LogSpinelFrame(const uint8_t *aFrame, uint16_t aLength, bool aTx);
+
+    enum
+    {
+        kChannelMaskBufferSize = 32, ///< Max buffer size used to store `SPINEL_PROP_PHY_CHAN_SUPPORTED` value.
+    };
+
+    const char *mModuleName;
+};
+
+} // namespace Spinel
 } // namespace ot
 
-#endif // VERSION_HPP_
+#endif // SPINEL_LOG_HPP_
