@@ -11,7 +11,7 @@
 #include "crypto/ascon128av12_ref/api.hpp"
 #endif
 
-// #if LIBASCON_128A
+// #if LIBASCON
 #include "crypto/libascon/ascon.h"
 #include "crypto/libascon/ascon_internal.h"
 // #endif
