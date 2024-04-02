@@ -11,10 +11,10 @@
 #include "crypto/ascon128av12_ref/api.hpp"
 #endif
 
-// #if LIBASCON
+#if LIBASCON
 #include "crypto/libascon/ascon.h"
 #include "crypto/libascon/ascon_internal.h"
-// #endif
+#endif
 
 #include "crypto/aes_ccm.hpp"
 #include "error.h"
@@ -79,7 +79,7 @@ void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
  * @param[in] plaintext_len
  * @param[in] tag_len
 */
-// #if LIBASCON
+#if LIBASCON
 void libascon_encrypt(uint8_t* ciphertext,
                       uint8_t* tag,
                       const uint8_t key[ASCON_AEAD128a_KEY_LEN],
@@ -89,14 +89,14 @@ void libascon_encrypt(uint8_t* ciphertext,
                       size_t assoc_data_len,
                       size_t plaintext_len,
                       size_t tag_len);
-// #endif
+#endif
 
 /**
  * Determines which LibAscon AEAD decryption function to use.
  * Look at `crypto/libascon` for the function API Details.
  *
 */
-// #if LIBASCON
+#if LIBASCON
 bool libascon_decrypt(uint8_t* plaintext,
                       const uint8_t key[ASCON_AEAD128a_KEY_LEN],
                       const uint8_t nonce[ASCON_AEAD_NONCE_LEN],
@@ -106,7 +106,7 @@ bool libascon_decrypt(uint8_t* plaintext,
                       size_t assoc_data_len,
                       size_t ciphertext_len,
                       size_t expected_tag_len);
-// #endif
+#endif
 
 /**
  * The encryption function prototype for the ASCON C reference implementations.
