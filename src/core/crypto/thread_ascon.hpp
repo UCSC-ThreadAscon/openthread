@@ -97,7 +97,7 @@ void libascon_encrypt(uint8_t* ciphertext,
  *
 */
 // #if LIBASCON
-void libascon_decrypt(uint8_t* plaintext,
+bool libascon_decrypt(uint8_t* plaintext,
                       const uint8_t key[ASCON_AEAD128a_KEY_LEN],
                       const uint8_t nonce[ASCON_AEAD_NONCE_LEN],
                       const uint8_t* assoc_data,
