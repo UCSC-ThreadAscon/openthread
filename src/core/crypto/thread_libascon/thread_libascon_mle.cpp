@@ -89,10 +89,6 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
-#if THREAD_ASCON_DEBUG
-  AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
-
   size_t assocDataLen = CRYPTO_ABYTES;
   uint16_t plaintextLen = aMessage.GetLength() - aCmdOffset;
 
@@ -138,10 +134,6 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
-
-#if THREAD_ASCON_DEBUG
-  AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
 
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
   uint16_t cipherLenNoTag = cipherLenTotal - ASCON_TAG_LENGTH;

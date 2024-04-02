@@ -89,10 +89,6 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
-#if THREAD_ASCON_DEBUG
-  AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
-
   uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
 
   // Read payload data from the Message.
@@ -144,10 +140,6 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   unsigned char nonce[CRYPTO_NPUBBYTES];
   createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
-
-#if THREAD_ASCON_DEBUG
-  AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
 
   uint16_t cipherLen = aMessage.GetLength() - aCmdOffset;
 

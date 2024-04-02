@@ -1512,10 +1512,6 @@ Error RxFrame::ProcessReceiveAesCcm(const ExtAddress &aExtAddress, const KeyMate
     uint8_t        tagLength;
     Crypto::AesCcm aesCcm;
 
-#if THREAD_ASCON_DEBUG
-    dataDecryptPrintReceived();
-#endif // THREAD_ASCON_DEBUG
-
 #if NO_ENCRYPT_DECRYPT
     error = kErrorNone;
     goto exit;

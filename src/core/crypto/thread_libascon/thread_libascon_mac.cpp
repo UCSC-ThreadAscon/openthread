@@ -80,12 +80,6 @@ void Frame::CreateAsconNonce(void* aNonce) {
     otLogCritPlat("Failed to use frame counter to create the nonce.");
   }
 
-#if THREAD_ASCON_DEBUG
-  otLogNotePlat("Sequence Number: %" PRIu8 "", sequenceNumber);
-  otLogNotePlat("Key ID: %" PRIu8 "", keyId);
-  otLogNotePlat("Footer Bits: %" PRIu32 "", ((uint32_t *) GetFooter())[0]);
-#endif // THREAD_ASCON_DEBUG
-
   uint8_t *offset = (uint8_t *) aNonce;
 
   memcpy(offset, &sequenceNumber, sizeof(uint8_t));
@@ -109,10 +103,6 @@ Error TxFrame::AsconDataEncrypt() {
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
 
-#if THREAD_ASCON_DEBUG
-  AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
-
   uint8_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t plaintextLength = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
@@ -134,10 +124,6 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
-
-#if THREAD_ASCON_DEBUG
-  AsconDebugPrint(key, nonce, assocData);
-#endif // THREAD_ASCON_DEBUG
 
   uint16_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t ciphertextLen = GetPayloadLength();
