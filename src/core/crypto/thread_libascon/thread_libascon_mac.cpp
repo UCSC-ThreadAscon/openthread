@@ -117,9 +117,9 @@ Error TxFrame::AsconDataEncrypt() {
   uint16_t plaintextLength = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
 
-  ascon_aead128a_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
-                         GetPayload(), assocDataLen, plaintextLength,
-                         tagLength);
+  libascon_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
+                   GetPayload(), assocDataLen, plaintextLength,
+                   tagLength);
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
@@ -143,9 +143,9 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   uint16_t ciphertextLen = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
 
-  bool status = ascon_aead128a_decrypt(GetPayload(), key, nonce, assocData,
-                                       GetPayload(), GetFooter(), assocDataLen,
-                                       ciphertextLen, tagLength);
+  bool status = libascon_decrypt(GetPayload(), key, nonce, assocData,
+                                 GetPayload(), GetFooter(), assocDataLen,
+                                 ciphertextLen, tagLength);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MAC).");

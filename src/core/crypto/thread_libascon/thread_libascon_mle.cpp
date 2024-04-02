@@ -107,9 +107,9 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   uint8_t tag[ASCON_TAG_LENGTH];
   EmptyMemory(tag, ASCON_TAG_LENGTH);
 
-  ascon_aead128a_encrypt(ciphertext, tag, key, nonce, assocData,
-                         plaintext, assocDataLen, plaintextLen,
-                         ASCON_TAG_LENGTH);
+  libascon_encrypt(ciphertext, tag, key, nonce, assocData,
+                   plaintext, assocDataLen, plaintextLen,
+                   ASCON_TAG_LENGTH);
 
   // Replace plaintext with ciphertext.
   aMessage.WriteBytes(aCmdOffset, ciphertext, plaintextLen);
@@ -161,9 +161,9 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   uint8_t plaintext[plaintextLen];
   EmptyMemory(plaintext, plaintextLen);
 
-  bool status = ascon_aead128a_decrypt(plaintext, key, nonce, assocData,
-                                       cipherNoTag, tag, assocDataLen,
-                                       cipherLenNoTag, ASCON_TAG_LENGTH);
+  bool status = libascon_decrypt(plaintext, key, nonce, assocData,
+                                 cipherNoTag, tag, assocDataLen,
+                                 cipherLenNoTag, ASCON_TAG_LENGTH);
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MLE).");
