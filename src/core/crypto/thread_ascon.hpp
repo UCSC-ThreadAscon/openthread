@@ -67,6 +67,48 @@ void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
   otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0]);                  \
 
 /**
+ * Determines which LibAscon AEAD encryption function to use.
+ * Look at `crypto/libascon` for the function API Details.
+ *
+ * @param[out] ciphertext
+ * @param[out] tag
+ * @param[in] key
+ * @param[in] assoc_data
+ * @param[in] plaintext
+ * @param[in] assoc_data_len
+ * @param[in] plaintext_len
+ * @param[in] tag_len
+*/
+// #if LIBASCON
+void libascon_encrypt(uint8_t* ciphertext,
+                      uint8_t* tag,
+                      const uint8_t key[ASCON_AEAD128a_KEY_LEN],
+                      const uint8_t nonce[ASCON_AEAD_NONCE_LEN],
+                      const uint8_t* assoc_data,
+                      const uint8_t* plaintext,
+                      size_t assoc_data_len,
+                      size_t plaintext_len,
+                      size_t tag_len);
+// #endif
+
+/**
+ * Determines which LibAscon AEAD decryption function to use.
+ * Look at `crypto/libascon` for the function API Details.
+ *
+*/
+// #if LIBASCON
+void libascon_decrypt(uint8_t* plaintext,
+                      const uint8_t key[ASCON_AEAD128a_KEY_LEN],
+                      const uint8_t nonce[ASCON_AEAD_NONCE_LEN],
+                      const uint8_t* assoc_data,
+                      const uint8_t* ciphertext,
+                      const uint8_t* expected_tag,
+                      size_t assoc_data_len,
+                      size_t ciphertext_len,
+                      size_t expected_tag_len);
+// #endif
+
+/**
  * The encryption function prototype for the ASCON C reference implementations.
  *
  * For the source code behind this function, visit:
