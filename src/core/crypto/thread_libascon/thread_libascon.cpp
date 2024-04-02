@@ -31,13 +31,15 @@ bool libascon_decrypt(uint8_t* plaintext,
                       size_t expected_tag_len)
 {
 #if LIBASCON_128A
-  ascon_aead128a_decrypt(plaintext, key, nonce, assoc_data, ciphertext,
+  return ascon_aead128a_decrypt(plaintext, key, nonce, assoc_data, ciphertext,
                          expected_tag, assoc_data_len, ciphertext_len,
                          expected_tag_len);
 #elif LIBASCON_128
-  ascon_aead128_decrypt(plaintext, key, nonce, assoc_data, ciphertext,
+  return ascon_aead128_decrypt(plaintext, key, nonce, assoc_data, ciphertext,
                          expected_tag, assoc_data_len, ciphertext_len,
                          expected_tag_len);
+#else
+  otLogCritPlat("Failed to do LibAscon Decrypt: Unreachable Code.");
+  return false;
 #endif
-  return;
 }
