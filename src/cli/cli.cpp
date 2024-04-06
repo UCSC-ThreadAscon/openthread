@@ -8692,19 +8692,9 @@ extern "C" void otCliInit(otInstance *aInstance, otCliOutputCallback aCallback, 
 {
     Interpreter::Initialize(aInstance, aCallback, aContext);
 
-/**
- * ---- UCSC Thread-ASCON Note ----
- *
- * To the best of my knowledge, ESP-IDF does not support the ability to change the flags
- * `OPENTHREAD_CONFIG_CLI_VENDOR_COMMANDS_ENABLE` and `OPENTHREAD_CONFIG_CLI_MAX_USER_CMD_ENTRIES`.
- *
- * However, I need to create custom commands to run my experiments. As a result, I have commented out
- * these flags in order to enable me to create custom commands by using the `otCliVendorSetUserCommands()`
- * handler.
-*/
-// #if OPENTHREAD_CONFIG_CLI_VENDOR_COMMANDS_ENABLE && OPENTHREAD_CONFIG_CLI_MAX_USER_CMD_ENTRIES > 1
+#if OPENTHREAD_CONFIG_CLI_VENDOR_COMMANDS_ENABLE && OPENTHREAD_CONFIG_CLI_MAX_USER_CMD_ENTRIES > 1
     otCliVendorSetUserCommands();
-// #endif
+#endif
 }
 
 extern "C" void otCliInputLine(char *aBuf) { Interpreter::GetInterpreter().ProcessLine(aBuf); }
