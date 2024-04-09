@@ -102,9 +102,13 @@
  *
  * The maximum number of user CLI command lists that can be registered by the interpreter.
  *
+ *  ---- UCSC Thread-ASCON Notes ----
+ *
+ *  Going to enable vendor commands so I can create custom CLI commands
+ *  for my experimental setup.
  */
 #ifndef OPENTHREAD_CONFIG_CLI_MAX_USER_CMD_ENTRIES
-#define OPENTHREAD_CONFIG_CLI_MAX_USER_CMD_ENTRIES 1
+#define OPENTHREAD_CONFIG_CLI_MAX_USER_CMD_ENTRIES 10
 #endif
 
 /**
@@ -114,9 +118,13 @@
  *
  * This is to be used only when `OPENTHREAD_CONFIG_CLI_MAX_USER_CMD_ENTRIES` is greater than 1.
  *
+ *  ---- UCSC Thread-ASCON Notes ----
+ *
+ *  Going to enable vendor commands so I can create custom CLI commands
+ *  for my experimental setup.
  */
 #ifndef OPENTHREAD_CONFIG_CLI_VENDOR_COMMANDS_ENABLE
-#define OPENTHREAD_CONFIG_CLI_VENDOR_COMMANDS_ENABLE 0
+#define OPENTHREAD_CONFIG_CLI_VENDOR_COMMANDS_ENABLE 1
 #endif
 
 /**
