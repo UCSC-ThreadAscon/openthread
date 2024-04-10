@@ -2399,7 +2399,7 @@ Error Mle::ProcessMessageSecurity(Crypto::AesCcm::Mode    aMode,
     if (aMode == Crypto::AesCcm::kDecrypt)
     {
         // Skip decrypting the message under fuzz build mode
-        IgnoreError(aMessage.SetLength(aMessage.GetLength() - kMleSecurityTagSize));
+        aMessage.RemoveFooter(kMleSecurityTagSize);
         ExitNow();
     }
 #endif
@@ -2414,7 +2414,7 @@ Error Mle::ProcessMessageSecurity(Crypto::AesCcm::Mode    aMode,
     else
     {
         VerifyOrExit(aMessage.Compare(aMessage.GetLength() - kMleSecurityTagSize, tag), error = kErrorSecurity);
-        IgnoreError(aMessage.SetLength(aMessage.GetLength() - kMleSecurityTagSize));
+        aMessage.RemoveFooter(kMleSecurityTagSize);
     }
 
 exit:
@@ -4444,10 +4444,7 @@ void Mle::DelayedResponseMetadata::ReadFrom(const Message &aMessage)
     IgnoreError(aMessage.Read(length - sizeof(*this), *this));
 }
 
-void Mle::DelayedResponseMetadata::RemoveFrom(Message &aMessage) const
-{
-    SuccessOrAssert(aMessage.SetLength(aMessage.GetLength() - sizeof(*this)));
-}
+void Mle::DelayedResponseMetadata::RemoveFrom(Message &aMessage) const { aMessage.RemoveFooter(sizeof(*this)); }
 
 //---------------------------------------------------------------------------------------------------------------------
 // TxMessage
