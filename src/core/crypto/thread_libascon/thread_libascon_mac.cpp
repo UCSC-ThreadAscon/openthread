@@ -120,6 +120,7 @@ Error TxFrame::AsconDataEncrypt() {
                    tagLength);
 
 #if HEX_DUMP_DEBUG
+  hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
   hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
 
