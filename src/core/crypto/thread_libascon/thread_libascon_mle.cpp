@@ -2,6 +2,8 @@
 #include "thread/mle.hpp"
 #include "mac/mac_types.hpp"
 
+#include "hexdump.hpp"
+
 #include <inttypes.h>
 
 /**
@@ -89,6 +91,12 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
+#if ASCON_MLE_ENCRYPT_HEX_DUMP
+  hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
+  hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+#endif
+
   size_t assocDataLen = CRYPTO_ABYTES;
   uint16_t plaintextLen = aMessage.GetLength() - aCmdOffset;
 
@@ -115,6 +123,11 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   if (error == kErrorNoBufs) {
     otLogCritPlat("Cannot grow message to add tag in MLE packet.");
   }
+
+#if ASCON_MLE_ENCRYPT_HEX_DUMP
+  hexDump((void *) ciphertext, plaintextLen, "Ciphertext Bytes (no tag)");
+  hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
+#endif
 
   return error;
 }
