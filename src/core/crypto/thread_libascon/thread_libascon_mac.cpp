@@ -106,7 +106,7 @@ Error TxFrame::AsconDataEncrypt() {
   CreateAsconNonce(nonce);
 
 #if HEX_DUMP_DEBUG
-  hexDumpKey((void *) key);
+  hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
 #endif
 
   uint8_t tagLength = GetFooterLength() - GetFcsSize();

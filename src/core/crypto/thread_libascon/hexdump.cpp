@@ -20,15 +20,14 @@ void printHexDump(otLogHexDumpInfo *aInfo) {
   return;
 }
 
-void hexDumpKey(void *asconKey) {
+void hexDump(void *data, uint16_t dataLength, const char* title) {
   otLogHexDumpInfo keyHexDump;
   EmptyMemory(&keyHexDump, sizeof(otLogHexDumpInfo));
 
-  keyHexDump.mDataBytes = (uint8_t *) asconKey;
-  keyHexDump.mDataLength = OT_NETWORK_KEY_SIZE;
-  keyHexDump.mTitle = "Thread Network Key Bytes";
+  keyHexDump.mDataBytes = (uint8_t *) data;
+  keyHexDump.mDataLength = dataLength;
+  keyHexDump.mTitle = title;
 
-  otLogNotePlat("Supposed to generate hex dump.");
   printHexDump(&keyHexDump);
   return;
 }
