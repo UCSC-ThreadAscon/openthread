@@ -5,6 +5,8 @@
 #include "mac/mac_frame.hpp"
 #include "mac/mac_types.hpp"
 
+#include "hexdump.hpp"
+
 #include <inttypes.h>
 
 void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey, void *asconKey) {
@@ -102,6 +104,10 @@ Error TxFrame::AsconDataEncrypt() {
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
+
+#if HEX_DUMP_DEBUG
+  hexDumpKey((void *) key);
+#endif
 
   uint8_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t plaintextLength = GetPayloadLength();
