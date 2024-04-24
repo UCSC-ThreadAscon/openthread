@@ -105,7 +105,7 @@ Error TxFrame::AsconDataEncrypt() {
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
 
-#if HEX_DUMP_DEBUG
+#if ASCON_128_MAC_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
   hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
@@ -119,7 +119,7 @@ Error TxFrame::AsconDataEncrypt() {
                    GetPayload(), assocDataLen, plaintextLength,
                    tagLength);
 
-#if HEX_DUMP_DEBUG
+#if ASCON_128_MAC_HEX_DUMP
   hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
   hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
