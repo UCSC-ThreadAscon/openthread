@@ -1,8 +1,5 @@
 #include "hexdump.hpp"
 
-#include <openthread/logging.h>
-#include "crypto/thread_ascon.hpp"
-
 void printHexDump(otLogHexDumpInfo *aInfo) {
   otError error = OT_ERROR_NONE;
 
