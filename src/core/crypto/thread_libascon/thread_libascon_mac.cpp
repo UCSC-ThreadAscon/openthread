@@ -107,6 +107,8 @@ Error TxFrame::AsconDataEncrypt() {
 
 #if HEX_DUMP_DEBUG
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
+  hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
 #endif
 
   uint8_t tagLength = GetFooterLength() - GetFcsSize();
@@ -116,6 +118,10 @@ Error TxFrame::AsconDataEncrypt() {
   libascon_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
                    GetPayload(), assocDataLen, plaintextLength,
                    tagLength);
+
+#if HEX_DUMP_DEBUG
+  hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
+#endif
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
