@@ -5,6 +5,8 @@
 #include "mac/mac_frame.hpp"
 #include "mac/mac_types.hpp"
 
+#include "hexdump.hpp"
+
 #include <inttypes.h>
 
 void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey, void *asconKey) {
@@ -103,6 +105,12 @@ Error TxFrame::AsconDataEncrypt() {
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(nonce);
 
+#if ASCON_MAC_ENCRYPT_HEX_DUMP
+  hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
+  hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+#endif
+
   uint8_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t plaintextLength = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
@@ -110,6 +118,11 @@ Error TxFrame::AsconDataEncrypt() {
   libascon_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
                    GetPayload(), assocDataLen, plaintextLength,
                    tagLength);
+
+#if ASCON_MAC_ENCRYPT_HEX_DUMP
+  hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
+  hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
+#endif
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
