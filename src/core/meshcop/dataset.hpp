@@ -253,6 +253,20 @@ public:
     bool IsValid(void) const;
 
     /**
+     * Validates the format and value of a given MeshCoP TLV used in Dataset.
+     *
+     * TLV types that can appear in an Active or Pending Operational Dataset are validated. Other TLV types including
+     * unknown TLV types are considered as valid.
+     *
+     * @param[in]  aTlv    The TLV to validate.
+     *
+     * @retval  TRUE       The TLV format and value is valid, or TLV type is unknown (not supported in Dataset).
+     * @retval  FALSE      The TLV format or value is invalid.
+     *
+     */
+    static bool IsTlvValid(const Tlv &aTlv);
+
+    /**
      * Indicates whether or not a given TLV type is present in the Dataset.
      *
      * @param[in] aType  The TLV type to check.
@@ -296,6 +310,58 @@ public:
      *
      */
     const Tlv *FindTlv(Tlv::Type aType) const;
+
+    /**
+     * Finds and reads a simple TLV in the Dataset.
+     *
+     * If the specified TLV type is not found, `kErrorNotFound` is reported.
+     *
+     * @tparam  SimpleTlvType   The simple TLV type (must be a sub-class of `SimpleTlvInfo`).
+     *
+     * @param[out] aValue       A reference to return the read TLV value.
+     *
+     * @retval kErrorNone      Successfully found and read the TLV value. @p aValue is updated.
+     * @retval kErrorNotFound  Could not find the TLV in the Dataset.
+     *
+     */
+    template <typename SimpleTlvType> Error Read(typename SimpleTlvType::ValueType &aValue) const
+    {
+        const Tlv *tlv = FindTlv(static_cast<Tlv::Type>(SimpleTlvType::kType));
+
+        return (tlv == nullptr) ? kErrorNotFound : (aValue = tlv->ReadValueAs<SimpleTlvType>(), kErrorNone);
+    }
+
+    /**
+     * Finds and reads an `uint` TLV in the Dataset.
+     *
+     * If the specified TLV type is not found, `kErrorNotFound` is reported.
+     *
+     * @tparam  UintTlvType     The integer simple TLV type (must be a sub-class of `UintTlvInfo`).
+     *
+     * @param[out] aValue       A reference to return the read TLV value.
+     *
+     * @retval kErrorNone      Successfully found and read the TLV value. @p aValue is updated.
+     * @retval kErrorNotFound  Could not find the TLV in the Dataset.
+     *
+     */
+    template <typename UintTlvType> Error Read(typename UintTlvType::UintValueType &aValue) const
+    {
+        const Tlv *tlv = FindTlv(static_cast<Tlv::Type>(UintTlvType::kType));
+
+        return (tlv == nullptr) ? kErrorNotFound : (aValue = tlv->ReadValueAs<UintTlvType>(), kErrorNone);
+    }
+
+    /**
+     * Reads the Timestamp (Active or Pending).
+     *
+     * @param[in]  aType       The type: active or pending.
+     * @param[out] aTimestamp  A reference to a `Timestamp` to output the value.
+     *
+     * @retval kErrorNone      Timestamp was read successfully. @p aTimestamp is updated.
+     * @retval kErrorNotFound  Could not find the requested Timestamp TLV.
+     *
+     */
+    Error ReadTimestamp(Type aType, Timestamp &aTimestamp) const;
 
     /**
      * Writes a TLV to the Dataset.
@@ -428,27 +494,6 @@ public:
      *
      */
     TimeMilli GetUpdateTime(void) const { return mUpdateTime; }
-
-    /**
-     * Gets the Timestamp (Active or Pending).
-     *
-     * @param[in]  aType       The type: active or pending.
-     * @param[out] aTimestamp  A reference to a `Timestamp` to output the value.
-     *
-     * @retval kErrorNone      Timestamp was read successfully. @p aTimestamp is updated.
-     * @retval kErrorNotFound  Could not find the requested Timestamp TLV.
-     *
-     */
-    Error GetTimestamp(Type aType, Timestamp &aTimestamp) const;
-
-    /**
-     * Sets the Timestamp value.
-     *
-     * @param[in] aType        The type: active or pending.
-     * @param[in] aTimestamp   A Timestamp.
-     *
-     */
-    void SetTimestamp(Type aType, const Timestamp &aTimestamp);
 
     /**
      * Reads the Dataset from a given message and checks that it is well-formed and valid.

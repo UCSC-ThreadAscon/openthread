@@ -172,12 +172,62 @@ bool Dataset::IsValid(void) const
 
     for (const Tlv *cur = GetTlvsStart(); cur < end; cur = cur->GetNext())
     {
-        VerifyOrExit(!cur->IsExtended() && (cur + 1) <= end && cur->GetNext() <= end && Tlv::IsValid(*cur),
-                     rval = false);
+        VerifyOrExit(!cur->IsExtended() && (cur + 1) <= end && cur->GetNext() <= end && IsTlvValid(*cur), rval = false);
     }
 
 exit:
     return rval;
+}
+
+bool Dataset::IsTlvValid(const Tlv &aTlv)
+{
+    bool    isValid   = true;
+    uint8_t minLength = 0;
+
+    switch (aTlv.GetType())
+    {
+    case Tlv::kPanId:
+        minLength = sizeof(PanIdTlv::UintValueType);
+        break;
+    case Tlv::kExtendedPanId:
+        minLength = sizeof(ExtendedPanIdTlv::ValueType);
+        break;
+    case Tlv::kPskc:
+        minLength = sizeof(PskcTlv::ValueType);
+        break;
+    case Tlv::kNetworkKey:
+        minLength = sizeof(NetworkKeyTlv::ValueType);
+        break;
+    case Tlv::kMeshLocalPrefix:
+        minLength = sizeof(MeshLocalPrefixTlv::ValueType);
+        break;
+    case Tlv::kChannel:
+        VerifyOrExit(aTlv.GetLength() >= sizeof(ChannelTlvValue), isValid = false);
+        isValid = aTlv.ReadValueAs<ChannelTlv>().IsValid();
+        break;
+    case Tlv::kNetworkName:
+        isValid = As<NetworkNameTlv>(aTlv).IsValid();
+        break;
+
+    case Tlv::kSecurityPolicy:
+        isValid = As<SecurityPolicyTlv>(aTlv).IsValid();
+        break;
+
+    case Tlv::kChannelMask:
+        isValid = As<ChannelMaskTlv>(aTlv).IsValid();
+        break;
+
+    default:
+        break;
+    }
+
+    if (minLength > 0)
+    {
+        isValid = (aTlv.GetLength() >= minLength);
+    }
+
+exit:
+    return isValid;
 }
 
 const Tlv *Dataset::FindTlv(Tlv::Type aType) const { return As<Tlv>(Tlv::FindTlv(mTlvs, mLength, aType)); }
@@ -365,38 +415,9 @@ Error Dataset::SetFrom(const Info &aDatasetInfo)
     return error;
 }
 
-Error Dataset::GetTimestamp(Type aType, Timestamp &aTimestamp) const
+Error Dataset::ReadTimestamp(Type aType, Timestamp &aTimestamp) const
 {
-    Error      error = kErrorNone;
-    const Tlv *tlv;
-
-    if (aType == kActive)
-    {
-        tlv = FindTlv(Tlv::kActiveTimestamp);
-        VerifyOrExit(tlv != nullptr, error = kErrorNotFound);
-        aTimestamp = tlv->ReadValueAs<ActiveTimestampTlv>();
-    }
-    else
-    {
-        tlv = FindTlv(Tlv::kPendingTimestamp);
-        VerifyOrExit(tlv != nullptr, error = kErrorNotFound);
-        aTimestamp = tlv->ReadValueAs<PendingTimestampTlv>();
-    }
-
-exit:
-    return error;
-}
-
-void Dataset::SetTimestamp(Type aType, const Timestamp &aTimestamp)
-{
-    if (aType == kActive)
-    {
-        IgnoreError(Write<ActiveTimestampTlv>(aTimestamp));
-    }
-    else
-    {
-        IgnoreError(Write<PendingTimestampTlv>(aTimestamp));
-    }
+    return (aType == kActive) ? Read<ActiveTimestampTlv>(aTimestamp) : Read<PendingTimestampTlv>(aTimestamp);
 }
 
 Error Dataset::WriteTlv(Tlv::Type aType, const void *aValue, uint8_t aLength)
