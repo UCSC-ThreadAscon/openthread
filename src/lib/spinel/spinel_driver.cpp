@@ -59,11 +59,13 @@ SpinelDriver::SpinelDriver(void)
     mFrameHandlerContext  = this;
 }
 
-void SpinelDriver::Init(SpinelInterface    &aSpinelInterface,
-                        bool                aSoftwareReset,
-                        const spinel_iid_t *aIidList,
-                        uint8_t             aIidListLength)
+CoprocessorType SpinelDriver::Init(SpinelInterface    &aSpinelInterface,
+                                   bool                aSoftwareReset,
+                                   const spinel_iid_t *aIidList,
+                                   uint8_t             aIidListLength)
 {
+    CoprocessorType coprocessorType;
+
     mSpinelInterface = &aSpinelInterface;
     mRxFrameBuffer.Clear();
     SuccessOrDie(mSpinelInterface->Init(HandleReceivedFrame, this, mRxFrameBuffer));
@@ -81,6 +83,15 @@ void SpinelDriver::Init(SpinelInterface    &aSpinelInterface,
     SuccessOrDie(CheckSpinelVersion());
     SuccessOrDie(GetCoprocessorVersion());
     SuccessOrDie(GetCoprocessorCaps());
+
+    coprocessorType = GetCoprocessorType();
+    if (coprocessorType == OT_COPROCESSOR_UNKNOWN)
+    {
+        LogCrit("The coprocessor mode is unknown!");
+        DieNow(OT_EXIT_FAILURE);
+    }
+
+    return coprocessorType;
 }
 
 void SpinelDriver::Deinit(void)
@@ -118,8 +129,7 @@ void SpinelDriver::ResetCoprocessor(bool aSoftwareReset)
 
     mWaitingKey = SPINEL_PROP_LAST_STATUS;
 
-    if (aSoftwareReset && (SendReset(SPINEL_RESET_STACK) == OT_ERROR_NONE) && (!mIsCoprocessorReady) &&
-        (WaitResponse() == OT_ERROR_NONE))
+    if (aSoftwareReset && (SendReset(SPINEL_RESET_STACK) == OT_ERROR_NONE) && (WaitResponse() == OT_ERROR_NONE))
     {
         VerifyOrExit(mIsCoprocessorReady, resetDone = false);
         LogCrit("Software reset co-processor successfully");
@@ -445,6 +455,22 @@ otError SpinelDriver::GetCoprocessorCaps(void)
     SuccessOrExit(error = WaitResponse());
 exit:
     return error;
+}
+
+CoprocessorType SpinelDriver::GetCoprocessorType(void)
+{
+    CoprocessorType type = OT_COPROCESSOR_UNKNOWN;
+
+    if (CoprocessorHasCap(SPINEL_CAP_CONFIG_RADIO))
+    {
+        type = OT_COPROCESSOR_RCP;
+    }
+    else if (CoprocessorHasCap(SPINEL_CAP_CONFIG_FTD) || CoprocessorHasCap(SPINEL_CAP_CONFIG_MTD))
+    {
+        type = OT_COPROCESSOR_NCP;
+    }
+
+    return type;
 }
 
 void SpinelDriver::ProcessFrameQueue(void)
