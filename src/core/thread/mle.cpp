@@ -974,6 +974,11 @@ void Mle::SetRloc16(uint16_t aRloc16)
     }
 }
 
+void Mle::SetLeaderData(const LeaderData &aLeaderData)
+{
+    SetLeaderData(aLeaderData.GetPartitionId(), aLeaderData.GetWeighting(), aLeaderData.GetLeaderRouterId());
+}
+
 void Mle::SetLeaderData(uint32_t aPartitionId, uint8_t aWeighting, uint8_t aLeaderRouterId)
 {
     if (mLeaderData.GetPartitionId() != aPartitionId)
@@ -2842,7 +2847,7 @@ void Mle::HandleAdvertisement(RxInfo &aRxInfo)
         if ((leaderData.GetPartitionId() != mLeaderData.GetPartitionId()) ||
             (leaderData.GetLeaderRouterId() != GetLeaderId()))
         {
-            SetLeaderData(leaderData.GetPartitionId(), leaderData.GetWeighting(), leaderData.GetLeaderRouterId());
+            SetLeaderData(leaderData);
 
 #if OPENTHREAD_FTD
             SuccessOrExit(error = Get<MleRouter>().ReadAndProcessRouteTlvOnFed(aRxInfo, mParent.GetRouterId()));
@@ -2941,7 +2946,7 @@ Error Mle::HandleLeaderData(RxInfo &aRxInfo)
     {
         if (IsChild())
         {
-            SetLeaderData(leaderData.GetPartitionId(), leaderData.GetWeighting(), leaderData.GetLeaderRouterId());
+            SetLeaderData(leaderData);
             mRetrieveNewNetworkData = true;
         }
         else
@@ -3418,7 +3423,7 @@ void Mle::HandleChildIdResponse(RxInfo &aRxInfo)
 
     SetStateDetached();
 
-    SetLeaderData(leaderData.GetPartitionId(), leaderData.GetWeighting(), leaderData.GetLeaderRouterId());
+    SetLeaderData(leaderData);
 
 #if OPENTHREAD_FTD
     SuccessOrExit(error = Get<MleRouter>().ReadAndProcessRouteTlvOnFed(aRxInfo, RouterIdFromRloc16(sourceAddress)));
