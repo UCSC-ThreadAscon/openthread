@@ -58,7 +58,7 @@ namespace MeshCoP {
  */
 class Dataset
 {
-    friend class DatasetLocal;
+    friend class DatasetManager;
 
 public:
     static constexpr uint8_t kMaxLength = OT_OPERATIONAL_DATASET_MAX_LENGTH; ///< Max length of Dataset (bytes)
@@ -635,17 +635,6 @@ public:
      *
      */
     Error SetFrom(const Message &aMessage, uint16_t aOffset, uint16_t aLength);
-
-    /**
-     * Applies the Active or Pending Dataset to the Thread interface.
-     *
-     * @param[in]  aInstance            A reference to the OpenThread instance.
-     *
-     * @retval kErrorNone   Successfully applied configuration.
-     * @retval kErrorParse  The dataset has at least one TLV with invalid format.
-     *
-     */
-    Error ApplyConfiguration(Instance &aInstance) const;
 
     /**
      * Returns a pointer to the start of Dataset TLVs sequence.
