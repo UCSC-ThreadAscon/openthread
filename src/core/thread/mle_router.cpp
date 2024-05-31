@@ -686,8 +686,7 @@ void MleRouter::HandleLinkRequest(RxInfo &aRxInfo)
 
     SuccessOrExit(error = aRxInfo.mMessage.ReadChallengeTlv(challenge));
 
-    SuccessOrExit(error = Tlv::Find<VersionTlv>(aRxInfo.mMessage, version));
-    VerifyOrExit(version >= kThreadVersion1p1, error = kErrorParse);
+    SuccessOrExit(error = aRxInfo.mMessage.ReadVersionTlv(version));
 
     switch (aRxInfo.mMessage.ReadLeaderDataTlv(leaderData))
     {
@@ -926,8 +925,7 @@ Error MleRouter::HandleLinkAccept(RxInfo &aRxInfo, bool aRequest)
         RemoveNeighbor(*aRxInfo.mNeighbor);
     }
 
-    SuccessOrExit(error = Tlv::Find<VersionTlv>(aRxInfo.mMessage, version));
-    VerifyOrExit(version >= kThreadVersion1p1, error = kErrorParse);
+    SuccessOrExit(error = aRxInfo.mMessage.ReadVersionTlv(version));
 
     SuccessOrExit(error = aRxInfo.mMessage.ReadFrameCounterTlvs(linkFrameCounter, mleFrameCounter));
 
@@ -1372,7 +1370,6 @@ void MleRouter::HandleParentRequest(RxInfo &aRxInfo)
     uint8_t         scanMask;
     RxChallenge     challenge;
     Child          *child;
-    uint8_t         modeBitmask;
     DeviceMode      mode;
 
     Log(kMessageReceive, kTypeParentRequest, aRxInfo.mMessageInfo.GetPeerAddr());
@@ -1402,8 +1399,7 @@ void MleRouter::HandleParentRequest(RxInfo &aRxInfo)
 
     aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(extAddr);
 
-    SuccessOrExit(error = Tlv::Find<VersionTlv>(aRxInfo.mMessage, version));
-    VerifyOrExit(version >= kThreadVersion1p1, error = kErrorParse);
+    SuccessOrExit(error = aRxInfo.mMessage.ReadVersionTlv(version));
 
     SuccessOrExit(error = Tlv::Find<ScanMaskTlv>(aRxInfo.mMessage, scanMask));
 
@@ -1437,9 +1433,8 @@ void MleRouter::HandleParentRequest(RxInfo &aRxInfo)
 #if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
         child->SetTimeSyncEnabled(Tlv::Find<TimeRequestTlv>(aRxInfo.mMessage, nullptr, 0) == kErrorNone);
 #endif
-        if (Tlv::Find<ModeTlv>(aRxInfo.mMessage, modeBitmask) == kErrorNone)
+        if (aRxInfo.mMessage.ReadModeTlv(mode) == kErrorNone)
         {
-            mode.Set(modeBitmask);
             child->SetDeviceMode(mode);
             child->SetVersion(version);
         }
@@ -1774,8 +1769,6 @@ Error MleRouter::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
     uint8_t  count       = 0;
     uint8_t  storedCount = 0;
 #if OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE
-    bool         hasOldDua = false;
-    bool         hasNewDua = false;
     Ip6::Address oldDua;
 #endif
 #if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
@@ -1788,14 +1781,9 @@ Error MleRouter::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
                       Tlv::FindTlvValueStartEndOffsets(aRxInfo.mMessage, Tlv::kAddressRegistration, offset, endOffset));
 
 #if OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE
+    if (aChild.GetDomainUnicastAddress(oldDua) != kErrorNone)
     {
-        const Ip6::Address *duaAddress = aChild.GetDomainUnicastAddress();
-
-        if (duaAddress != nullptr)
-        {
-            oldDua    = *duaAddress;
-            hasOldDua = true;
-        }
+        oldDua.Clear();
     }
 #endif
 
@@ -1888,34 +1876,6 @@ Error MleRouter::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
                     address.ToString().AsCString(), aChild.GetRloc16());
         }
 
-#if OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE
-        if (Get<BackboneRouter::Leader>().IsDomainUnicast(address))
-        {
-            if (error == kErrorNone)
-            {
-                DuaManager::ChildDuaAddressEvent event;
-
-                hasNewDua = true;
-
-                if (hasOldDua)
-                {
-                    event = (oldDua != address) ? DuaManager::kAddressChanged : DuaManager::kAddressUnchanged;
-                }
-                else
-                {
-                    event = DuaManager::kAddressAdded;
-                }
-
-                Get<DuaManager>().HandleChildDuaAddressEvent(aChild, event);
-            }
-            else
-            {
-                // It cannot store DUA, then assume child does not have one.
-                hasNewDua = false;
-            }
-        }
-#endif
-
         if (address.IsMulticast())
         {
             continue;
@@ -1945,10 +1905,7 @@ Error MleRouter::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
         Get<AddressResolver>().RemoveEntryForAddress(address);
     }
 #if OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE
-    if (hasOldDua && !hasNewDua)
-    {
-        Get<DuaManager>().HandleChildDuaAddressEvent(aChild, DuaManager::kAddressRemoved);
-    }
+    SignalDuaAddressEvent(aChild, oldDua);
 #endif
 
 #if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
@@ -1971,15 +1928,47 @@ exit:
     return error;
 }
 
+#if OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE
+void MleRouter::SignalDuaAddressEvent(const Child &aChild, const Ip6::Address &aOldDua) const
+{
+    DuaManager::ChildDuaAddressEvent event = DuaManager::kAddressUnchanged;
+    Ip6::Address                     newDua;
+
+    if (aChild.GetDomainUnicastAddress(newDua) == kErrorNone)
+    {
+        if (aOldDua.IsUnspecified())
+        {
+            event = DuaManager::kAddressAdded;
+        }
+        else if (aOldDua != newDua)
+        {
+            event = DuaManager::kAddressChanged;
+        }
+    }
+    else
+    {
+        // Child has no DUA address. If there was no old DUA, no need
+        // to signal.
+
+        VerifyOrExit(!aOldDua.IsUnspecified());
+
+        event = DuaManager::kAddressRemoved;
+    }
+
+    Get<DuaManager>().HandleChildDuaAddressEvent(aChild, event);
+
+exit:
+    return;
+}
+#endif // OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE
+
 void MleRouter::HandleChildIdRequest(RxInfo &aRxInfo)
 {
     Error              error = kErrorNone;
     Mac::ExtAddress    extAddr;
     uint16_t           version;
-    RxChallenge        response;
     uint32_t           linkFrameCounter;
     uint32_t           mleFrameCounter;
-    uint8_t            modeBitmask;
     DeviceMode         mode;
     uint32_t           timeout;
     TlvList            tlvList;
@@ -1999,11 +1988,9 @@ void MleRouter::HandleChildIdRequest(RxInfo &aRxInfo)
     child = mChildTable.FindChild(extAddr, Child::kInStateAnyExceptInvalid);
     VerifyOrExit(child != nullptr, error = kErrorAlready);
 
-    SuccessOrExit(error = Tlv::Find<VersionTlv>(aRxInfo.mMessage, version));
-    VerifyOrExit(version >= kThreadVersion1p1, error = kErrorParse);
+    SuccessOrExit(error = aRxInfo.mMessage.ReadVersionTlv(version));
 
-    SuccessOrExit(error = aRxInfo.mMessage.ReadResponseTlv(response));
-    VerifyOrExit(response == child->GetChallenge(), error = kErrorSecurity);
+    SuccessOrExit(error = aRxInfo.mMessage.ReadAndMatchResponseTlvWith(child->GetChallenge()));
 
     Get<MeshForwarder>().RemoveMessages(*child, Message::kSubTypeMleGeneral);
     Get<MeshForwarder>().RemoveMessages(*child, Message::kSubTypeMleChildIdRequest);
@@ -2012,8 +1999,7 @@ void MleRouter::HandleChildIdRequest(RxInfo &aRxInfo)
 
     SuccessOrExit(error = aRxInfo.mMessage.ReadFrameCounterTlvs(linkFrameCounter, mleFrameCounter));
 
-    SuccessOrExit(error = Tlv::Find<ModeTlv>(aRxInfo.mMessage, modeBitmask));
-    mode.Set(modeBitmask);
+    SuccessOrExit(error = aRxInfo.mMessage.ReadModeTlv(mode));
 
     SuccessOrExit(error = Tlv::Find<TimeoutTlv>(aRxInfo.mMessage, timeout));
 
@@ -2144,7 +2130,6 @@ void MleRouter::HandleChildUpdateRequest(RxInfo &aRxInfo)
 {
     Error           error = kErrorNone;
     Mac::ExtAddress extAddr;
-    uint8_t         modeBitmask;
     DeviceMode      mode;
     RxChallenge     challenge;
     LeaderData      leaderData;
@@ -2158,8 +2143,7 @@ void MleRouter::HandleChildUpdateRequest(RxInfo &aRxInfo)
 
     Log(kMessageReceive, kTypeChildUpdateRequestOfChild, aRxInfo.mMessageInfo.GetPeerAddr());
 
-    SuccessOrExit(error = Tlv::Find<ModeTlv>(aRxInfo.mMessage, modeBitmask));
-    mode.Set(modeBitmask);
+    SuccessOrExit(error = aRxInfo.mMessage.ReadModeTlv(mode));
 
     switch (aRxInfo.mMessage.ReadChallengeTlv(challenge))
     {

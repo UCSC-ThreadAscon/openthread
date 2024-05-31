@@ -508,8 +508,10 @@ bool RoutingManager::IsInitalPolicyEvaluationDone(void) const
 
 void RoutingManager::ScheduleRoutingPolicyEvaluation(ScheduleMode aMode)
 {
-    TimeMilli now   = TimerMilli::GetNow();
-    uint32_t  delay = 0;
+    TimeMilli now      = TimerMilli::GetNow();
+    uint32_t  delay    = 0;
+    uint32_t  interval = 0;
+    uint16_t  jitter   = 0;
     TimeMilli evaluateTime;
 
     VerifyOrExit(mIsRunning);
@@ -520,26 +522,34 @@ void RoutingManager::ScheduleRoutingPolicyEvaluation(ScheduleMode aMode)
         break;
 
     case kForNextRa:
-        delay = Random::NonCrypto::GetUint32InRange(Time::SecToMsec(kMinRtrAdvInterval),
-                                                    Time::SecToMsec(kMaxRtrAdvInterval));
-
-        if (mTxRaInfo.mTxCount <= kMaxInitRtrAdvertisements && delay > Time::SecToMsec(kMaxInitRtrAdvInterval))
+        if (mTxRaInfo.mTxCount <= kInitalRaTxCount)
         {
-            delay = Time::SecToMsec(kMaxInitRtrAdvInterval);
+            interval = kInitalRaInterval;
+            jitter   = kInitialRaJitter;
         }
+        else
+        {
+            interval = kRaBeaconInterval;
+            jitter   = kRaBeaconJitter;
+        }
+
         break;
 
     case kAfterRandomDelay:
-        delay = Random::NonCrypto::GetUint32InRange(kPolicyEvaluationMinDelay, kPolicyEvaluationMaxDelay);
+        interval = kEvaluationInterval;
+        jitter   = kEvaluationJitter;
         break;
 
     case kToReplyToRs:
-        delay = Random::NonCrypto::GetUint32InRange(0, kRaReplyJitter);
+        interval = kRsReplyInterval;
+        jitter   = kRsReplyJitter;
         break;
     }
 
+    delay = Random::NonCrypto::AddJitter(interval, jitter);
+
     // Ensure we wait a min delay after last RA tx
-    evaluateTime = Max(now + delay, mTxRaInfo.mLastTxTime + kMinDelayBetweenRtrAdvs);
+    evaluateTime = Max(now + delay, mTxRaInfo.mLastTxTime + kMinDelayBetweenRas);
 
     mRoutingPolicyTimer.FireAtIfEarlier(evaluateTime);
 
@@ -636,6 +646,18 @@ exit:
         Get<Ip6::Ip6>().GetBorderRoutingCounters().mRaTxFailure++;
         LogWarn("Failed to send RA on %s: %s", mInfraIf.ToString().AsCString(), ErrorToString(error));
     }
+}
+
+TimeMilli RoutingManager::CalculateExpirationTime(TimeMilli aUpdateTime, uint32_t aLifetime)
+{
+    // `aLifetime` is in unit of seconds. We clamp the lifetime to max
+    // interval supported by `Timer` (`2^31` msec or ~24.8 days).
+    // This ensures that the time calculation fits within `TimeMilli`
+    // range.
+
+    static constexpr uint32_t kMaxLifetime = Time::MsecToSec(Timer::kMaxDelay);
+
+    return aUpdateTime + Time::SecToMsec(Min(aLifetime, kMaxLifetime));
 }
 
 bool RoutingManager::IsValidBrUlaPrefix(const Ip6::Prefix &aBrUlaPrefix)
@@ -831,12 +853,10 @@ void RoutingManager::LogRouteInfoOption(const Ip6::Prefix &, uint32_t, RoutePref
 
 TimeMilli RoutingManager::LifetimedPrefix::CalculateExpirationTime(uint32_t aLifetime) const
 {
-    // `aLifetime` is in unit of seconds. We clamp the lifetime to max
-    // interval supported by `Timer` (`2^31` msec or ~24.8 days).
+    // `aLifetime` is in unit of seconds. This method ensures
+    // that the time calculation fits with `TimeMilli` range.
 
-    static constexpr uint32_t kMaxLifetime = Time::MsecToSec(Timer::kMaxDelay);
-
-    return mLastUpdateTime + Time::SecToMsec(Min(aLifetime, kMaxLifetime));
+    return RoutingManager::CalculateExpirationTime(mLastUpdateTime, aLifetime);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1504,7 +1524,14 @@ void RoutingManager::RxRaTracker::ScheduleStaleTimer(void)
 
     if (mLocalRaHeader.IsValid())
     {
-        staleTime.UpdateIfEarlier(mLocalRaHeaderUpdateTime + Time::SecToMsec(kRtrAdvStaleTime));
+        uint16_t interval = kRtrAdvStaleTime;
+
+        if (mLocalRaHeader.GetRouterLifetime() > 0)
+        {
+            interval = Min(interval, mLocalRaHeader.GetRouterLifetime());
+        }
+
+        staleTime.UpdateIfEarlier(CalculateExpirationTime(mLocalRaHeaderUpdateTime, interval));
     }
 
     mStaleTimer.FireAt(staleTime);
