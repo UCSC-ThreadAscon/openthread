@@ -45,6 +45,7 @@
 #include "common/timer.hpp"
 #include "crypto/aes_ccm.hpp"
 #include "mac/mac.hpp"
+#include "meshcop/dataset.hpp"
 #include "meshcop/joiner_router.hpp"
 #include "meshcop/meshcop.hpp"
 #include "net/udp6.hpp"
@@ -1023,6 +1024,7 @@ private:
         Error AppendXtalAccuracyTlv(void);
         Error AppendActiveTimestampTlv(void);
         Error AppendPendingTimestampTlv(void);
+        Error AppendActiveAndPendingTimestampTlvs(void);
 #if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
         Error AppendTimeRequestTlv(void);
         Error AppendTimeParameterTlv(void);
@@ -1053,6 +1055,7 @@ private:
     private:
         Error AppendCompressedAddressEntry(uint8_t aContextId, const Ip6::Address &aAddress);
         Error AppendAddressEntry(const Ip6::Address &aAddress);
+        Error AppendDatasetTlv(MeshCoP::Dataset::Type mDatasetType);
     };
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
