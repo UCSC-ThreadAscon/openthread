@@ -2229,8 +2229,7 @@ void Mle::SendAnnounce(uint8_t aChannel, const Ip6::Address &aDestination, Annou
     switch (aMode)
     {
     case kOrphanAnnounce:
-        activeTimestamp.Clear();
-        activeTimestamp.SetAuthoritative(true);
+        activeTimestamp.SetToOrphanAnnounce();
         SuccessOrExit(error = Tlv::Append<ActiveTimestampTlv>(*message, activeTimestamp));
         break;
 
@@ -2959,7 +2958,7 @@ Error Mle::HandleLeaderData(RxInfo &aRxInfo)
             break;
         }
 #endif
-        if (MeshCoP::Timestamp::Compare(&activeTimestamp, Get<MeshCoP::ActiveDatasetManager>().GetTimestamp()) != 0)
+        if (activeTimestamp != Get<MeshCoP::ActiveDatasetManager>().GetTimestamp())
         {
             // Send an MLE Data Request if the received timestamp
             // mismatches the local value and the message does not
@@ -2987,7 +2986,7 @@ Error Mle::HandleLeaderData(RxInfo &aRxInfo)
             break;
         }
 #endif
-        if (MeshCoP::Timestamp::Compare(&pendingTimestamp, Get<MeshCoP::PendingDatasetManager>().GetTimestamp()) != 0)
+        if (pendingTimestamp != Get<MeshCoP::PendingDatasetManager>().GetTimestamp())
         {
             VerifyOrExit(aRxInfo.mMessage.ContainsTlv(Tlv::kPendingDataset), dataRequest = true);
             savePendingDataset = true;
@@ -3079,17 +3078,15 @@ exit:
 }
 
 bool Mle::IsBetterParent(uint16_t                aRloc16,
-                         LinkQuality             aLinkQuality,
-                         uint8_t                 aLinkMargin,
+                         uint8_t                 aTwoWayLinkMargin,
                          const ConnectivityTlv  &aConnectivityTlv,
                          uint16_t                aVersion,
                          const Mac::CslAccuracy &aCslAccuracy)
 {
-    int         rval;
-    LinkQuality candidateTwoWayLinkQuality = mParentCandidate.GetTwoWayLinkQuality();
+    int rval;
 
     // Mesh Impacting Criteria
-    rval = ThreeWayCompare(aLinkQuality, candidateTwoWayLinkQuality);
+    rval = ThreeWayCompare(LinkQualityForLinkMargin(aTwoWayLinkMargin), mParentCandidate.GetTwoWayLinkQuality());
     VerifyOrExit(rval == 0);
 
     rval = ThreeWayCompare(IsActiveRouter(aRloc16), IsActiveRouter(mParentCandidate.GetRloc16()));
@@ -3135,7 +3132,7 @@ bool Mle::IsBetterParent(uint16_t                aRloc16,
     OT_UNUSED_VARIABLE(aCslAccuracy);
 #endif
 
-    rval = ThreeWayCompare(aLinkMargin, mParentCandidate.mLinkMargin);
+    rval = ThreeWayCompare(aTwoWayLinkMargin, mParentCandidate.mLinkMargin);
 
 exit:
     return (rval > 0);
@@ -3148,9 +3145,8 @@ void Mle::HandleParentResponse(RxInfo &aRxInfo)
     uint16_t         version;
     uint16_t         sourceAddress;
     LeaderData       leaderData;
-    uint8_t          linkMarginFromTlv;
-    uint8_t          linkMargin;
-    LinkQuality      linkQuality;
+    uint8_t          linkMarginOut;
+    uint8_t          twoWayLinkMargin;
     ConnectivityTlv  connectivityTlv;
     uint32_t         linkFrameCounter;
     uint32_t         mleFrameCounter;
@@ -3177,9 +3173,8 @@ void Mle::HandleParentResponse(RxInfo &aRxInfo)
 
     SuccessOrExit(error = aRxInfo.mMessage.ReadLeaderDataTlv(leaderData));
 
-    SuccessOrExit(error = Tlv::Find<LinkMarginTlv>(aRxInfo.mMessage, linkMarginFromTlv));
-    linkMargin  = Min(Get<Mac::Mac>().ComputeLinkMargin(rss), linkMarginFromTlv);
-    linkQuality = LinkQualityForLinkMargin(linkMargin);
+    SuccessOrExit(error = Tlv::Find<LinkMarginTlv>(aRxInfo.mMessage, linkMarginOut));
+    twoWayLinkMargin = Min(Get<Mac::Mac>().ComputeLinkMargin(rss), linkMarginOut);
 
     SuccessOrExit(error = Tlv::FindTlv(aRxInfo.mMessage, connectivityTlv));
     VerifyOrExit(connectivityTlv.IsValid(), error = kErrorParse);
@@ -3275,7 +3270,7 @@ void Mle::HandleParentResponse(RxInfo &aRxInfo)
         // Only consider better parents if the partitions are the same
         if (compare == 0)
         {
-            VerifyOrExit(IsBetterParent(sourceAddress, linkQuality, linkMargin, connectivityTlv, version, cslAccuracy));
+            VerifyOrExit(IsBetterParent(sourceAddress, twoWayLinkMargin, connectivityTlv, version, cslAccuracy));
         }
     }
 
@@ -3311,7 +3306,7 @@ void Mle::HandleParentResponse(RxInfo &aRxInfo)
     mParentCandidate.SetVersion(version);
     mParentCandidate.SetDeviceMode(DeviceMode(DeviceMode::kModeFullThreadDevice | DeviceMode::kModeRxOnWhenIdle |
                                               DeviceMode::kModeFullNetworkData));
-    mParentCandidate.SetLinkQualityOut(LinkQualityForLinkMargin(linkMarginFromTlv));
+    mParentCandidate.SetLinkQualityOut(LinkQualityForLinkMargin(linkMarginOut));
     mParentCandidate.SetState(Neighbor::kStateParentResponse);
     mParentCandidate.SetKeySequence(aRxInfo.mKeySequence);
     mParentCandidate.SetLeaderCost(connectivityTlv.GetLeaderCost());
@@ -3327,7 +3322,7 @@ void Mle::HandleParentResponse(RxInfo &aRxInfo)
     mParentCandidate.mSedDatagramCount = connectivityTlv.GetSedDatagramCount();
     mParentCandidate.mLeaderData       = leaderData;
     mParentCandidate.mIsSingleton      = connectivityTlv.IsSingleton();
-    mParentCandidate.mLinkMargin       = linkMargin;
+    mParentCandidate.mLinkMargin       = twoWayLinkMargin;
 
 exit:
     LogProcessError(kTypeParentResponse, error);
@@ -3697,15 +3692,14 @@ exit:
 
 void Mle::HandleAnnounce(RxInfo &aRxInfo)
 {
-    Error                     error = kErrorNone;
-    ChannelTlvValue           channelTlvValue;
-    MeshCoP::Timestamp        timestamp;
-    const MeshCoP::Timestamp *localTimestamp;
-    uint8_t                   channel;
-    uint16_t                  panId;
-    bool                      isFromOrphan;
-    bool                      channelAndPanIdMatch;
-    int                       timestampCompare;
+    Error              error = kErrorNone;
+    ChannelTlvValue    channelTlvValue;
+    MeshCoP::Timestamp timestamp;
+    uint8_t            channel;
+    uint16_t           panId;
+    bool               isFromOrphan;
+    bool               channelAndPanIdMatch;
+    int                timestampCompare;
 
     Log(kMessageReceive, kTypeAnnounce, aRxInfo.mMessageInfo.GetPeerAddr());
 
@@ -3717,10 +3711,8 @@ void Mle::HandleAnnounce(RxInfo &aRxInfo)
 
     aRxInfo.mClass = RxInfo::kPeerMessage;
 
-    localTimestamp = Get<MeshCoP::ActiveDatasetManager>().GetTimestamp();
-
-    isFromOrphan         = timestamp.IsOrphanTimestamp();
-    timestampCompare     = MeshCoP::Timestamp::Compare(&timestamp, localTimestamp);
+    isFromOrphan         = timestamp.IsOrphanAnnounce();
+    timestampCompare     = MeshCoP::Timestamp::Compare(timestamp, Get<MeshCoP::ActiveDatasetManager>().GetTimestamp());
     channelAndPanIdMatch = (channel == Get<Mac::Mac>().GetPanChannel()) && (panId == Get<Mac::Mac>().GetPanId());
 
     if (isFromOrphan || (timestampCompare < 0))
@@ -4757,10 +4749,10 @@ Error Mle::TxMessage::AppendXtalAccuracyTlv(void)
 Error Mle::TxMessage::AppendActiveTimestampTlv(void)
 {
     Error                     error     = kErrorNone;
-    const MeshCoP::Timestamp *timestamp = Get<MeshCoP::ActiveDatasetManager>().GetTimestamp();
+    const MeshCoP::Timestamp &timestamp = Get<MeshCoP::ActiveDatasetManager>().GetTimestamp();
 
-    VerifyOrExit(timestamp != nullptr);
-    error = Tlv::Append<ActiveTimestampTlv>(*this, *timestamp);
+    VerifyOrExit(timestamp.IsValid());
+    error = Tlv::Append<ActiveTimestampTlv>(*this, timestamp);
 
 exit:
     return error;
@@ -4769,10 +4761,10 @@ exit:
 Error Mle::TxMessage::AppendPendingTimestampTlv(void)
 {
     Error                     error     = kErrorNone;
-    const MeshCoP::Timestamp *timestamp = Get<MeshCoP::PendingDatasetManager>().GetTimestamp();
+    const MeshCoP::Timestamp &timestamp = Get<MeshCoP::PendingDatasetManager>().GetTimestamp();
 
-    VerifyOrExit(timestamp != nullptr && timestamp->GetSeconds() != 0);
-    error = Tlv::Append<PendingTimestampTlv>(*this, *timestamp);
+    VerifyOrExit(timestamp.IsValid());
+    error = Tlv::Append<PendingTimestampTlv>(*this, timestamp);
 
 exit:
     return error;

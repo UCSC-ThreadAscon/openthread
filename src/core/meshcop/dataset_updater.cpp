@@ -88,14 +88,11 @@ Error DatasetUpdater::RequestUpdate(Dataset &aDataset, UpdaterCallback aCallback
     activeTimestamp.AdvanceRandomTicks();
     SuccessOrExit(error = aDataset.Write<ActiveTimestampTlv>(activeTimestamp));
 
-    if (Get<PendingDatasetManager>().GetTimestamp() != nullptr)
-    {
-        pendingTimestamp = *Get<PendingDatasetManager>().GetTimestamp();
-    }
-    else
+    pendingTimestamp = Get<PendingDatasetManager>().GetTimestamp();
+
+    if (!pendingTimestamp.IsValid())
     {
         pendingTimestamp.Clear();
-        pendingTimestamp.SetSeconds(1);
     }
 
     pendingTimestamp.AdvanceRandomTicks();
@@ -204,7 +201,7 @@ void DatasetUpdater::HandleDatasetChanged(Dataset::Type aType)
     SuccessOrExit(newDataset.ReadTimestamp(aType, newTimestamp));
     SuccessOrExit(requestedDataset.ReadTimestamp(aType, requestedTimestamp));
 
-    if (Timestamp::Compare(newTimestamp, requestedTimestamp) >= 0)
+    if (newTimestamp >= requestedTimestamp)
     {
         Finish(kErrorAlready);
     }
