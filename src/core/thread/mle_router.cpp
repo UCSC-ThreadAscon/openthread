@@ -786,8 +786,7 @@ Error MleRouter::SendLinkAccept(const RxInfo      &aRxInfo,
     SuccessOrExit(error = message->AppendVersionTlv());
     SuccessOrExit(error = message->AppendSourceAddressTlv());
     SuccessOrExit(error = message->AppendResponseTlv(aChallenge));
-    SuccessOrExit(error = message->AppendLinkFrameCounterTlv());
-    SuccessOrExit(error = message->AppendMleFrameCounterTlv());
+    SuccessOrExit(error = message->AppendLinkAndMleFrameCounterTlvs());
 
     linkMargin = Get<Mac::Mac>().ComputeLinkMargin(aRxInfo.mMessage.GetAverageRss());
     SuccessOrExit(error = message->AppendLinkMarginTlv(linkMargin));
@@ -959,7 +958,7 @@ Error MleRouter::HandleLinkAccept(RxInfo &aRxInfo, bool aRequest)
         router = mRouterTable.FindRouterById(routerId);
         VerifyOrExit(router != nullptr);
 
-        if (mLeaderData.GetLeaderRouterId() == RouterIdFromRloc16(GetRloc16()))
+        if (GetLeaderRloc16() == GetRloc16())
         {
             SetStateLeader(GetRloc16(), kRestoringLeaderRoleAfterReset);
         }
@@ -1698,8 +1697,7 @@ void MleRouter::SendParentResponse(Child *aChild, const RxChallenge &aChallenge,
 
     SuccessOrExit(error = message->AppendSourceAddressTlv());
     SuccessOrExit(error = message->AppendLeaderDataTlv());
-    SuccessOrExit(error = message->AppendLinkFrameCounterTlv());
-    SuccessOrExit(error = message->AppendMleFrameCounterTlv());
+    SuccessOrExit(error = message->AppendLinkAndMleFrameCounterTlvs());
     SuccessOrExit(error = message->AppendResponseTlv(aChallenge));
 #if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
     if (aChild->IsTimeSyncEnabled())
@@ -3111,18 +3109,18 @@ exit:
 
 bool MleRouter::IsMinimalChild(uint16_t aRloc16)
 {
-    bool rval = false;
+    bool      isMinimalChild = false;
+    Neighbor *neighbor;
 
-    if (RouterIdFromRloc16(aRloc16) == RouterIdFromRloc16(Get<Mac::Mac>().GetShortAddress()))
-    {
-        Neighbor *neighbor;
+    VerifyOrExit(RouterIdMatch(aRloc16, GetRloc16()));
 
-        neighbor = mNeighborTable.FindNeighbor(aRloc16);
+    neighbor = mNeighborTable.FindNeighbor(aRloc16);
+    VerifyOrExit(neighbor != nullptr);
 
-        rval = (neighbor != nullptr) && (!neighbor->IsFullThreadDevice());
-    }
+    isMinimalChild = !neighbor->IsFullThreadDevice();
 
-    return rval;
+exit:
+    return isMinimalChild;
 }
 
 void MleRouter::RemoveRouterLink(Router &aRouter)

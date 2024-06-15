@@ -522,7 +522,7 @@ Error MeshForwarder::UpdateIp6RouteFtd(const Ip6::Header &aIp6Header, Message &a
 
         if (aloc16 == Mle::kAloc16Leader)
         {
-            mMeshDest = Mle::Rloc16FromRouterId(mle.GetLeaderId());
+            mMeshDest = mle.GetLeaderRloc16();
         }
         else if (aloc16 <= Mle::kAloc16DhcpAgentEnd)
         {
@@ -654,7 +654,7 @@ void MeshForwarder::SendDestinationUnreachable(uint16_t aMeshSource, const Ip6::
 {
     Ip6::MessageInfo messageInfo;
 
-    messageInfo.GetPeerAddr() = Get<Mle::MleRouter>().GetMeshLocal16();
+    messageInfo.GetPeerAddr() = Get<Mle::MleRouter>().GetMeshLocalRloc();
     messageInfo.GetPeerAddr().GetIid().SetLocator(aMeshSource);
 
     IgnoreError(Get<Ip6::Icmp>().SendError(Ip6::Icmp::Header::kTypeDstUnreach,
