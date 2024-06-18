@@ -108,7 +108,7 @@ Mle::Mle(Instance &aInstance)
 #endif
     , mAlternateTimestamp(0)
     , mNeighborTable(aInstance)
-    , mSocket(aInstance)
+    , mSocket(aInstance, *this)
 #if OPENTHREAD_CONFIG_PARENT_SEARCH_ENABLE
     , mParentSearch(aInstance)
 #endif
@@ -152,7 +152,7 @@ Error Mle::Enable(void)
     Error error = kErrorNone;
 
     UpdateLinkLocalAddress();
-    SuccessOrExit(error = mSocket.Open(&Mle::HandleUdpReceive, this));
+    SuccessOrExit(error = mSocket.Open());
     SuccessOrExit(error = mSocket.Bind(kUdpPort));
 
 #if OPENTHREAD_CONFIG_PARENT_SEARCH_ENABLE
