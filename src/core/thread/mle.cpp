@@ -1034,7 +1034,7 @@ bool Mle::HasUnregisteredAddress(void)
 
     for (const Ip6::Netif::UnicastAddress &addr : Get<ThreadNetif>().GetUnicastAddresses())
     {
-        if (!addr.GetAddress().IsLinkLocal() && !IsRoutingLocator(addr.GetAddress()) &&
+        if (!addr.GetAddress().IsLinkLocalUnicast() && !IsRoutingLocator(addr.GetAddress()) &&
             !IsAnycastLocator(addr.GetAddress()) && addr.GetAddress() != GetMeshLocalEid())
         {
             ExitNow(retval = true);
@@ -3839,11 +3839,7 @@ void Mle::ProcessAnnounce(void)
     IgnoreError(Start(kAnnounceAttach));
 }
 
-uint16_t Mle::GetNextHop(uint16_t aDestination) const
-{
-    OT_UNUSED_VARIABLE(aDestination);
-    return (mParent.IsStateValid()) ? mParent.GetRloc16() : static_cast<uint16_t>(Mac::kShortAddrInvalid);
-}
+uint16_t Mle::GetParentRloc16(void) const { return (mParent.IsStateValid() ? mParent.GetRloc16() : kInvalidRloc16); }
 
 Error Mle::GetParentInfo(Router::Info &aParentInfo) const
 {
@@ -4601,7 +4597,7 @@ Error Mle::TxMessage::AppendAddressRegistrationTlv(AddressRegistrationMode aMode
 
     for (const Ip6::Netif::UnicastAddress &addr : Get<ThreadNetif>().GetUnicastAddresses())
     {
-        if (addr.GetAddress().IsLinkLocal() || Get<Mle>().IsRoutingLocator(addr.GetAddress()) ||
+        if (addr.GetAddress().IsLinkLocalUnicast() || Get<Mle>().IsRoutingLocator(addr.GetAddress()) ||
             Get<Mle>().IsAnycastLocator(addr.GetAddress()) || addr.GetAddress() == Get<Mle>().GetMeshLocalEid())
         {
             continue;

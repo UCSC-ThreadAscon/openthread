@@ -670,7 +670,7 @@ Error MeshForwarder::UpdateIp6Route(Message &aMessage)
 
     if (mle.IsDisabled() || mle.IsDetached())
     {
-        if (ip6Header.GetDestination().IsLinkLocal() || ip6Header.GetDestination().IsLinkLocalMulticast())
+        if (ip6Header.GetDestination().IsLinkLocalUnicastOrMulticast())
         {
             GetMacDestinationAddress(ip6Header.GetDestination(), mMacAddrs.mDestination);
         }
@@ -690,20 +690,20 @@ Error MeshForwarder::UpdateIp6Route(Message &aMessage)
 
         if (mle.IsChild() && aMessage.IsLinkSecurityEnabled() && !aMessage.IsSubTypeMle())
         {
-            mMacAddrs.mDestination.SetShort(mle.GetNextHop(Mac::kShortAddrBroadcast));
+            mMacAddrs.mDestination.SetShort(mle.GetParentRloc16());
         }
         else
         {
             mMacAddrs.mDestination.SetShort(Mac::kShortAddrBroadcast);
         }
     }
-    else if (ip6Header.GetDestination().IsLinkLocal())
+    else if (ip6Header.GetDestination().IsLinkLocalUnicast())
     {
         GetMacDestinationAddress(ip6Header.GetDestination(), mMacAddrs.mDestination);
     }
     else if (mle.IsMinimalEndDevice())
     {
-        mMacAddrs.mDestination.SetShort(mle.GetNextHop(Mac::kShortAddrBroadcast));
+        mMacAddrs.mDestination.SetShort(mle.GetParentRloc16());
     }
     else
     {
