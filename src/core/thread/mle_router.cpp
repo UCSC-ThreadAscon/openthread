@@ -34,6 +34,25 @@
 
 #if OPENTHREAD_FTD
 
+/**
+ * --- UCSC ThreadAscon Notes ----
+ *
+ * These lines of code come from "openthread/src/port/esp_openthread_radio.c", and
+ * defines the function "otPlatTimeGetXtalAccuracy()".
+ *
+ * This file needs this definition when using Network Time Sychronization on a
+ * Thread border Router. Otherwise, OpenThread will fail to build when building
+ * the Thread Border Router application.
+ *
+ * Importing the function prototype for "otPlatTimeGetXtalAccuracy()",
+ * in <openthread/platform/time.h>, will not satisfy the build error.
+ */
+#define ESP_OPENTHREAD_XTAL_ACCURACY CONFIG_OPENTHREAD_XTAL_ACCURACY
+uint16_t otPlatTimeGetXtalAccuracy(void)
+{
+    return ESP_OPENTHREAD_XTAL_ACCURACY;
+}
+
 #include "common/as_core_type.hpp"
 #include "common/code_utils.hpp"
 #include "common/debug.hpp"
