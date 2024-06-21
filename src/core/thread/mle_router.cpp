@@ -3107,22 +3107,6 @@ exit:
     LogSendError(kTypeDataResponse, error);
 }
 
-bool MleRouter::IsMinimalChild(uint16_t aRloc16)
-{
-    bool      isMinimalChild = false;
-    Neighbor *neighbor;
-
-    VerifyOrExit(RouterIdMatch(aRloc16, GetRloc16()));
-
-    neighbor = mNeighborTable.FindNeighbor(aRloc16);
-    VerifyOrExit(neighbor != nullptr);
-
-    isMinimalChild = !neighbor->IsFullThreadDevice();
-
-exit:
-    return isMinimalChild;
-}
-
 void MleRouter::RemoveRouterLink(Router &aRouter)
 {
     switch (mRole)
@@ -3217,7 +3201,7 @@ void MleRouter::ResolveRoutingLoops(uint16_t aSourceMac, uint16_t aDestRloc16)
 {
     Router *router;
 
-    if (aSourceMac != GetNextHop(aDestRloc16))
+    if (aSourceMac != mRouterTable.GetNextHop(aDestRloc16))
     {
         ExitNow();
     }
@@ -3263,7 +3247,7 @@ Error MleRouter::CheckReachability(uint16_t aMeshDest, const Ip6::Header &aIp6He
         ExitNow();
     }
 
-    isReachable = (GetNextHop(aMeshDest) != Mac::kShortAddrInvalid);
+    isReachable = (mRouterTable.GetNextHop(aMeshDest) != Mac::kShortAddrInvalid);
 
 exit:
     return isReachable ? kErrorNone : kErrorNoRoute;
