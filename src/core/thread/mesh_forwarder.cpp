@@ -628,6 +628,15 @@ Message *MeshForwarder::PrepareNextDirectTransmission(void)
         switch (error)
         {
         case kErrorNone:
+            if (!curMessage->IsDirectTransmission())
+            {
+                // Skip if message is no longer marked for direct transmission.
+                // For example, `UpdateIp6Route()` may determine the destination
+                // is an ALOC associated with an SED child of this device and
+                // mark it for indirect tx to the SED child.
+                continue;
+            }
+
 #if OPENTHREAD_CONFIG_TX_QUEUE_STATISTICS_ENABLE
             mTxQueueStats.UpdateFor(*curMessage);
 #endif
@@ -1157,7 +1166,7 @@ void MeshForwarder::UpdateNeighborLinkFailures(Neighbor &aNeighbor,
     {
         aNeighbor.IncrementLinkFailures();
 
-        if (aAllowNeighborRemove && (Mle::IsActiveRouter(aNeighbor.GetRloc16())) &&
+        if (aAllowNeighborRemove && (Mle::IsRouterRloc16(aNeighbor.GetRloc16())) &&
             (aNeighbor.GetLinkFailures() >= aFailLimit))
         {
 #if OPENTHREAD_FTD
