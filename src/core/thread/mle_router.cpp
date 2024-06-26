@@ -1790,12 +1790,16 @@ Error MleRouter::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
     {
         OT_ASSERT(aChild.IsStateValid());
 
-        for (const Ip6::Address &childAddress :
-             aChild.IterateIp6Addresses(Ip6::Address::kTypeMulticastLargerThanRealmLocal))
+        for (const Child::Ip6AddrEntry &addrEntry : aChild.GetIp6Addresses())
         {
-            if (aChild.GetAddressMlrState(childAddress) == kMlrStateRegistered)
+            if (!addrEntry.IsMulticastLargerThanRealmLocal())
             {
-                IgnoreError(oldMlrRegisteredAddresses.PushBack(childAddress));
+                continue;
+            }
+
+            if (addrEntry.GetMlrState(aChild) == kMlrStateRegistered)
+            {
+                IgnoreError(oldMlrRegisteredAddresses.PushBack(addrEntry));
             }
         }
     }
@@ -2696,7 +2700,6 @@ Error MleRouter::SendDiscoveryResponse(const Ip6::Address &aDestination, const M
     uint16_t                      startOffset;
     Tlv                           tlv;
     MeshCoP::DiscoveryResponseTlv discoveryResponseTlv;
-    MeshCoP::NetworkNameTlv       networkNameTlv;
     uint16_t                      delay;
 
     VerifyOrExit((message = NewMleMessage(kCommandDiscoveryResponse)) != nullptr, error = kErrorNoBufs);
@@ -2740,9 +2743,8 @@ Error MleRouter::SendDiscoveryResponse(const Ip6::Address &aDestination, const M
     SuccessOrExit(
         error = Tlv::Append<MeshCoP::ExtendedPanIdTlv>(*message, Get<MeshCoP::ExtendedPanIdManager>().GetExtPanId()));
 
-    networkNameTlv.Init();
-    networkNameTlv.SetNetworkName(Get<MeshCoP::NetworkNameManager>().GetNetworkName().GetAsData());
-    SuccessOrExit(error = networkNameTlv.AppendTo(*message));
+    SuccessOrExit(error = Tlv::Append<MeshCoP::NetworkNameTlv>(
+                      *message, Get<MeshCoP::NetworkNameManager>().GetNetworkName().GetAsCString()));
 
     SuccessOrExit(error = message->AppendSteeringDataTlv());
 
