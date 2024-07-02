@@ -1,5 +1,6 @@
+#!/usr/bin/expect -f
 #
-#  Copyright (c) 2020, The OpenThread Authors.
+#  Copyright (c) 2024, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,15 +27,38 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-add_library(ot-lib-config INTERFACE)
+source "tests/scripts/expect/_common.exp"
 
-set(OT_LIB_CONFIG "" CACHE STRING "Lib project-specific config header file")
-if (OT_LIB_CONFIG)
-    target_compile_definitions(ot-lib-config INTERFACE "OPENTHREAD_PROJECT_LIB_CONFIG_FILE=\"${OT_LIB_CONFIG}\"")
-    message(STATUS "OT_LIB_CONFIG=\"${OT_LIB_CONFIG}\"")
-endif()
+spawn_node 1 "cli"
 
-add_subdirectory(hdlc)
-add_subdirectory(platform)
-add_subdirectory(spinel)
-add_subdirectory(url)
+switch_node 1
+send "tcat start\n"
+expect_line "Done"
+
+spawn python "tools/tcat_ble_client/bbtc.py" --simulation 1 --cert_path "tools/tcat_ble_client/auth"
+set py_client "$spawn_id"
+expect_line "Done"
+send "commission\n"
+expect_line "\tTYPE:\tRESPONSE_W_STATUS"
+expect_line "\tVALUE:\t0x00"
+
+send "thread start\n"
+expect_line "\tTYPE:\tRESPONSE_W_STATUS"
+expect_line "\tVALUE:\t0x00"
+
+send "decommission\n"
+expect_line "\tTYPE:\tRESPONSE_W_STATUS"
+
+send "exit\n"
+expect eof
+
+switch_node 1
+send "tcat stop\n"
+expect_line "Done"
+
+send "dataset active\n"
+expect_line "Error 23: NotFound"
+
+send "networkkey\n"
+expect_line "00000000000000000000000000000000"
+expect_line "Done"
