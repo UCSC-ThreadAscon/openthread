@@ -139,7 +139,10 @@ class OtbrDocker:
             f'trel://{config.BACKBONE_IFNAME}',
         ] + nat64_prefix
         logging.info(' '.join(cmd))
-        self._docker_proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=sys.stdout, stderr=sys.stderr)
+        self._docker_proc = subprocess.Popen(cmd,
+                                             stdin=subprocess.DEVNULL,
+                                             stdout=sys.stdout if self.verbose else subprocess.DEVNULL,
+                                             stderr=sys.stderr if self.verbose else subprocess.DEVNULL)
 
         launch_docker_deadline = time.time() + 300
         launch_ok = False
@@ -487,6 +490,16 @@ class OtbrDocker:
         if type(value) is not bool:
             raise ValueError("dns_upstream_query_state must be a bool")
         return self.set_dbus_property('DnsUpstreamQueryState', value)
+
+    @property
+    def ephemeral_key_enabled(self):
+        return bool(self.get_dbus_property('EphemeralKeyEnabled'))
+
+    @ephemeral_key_enabled.setter
+    def ephemeral_key_enabled(self, value):
+        if type(value) is not bool:
+            raise ValueError("ephemeral_key_enabled must be a bool")
+        return self.set_dbus_property('EphemeralKeyEnabled', value)
 
     def read_border_routing_counters_delta(self):
         old_counters = self._border_routing_counters
