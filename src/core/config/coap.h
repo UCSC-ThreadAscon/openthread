@@ -102,16 +102,9 @@
  *
  * Define to 1 to enable the CoAP Secure API.
  *
- * ---- UCSC Thread-ASCON Notes ----
- *
- * The CoAP Secure flag MUST NOT be enabled for the RCP. That is why
- * I set the flag to be equal to "OPENTHREAD_MTD" or "OPENTHREAD_FTD".
- *
- * The RCP does not have the ability to access the CoAP API. So if this flag
- * was set to 1 on the RCP, the RCP build will crash.
  */
 #ifndef OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE
-#define OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE (OPENTHREAD_MTD || OPENTHREAD_FTD)
+#define OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE 0
 #endif
 
 /**
