@@ -18,13 +18,13 @@ void printHexDump(otLogHexDumpInfo *aInfo) {
 }
 
 void hexDump(void *data, uint16_t dataLength, const char* title) {
-  otLogHexDumpInfo hexDump;
-  EmptyMemory(&hexDump, sizeof(otLogHexDumpInfo));
+  otLogHexDumpInfo hexDumpInfo;
+  EmptyMemory(&hexDumpInfo, sizeof(otLogHexDumpInfo));
 
-  hexDump.mDataBytes = (uint8_t *) data;
-  hexDump.mDataLength = dataLength;
-  hexDump.mTitle = title;
+  hexDumpInfo.mDataBytes = (uint8_t *) data;
+  hexDumpInfo.mDataLength = dataLength;
+  hexDumpInfo.mTitle = title;
 
-  printHexDump(&hexDump);
+  printHexDump(&hexDumpInfo);
   return;
 }
