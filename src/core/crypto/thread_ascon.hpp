@@ -20,7 +20,7 @@
  * the same in all ASCON C implementations:
  * https://github.com/ascon/ascon-c/blob/main/crypto_aead/ascon128av12/ref/api.h
  *
- * It is redefined here so that the LibAscon implementation can use this macro.
+ * It is redefined here so that the LibAscon implementations can use this macro.
 */
 #define CRYPTO_ABYTES 16
 #endif
