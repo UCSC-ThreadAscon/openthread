@@ -14,19 +14,21 @@
 #if LIBASCON
 #include "crypto/libascon/ascon.h"
 #include "crypto/libascon/ascon_internal.h"
+
+/**
+ * Took the `CRYPTO_ABYTES` macro definition from the `api.h` header, which is
+ * the same in all ASCON C implementations:
+ * https://github.com/ascon/ascon-c/blob/main/crypto_aead/ascon128av12/ref/api.h
+ *
+ * It is redefined here so that the LibAscon implementations can use this macro.
+*/
+#define CRYPTO_ABYTES 16
 #endif
 
 #include "crypto/aes_ccm.hpp"
 #include "error.h"
 
 #include <openthread/logging.h>
-
-/**
- * Took the `CRYPTO_ABYTES` macro definition from the `api.h` header, which is
- * the same in all ASCON C implementations:
- * https://github.com/ascon/ascon-c/blob/main/crypto_aead/ascon128av12/ref/api.h
-*/
-#define CRYPTO_ABYTES 16
 
 /**
  * Empties all memory for `size` bytes starting at memory address `pointer`.
