@@ -1471,7 +1471,12 @@ public:
      * A modified implementation of `ProcessTransmitAesCcm()` in
      * `mac/mac_frame.cpp` that is used to encrypt the payload with ASCON.
      *
-     * @param[in] aMacKey: the Thread Network key
+     * @param[in] aExtAddress: the 802.15.4 Source Extended Address
+     * @param[in] frameCounter: the Frame Counter from the MAC header
+     * @param[in] securityLevel: the Security Level from the Aux Security Header
+     *
+     * The above three parameters are to be used as a part of the nonce,
+     * per the 802.15.4-2006 specification (page 213).
      *
      * @retval kErrorNone  The payload has been successfully encrypted
      * @retval kErrorSecurity     The payload has failed to be encrypted
