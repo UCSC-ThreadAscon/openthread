@@ -68,13 +68,17 @@ void Frame::CreateAssocData(void *aAssocData) {
 }
 
 /**
- * Generates the nonce to be used in ASCON, which is a combination
- * of the MIC, Key ID, and Sequence Number.
+ * Generates the nonce to be used in ASCON. The nonce
+ * that is created follow the 802.15.4-2006 Specification,
+ * page 213.
  *
- * I got the idea to use parts of the MAC Header from the discussions in:
- *  - https://security.stackexchange.com/a/179279
- *  - https://crypto.stackexchange.com/a/84054
+ * 802.15.4-2006 (pg. 213) state that the nonce is as follows:
  *
+ * | Extended Address | Frame Counter | Security Level |
+ *
+ * @param[in] aExtAddress: the 802.15.4 Source Extended Address
+ * @param[in] frameCounter: the Frame Counter from the MAC header
+ * @param[in] securityLevel: the Security Level from the Aux Security Header
  * @param[out] aNonce: The pointer to the nonce.
 */
 void CreateAsconNonce(const ExtAddress &aExtAddress,
