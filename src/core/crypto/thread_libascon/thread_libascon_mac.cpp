@@ -82,9 +82,9 @@ void Frame::CreateAssocData(void *aAssocData) {
  * @param[out] aNonce: The pointer to the nonce.
 */
 void CreateAsconNonce(const ExtAddress &aExtAddress,
-                             uint32_t frameCounter,
-                             uint8_t securityLevel,
-                             void* aNonce)
+                      uint32_t frameCounter,
+                      uint8_t securityLevel,
+                      void* aNonce)
 {
   EmptyMemory(aNonce, ASCON_AEAD_NONCE_LEN);
 
