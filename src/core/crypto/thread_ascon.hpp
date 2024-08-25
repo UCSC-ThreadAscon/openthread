@@ -29,6 +29,7 @@
 #include "error.h"
 
 #include <openthread/logging.h>
+
 /**
  * Empties all memory for `size` bytes starting at memory address `pointer`.
  *
