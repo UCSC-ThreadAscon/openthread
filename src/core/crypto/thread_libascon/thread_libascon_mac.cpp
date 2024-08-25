@@ -69,12 +69,12 @@ void Frame::CreateAssocData(void *aAssocData) {
 
 /**
  * Generates the nonce to be used in ASCON. The nonce
- * that is created follow the 802.15.4-2006 Specification,
+ * that is created follows the 802.15.4-2006 Specification,
  * page 213.
  *
  * 802.15.4-2006 (pg. 213) state that the nonce is as follows:
  *
- * | Extended Address | Frame Counter | Security Level |
+ *  | Extended Address | Frame Counter | Security Level |
  *
  * @param[in] aExtAddress: the 802.15.4 Source Extended Address
  * @param[in] frameCounter: the Frame Counter from the MAC header
