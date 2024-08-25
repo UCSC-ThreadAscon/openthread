@@ -67,35 +67,36 @@ void Frame::CreateAssocData(void *aAssocData) {
   return;
 }
 
-void Frame::CreateAsconNonce(void* aNonce) {
+/**
+ * Generates the nonce to be used in ASCON, which is a combination
+ * of the MIC, Key ID, and Sequence Number.
+ *
+ * I got the idea to use parts of the MAC Header from the discussions in:
+ *  - https://security.stackexchange.com/a/179279
+ *  - https://crypto.stackexchange.com/a/84054
+ *
+ * @param[out] aNonce: The pointer to the nonce.
+*/
+void CreateAsconNonce(const ExtAddress &aExtAddress,
+                             uint32_t frameCounter,
+                             uint8_t securityLevel,
+                             void* aNonce)
+{
   EmptyMemory(aNonce, ASCON_AEAD_NONCE_LEN);
-
-  uint8_t sequenceNumber = GetSequence();
-
-  uint8_t keyId = 0;
-  if (GetKeyId(keyId) != OT_ERROR_NONE) {
-    otLogCritPlat("Failed to get Key ID.");
-  };
-
-  uint32_t frameCounter = 0;
-  if (GetFrameCounter(frameCounter) != OT_ERROR_NONE) {
-    otLogCritPlat("Failed to use frame counter to create the nonce.");
-  }
 
   uint8_t *offset = (uint8_t *) aNonce;
 
-  memcpy(offset, &sequenceNumber, sizeof(uint8_t));
-  offset += sizeof(uint8_t);
-
-  memcpy(offset, &keyId, sizeof(uint8_t));
-  offset += sizeof(uint8_t);
+  memcpy(offset, aExtAddress.m8, sizeof(Mac::ExtAddress));
+  offset += sizeof(Mac::ExtAddress);
 
   BigEndian::WriteUint32(frameCounter, offset);
+  offset += sizeof(uint32_t);
 
+  memcpy(offset, &securityLevel, sizeof(uint8_t));
   return;
 }
 
-Error TxFrame::AsconDataEncrypt() {
+Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress, uint32_t frameCounter, uint8_t securityLevel) {
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(GetAesKey(), key);
 
@@ -103,7 +104,7 @@ Error TxFrame::AsconDataEncrypt() {
   CreateAssocData(assocData);
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
-  CreateAsconNonce(nonce);
+  CreateAsconNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
 #if ASCON_MAC_ENCRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
@@ -128,7 +129,11 @@ Error TxFrame::AsconDataEncrypt() {
   return OT_ERROR_NONE;
 }
 
-Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
+Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
+                                const ExtAddress &aExtAddress,
+                                uint32_t frameCounter,
+                                uint8_t securityLevel)
+{
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(aMacKey, key);
 
@@ -136,7 +141,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey) {
   CreateAssocData(assocData);
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
-  CreateAsconNonce(nonce);
+  CreateAsconNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
   uint16_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t ciphertextLen = GetPayloadLength();

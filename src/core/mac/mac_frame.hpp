@@ -760,18 +760,6 @@ public:
    uint8_t* AddAddrToAd(Address addr, uint8_t *offset);
 
     /**
-     * Generates the nonce to be used in ASCON, which is a combination
-     * of the MIC, Key ID, and Sequence Number.
-     *
-     * I got the idea to use parts of the MAC Header from the discussions in:
-     *  - https://security.stackexchange.com/a/179279
-     *  - https://crypto.stackexchange.com/a/84054
-     *
-     * @param[out] aNonce: The pointer to the nonce.
-    */
-    void CreateAsconNonce(void* aNonce);
-
-    /**
      * Sets the Frame Counter.
      *
      * @param[in]  aFrameCounter  The Frame Counter.
@@ -1304,10 +1292,20 @@ public:
      *
      * @param[in] aMacKey: the Thread Network key
      *
+     * @param[in] aExtAddress: the 802.15.4 Source Extended Address
+     * @param[in] frameCounter: the Frame Counter from the MAC header
+     * @param[in] securityLevel: the Security Level from the Aux Security Header
+     *
+     * The three parameters defined after `aMacKey` are to be used as a part of the nonce,
+     * as per the 802.15.4-2006 specification (page 213).
+     *
      * @retval kErrorNone  The payload has been successfully decrypted
      * @retval kErrorSecurity The payload has failed to be decrypted successfully
     */
-    Error AsconDataDecrypt(const ot::Mac::KeyMaterial &aMacKey);
+    Error AsconDataDecrypt(const ot::Mac::KeyMaterial &aMacKey,
+                           const ExtAddress &aExtAddress,
+                           uint32_t frameCounter,
+                           uint8_t securityLevel);
 
 #if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
     /**
@@ -1497,12 +1495,17 @@ public:
      * A modified implementation of `ProcessTransmitAesCcm()` in
      * `mac/mac_frame.cpp` that is used to encrypt the payload with ASCON.
      *
-     * @param[in] aMacKey: the Thread Network key
+     * @param[in] aExtAddress: the 802.15.4 Source Extended Address
+     * @param[in] frameCounter: the Frame Counter from the MAC header
+     * @param[in] securityLevel: the Security Level from the Aux Security Header
      *
-     * @retval kErrorNone  The payload has been successfully encrypted
+     * The above three parameters are to be used as a part of the nonce,
+     * as per the 802.15.4-2006 specification (page 213).
+     *
+     * @retval kErrorNone         The payload has been successfully encrypted
      * @retval kErrorSecurity     The payload has failed to be encrypted
     */
-    Error AsconDataEncrypt();
+    Error AsconDataEncrypt(const ExtAddress &aExtAddress, uint32_t frameCounter, uint8_t securityLevel);
 
     /**
      * Indicates whether or not the frame has security processed.
