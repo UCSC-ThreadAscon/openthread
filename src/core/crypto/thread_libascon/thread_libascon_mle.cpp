@@ -42,6 +42,11 @@ void createNonce(ot::Ip6::Address sender,
  * The Associated Data consists of the sender and receiver 802.15.4
  * extended addresses.
  *
+ * I got the idea to use parts of the MAC Header as the Associated Data from
+ * the discussions in:
+ *    https://security.stackexchange.com/a/179279
+ *    https://crypto.stackexchange.com/a/84054
+ *
  * @param[in] sender: the IPv6 address of the sender
  * @param[in] receiver: the IPv6 address of the receiver
  *
@@ -125,6 +130,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   }
 
 #if ASCON_MLE_ENCRYPT_HEX_DUMP
+  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
   hexDump((void *) ciphertext, plaintextLen, "Ciphertext Bytes (no tag)");
   hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
 #endif
@@ -148,6 +154,12 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
+#if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
+  hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+#endif
+
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
   uint16_t cipherLenNoTag = cipherLenTotal - ASCON_TAG_LENGTH;
   size_t assocDataLen = CRYPTO_ABYTES;
@@ -169,6 +181,11 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   bool status = libascon_decrypt(plaintext, key, nonce, assocData,
                                  cipherNoTag, tag, assocDataLen,
                                  cipherLenNoTag, ASCON_TAG_LENGTH);
+
+#if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) plaintext, plaintextLen, "Ciphertext Bytes (no tag)");
+  hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
+#endif
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MLE).");

@@ -128,7 +128,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
                    tagLength);
 
 #if ASCON_MAC_ENCRYPT_HEX_DUMP
-  // Plaintext and Ciphertext (excluding tag) lengths are the same in ASCON AEAD.
+  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
   hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
   hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
@@ -166,7 +166,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
                                  ciphertextLength, tagLength);
 
 #if ASCON_MAC_DECRYPT_HEX_DUMP
-  // Plaintext and Ciphertext (excluding tag) lengths are the same in ASCON AEAD.
+  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
   hexDump((void *) GetPayload(), ciphertextLength, "Plaintext Bytes (no tag)");
   hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
