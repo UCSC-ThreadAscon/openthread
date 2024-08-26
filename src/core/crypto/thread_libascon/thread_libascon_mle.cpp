@@ -7,18 +7,24 @@
 #include <inttypes.h>
 
 /**
- * The MLE nonce will be composed of the IPv6 address of the sender,
- * the MLE frame counter, and the Key ID mode of the packet.
+ * Generates the nonce to be used in ASCON AEAD. The nonce
+ * that is created follows the 802.15.4-2006 Specification,
+ * page 213.
  *
- * @param[in] sender: the IPv6 address of sender of the MLE packet
+ * 802.15.4-2006 (pg. 213) state that the nonce is as follows:
+ *
+ *  | Extended Address | Frame Counter | Security Level |
+ *
+ * @param[in] sender: the IPv6 address of sender of the MLE packet;
+ *                    where the Extended Address will be obtained from
  * @param[in] frameCounter: the frame counter of the MLE packet
- * @param[in] keyId: the Key ID mode of the MLE packet
+ * @param[in] securityLevel: the MLE security level
  *
  * @param[out] aNonce: the pointer to the nonce bytes
 */
 void createNonce(ot::Ip6::Address sender,
                  uint32_t frameCounter,
-                 uint32_t keyId,
+                 uint8_t securityLevel,
                  void* aNonce)
 {
   EmptyMemory(aNonce, ASCON_AEAD_NONCE_LEN);
@@ -34,7 +40,7 @@ void createNonce(ot::Ip6::Address sender,
   memcpy(offset, &frameCounter, sizeof(uint32_t));
   offset += sizeof(uint32_t);
 
-  memcpy(offset, &keyId, sizeof(uint32_t));
+  memcpy(offset, &securityLevel, sizeof(uint8_t));
   return;
 }
 
@@ -94,7 +100,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
-              aHeader.GetKeyId(), nonce);
+              Mac::Frame::kSecurityEncMic32, nonce);
 
 #if ASCON_MLE_ENCRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
@@ -152,7 +158,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
-              aHeader.GetKeyId(), nonce);
+              Mac::Frame::kSecurityEncMic32, nonce);
 
 #if ASCON_MLE_DECRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
@@ -183,7 +189,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
                                  cipherLenNoTag, ASCON_TAG_LENGTH);
 
 #if ASCON_MLE_DECRYPT_HEX_DUMP
-  hexDump((void *) plaintext, plaintextLen, "Ciphertext Bytes (no tag)");
+  hexDump((void *) plaintext, plaintextLen, "Plaintext Bytes (no tag)");
   hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
 #endif
 
