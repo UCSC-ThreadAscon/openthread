@@ -155,6 +155,9 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
   hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+
+  // Ciphertext before it gets decrypted to plaintext in place.
+  hexDump((void *) GetPayload(), GetPayloadLength(), "Ciphertext Bytes (no tag)");
 #endif
 
   uint16_t tagLength = GetFooterLength() - GetFcsSize();

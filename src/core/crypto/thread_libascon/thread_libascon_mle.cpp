@@ -189,6 +189,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
                                  cipherLenNoTag, ASCON_TAG_LENGTH);
 
 #if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) cipherNoTag, cipherLenNoTag, "Ciphertext Bytes (no tag)");
   hexDump((void *) plaintext, plaintextLen, "Plaintext Bytes (no tag)");
   hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
 #endif
