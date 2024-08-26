@@ -68,7 +68,7 @@ void Frame::CreateAssocData(void *aAssocData) {
 }
 
 /**
- * Generates the nonce to be used in ASCON. The nonce
+ * Generates the nonce to be used in ASCON AEAD. The nonce
  * that is created follows the 802.15.4-2006 Specification,
  * page 213.
  *
@@ -100,7 +100,10 @@ void CreateAsconNonce(const ExtAddress &aExtAddress,
   return;
 }
 
-Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress, uint32_t frameCounter, uint8_t securityLevel) {
+Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
+                                uint32_t frameCounter,
+                                uint8_t securityLevel)
+{
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(GetAesKey(), key);
 
@@ -125,6 +128,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress, uint32_t frameCou
                    tagLength);
 
 #if ASCON_MAC_ENCRYPT_HEX_DUMP
+  // Plaintext and Ciphertext (excluding tag) lengths are the same in ASCON AEAD.
   hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
   hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
@@ -147,13 +151,25 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
   CreateAsconNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
+#if ASCON_MAC_DECRYPT_HEX_DUMP
+  hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
+  hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+#endif
+
   uint16_t tagLength = GetFooterLength() - GetFcsSize();
-  uint16_t ciphertextLen = GetPayloadLength();
+  uint16_t ciphertextLength = GetPayloadLength();
   size_t assocDataLen = CRYPTO_ABYTES;
 
   bool status = libascon_decrypt(GetPayload(), key, nonce, assocData,
                                  GetPayload(), GetFooter(), assocDataLen,
-                                 ciphertextLen, tagLength);
+                                 ciphertextLength, tagLength);
+
+#if ASCON_MAC_DECRYPT_HEX_DUMP
+  // Plaintext and Ciphertext (excluding tag) lengths are the same in ASCON AEAD.
+  hexDump((void *) GetPayload(), ciphertextLength, "Plaintext Bytes (no tag)");
+  hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
+#endif
 
   if (status == ASCON_TAG_INVALID) {
     otLogWarnPlat("Invalid ASCON ciphertext (LibAscon - MAC).");
