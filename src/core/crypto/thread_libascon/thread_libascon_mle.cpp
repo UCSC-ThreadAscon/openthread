@@ -42,8 +42,8 @@ void createNonce(ot::Ip6::Address sender,
  * The Associated Data consists of the sender and receiver 802.15.4
  * extended addresses.
  *
- * I got the idea to use parts of the MAC Header as the Associated Data from
- * the discussions in:
+ * I got inspired to use the sender and receiver Extended Addresses
+ * as the Associated Data from the discussions in:
  *    https://security.stackexchange.com/a/179279
  *    https://crypto.stackexchange.com/a/84054
  *
