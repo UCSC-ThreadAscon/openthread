@@ -100,7 +100,10 @@ void CreateAsconNonce(const ExtAddress &aExtAddress,
   return;
 }
 
-Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress, uint32_t frameCounter, uint8_t securityLevel) {
+Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
+                                uint32_t frameCounter,
+                                uint8_t securityLevel)
+{
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(GetAesKey(), key);
 
@@ -125,6 +128,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress, uint32_t frameCou
                    tagLength);
 
 #if ASCON_MAC_ENCRYPT_HEX_DUMP
+  // Plaintext and Ciphertext (excluding tag) lengths are the same in ASCON AEAD.
   hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
   hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
