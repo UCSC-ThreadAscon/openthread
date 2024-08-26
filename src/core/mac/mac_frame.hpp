@@ -738,8 +738,8 @@ public:
      *
      * I got the idea to use parts of the MAC Header as the Associated Data from
      * the discussions in:
-     *  - https://security.stackexchange.com/a/179279
-     *  - https://crypto.stackexchange.com/a/84054
+     *    https://security.stackexchange.com/a/179279
+     *    https://crypto.stackexchange.com/a/84054
      *
      * @param[out] aAssocData: The pointer to the associated data,
      *                          which will be CRYPTO_ABYTES in length.

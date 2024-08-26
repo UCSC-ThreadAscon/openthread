@@ -4819,7 +4819,7 @@ Error Mle::TxMessage::SendTo(const Ip6::Address &aDestination)
 #endif // AES_MLE_ENCRYPT
 
 #if ASCON_MLE_ENCRYPT
-        SuccessOrExit(error = Get<Mle>().AsconMleEncrypt(*this, messageInfo, header, offset));  
+        SuccessOrExit(error = Get<Mle>().AsconMleEncrypt(*this, messageInfo, header, offset));
 #endif // ASCON_MLE_ENCRYPT
 
         Get<KeyManager>().IncrementMleFrameCounter();
