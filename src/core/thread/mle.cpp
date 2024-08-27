@@ -3415,6 +3415,7 @@ void Mle::HandleChildUpdateRequest(RxInfo &aRxInfo)
     RxChallenge challenge;
     TlvList     requestedTlvList;
     TlvList     tlvList;
+    uint8_t     linkMarginOut;
 
     SuccessOrExit(error = Tlv::Find<SourceAddressTlv>(aRxInfo.mMessage, sourceAddress));
 
@@ -3456,6 +3457,17 @@ void Mle::HandleChildUpdateRequest(RxInfo &aRxInfo)
         }
 
         SuccessOrExit(error = HandleLeaderData(aRxInfo));
+
+        switch (Tlv::Find<LinkMarginTlv>(aRxInfo.mMessage, linkMarginOut))
+        {
+        case kErrorNone:
+            mParent.SetLinkQualityOut(LinkQualityForLinkMargin(linkMarginOut));
+            break;
+        case kErrorNotFound:
+            break;
+        default:
+            ExitNow(error = kErrorParse);
+        }
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
         {
@@ -3515,6 +3527,7 @@ void Mle::HandleChildUpdateResponse(RxInfo &aRxInfo)
     uint32_t    mleFrameCounter;
     uint16_t    sourceAddress;
     uint32_t    timeout;
+    uint8_t     linkMarginOut;
 
     Log(kMessageReceive, kTypeChildUpdateResponseAsChild, aRxInfo.mMessageInfo.GetPeerAddr());
 
@@ -3635,6 +3648,17 @@ void Mle::HandleChildUpdateResponse(RxInfo &aRxInfo)
 
     default:
         OT_ASSERT(false);
+    }
+
+    switch (Tlv::Find<LinkMarginTlv>(aRxInfo.mMessage, linkMarginOut))
+    {
+    case kErrorNone:
+        mParent.SetLinkQualityOut(LinkQualityForLinkMargin(linkMarginOut));
+        break;
+    case kErrorNotFound:
+        break;
+    default:
+        ExitNow(error = kErrorParse);
     }
 
     aRxInfo.mClass = response.IsEmpty() ? RxInfo::kPeerMessage : RxInfo::kAuthoritativeMessage;
