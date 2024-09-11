@@ -102,6 +102,7 @@ Mle::Mle(Instance &aInstance)
     , mAttachCounter(0)
     , mAnnounceDelay(kAnnounceTimeout)
     , mAlternatePanId(Mac::kPanIdBroadcast)
+    , mStoreFrameCounterAhead(kDefaultStoreFrameCounterAhead)
     , mTimeout(kDefaultChildTimeout)
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     , mCslTimeout(kDefaultCslTimeout)
@@ -503,8 +504,8 @@ Error Mle::Store(void)
     }
 
     networkInfo.SetKeySequence(Get<KeyManager>().GetCurrentKeySequence());
-    networkInfo.SetMleFrameCounter(Get<KeyManager>().GetMleFrameCounter() + kStoreFrameCounterAhead);
-    networkInfo.SetMacFrameCounter(Get<KeyManager>().GetMaximumMacFrameCounter() + kStoreFrameCounterAhead);
+    networkInfo.SetMleFrameCounter(Get<KeyManager>().GetMleFrameCounter() + mStoreFrameCounterAhead);
+    networkInfo.SetMacFrameCounter(Get<KeyManager>().GetMaximumMacFrameCounter() + mStoreFrameCounterAhead);
     networkInfo.SetDeviceMode(mDeviceMode.Get());
 
     SuccessOrExit(error = Get<Settings>().Save(networkInfo));
@@ -3683,6 +3684,7 @@ void Mle::HandleAnnounce(RxInfo &aRxInfo)
     Error              error = kErrorNone;
     ChannelTlvValue    channelTlvValue;
     MeshCoP::Timestamp timestamp;
+    MeshCoP::Timestamp pendingActiveTimestamp;
     uint8_t            channel;
     uint16_t           panId;
     bool               isFromOrphan;
@@ -3725,6 +3727,24 @@ void Mle::HandleAnnounce(RxInfo &aRxInfo)
         if (IsDetached())
         {
             VerifyOrExit(!channelAndPanIdMatch);
+        }
+
+        if (Get<MeshCoP::PendingDatasetManager>().ReadActiveTimestamp(pendingActiveTimestamp) == kErrorNone)
+        {
+            // Ignore the Announce and take no action, if a pending
+            // dataset exists with an equal or more recent timestamp,
+            // and it will be applied soon.
+
+            if (pendingActiveTimestamp >= timestamp)
+            {
+                uint32_t remainingDelay;
+
+                if ((Get<MeshCoP::PendingDatasetManager>().ReadRemainingDelay(remainingDelay) == kErrorNone) &&
+                    (remainingDelay < kAnnounceBackoffForPendingDataset))
+                {
+                    ExitNow();
+                }
+            }
         }
 
         if (mAttachState == kAttachStateProcessAnnounce)
