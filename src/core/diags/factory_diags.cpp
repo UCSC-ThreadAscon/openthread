@@ -42,12 +42,7 @@
 #include <openthread/platform/diag.h>
 #include <openthread/platform/radio.h>
 
-#include "common/as_core_type.hpp"
-#include "common/code_utils.hpp"
-#include "common/error.hpp"
-#include "common/string.hpp"
 #include "instance/instance.hpp"
-#include "radio/radio.hpp"
 #include "utils/parse_cmdline.hpp"
 
 OT_TOOL_WEAK
@@ -236,15 +231,25 @@ Error Diags::ProcessFrame(uint8_t aArgsLength, char *aArgs[])
     Error    error             = kErrorNone;
     uint16_t size              = OT_RADIO_FRAME_MAX_SIZE;
     bool     securityProcessed = false;
+    bool     csmaCaEnabled     = false;
 
-    if (aArgsLength >= 1)
+    while (aArgsLength > 1)
     {
         if (StringMatch(aArgs[0], "-s"))
         {
             securityProcessed = true;
-            aArgs++;
-            aArgsLength--;
         }
+        else if (StringMatch(aArgs[0], "-c"))
+        {
+            csmaCaEnabled = true;
+        }
+        else
+        {
+            ExitNow(error = kErrorInvalidArgs);
+        }
+
+        aArgs++;
+        aArgsLength--;
     }
 
     VerifyOrExit(aArgsLength == 1, error = kErrorInvalidArgs);
@@ -254,6 +259,7 @@ Error Diags::ProcessFrame(uint8_t aArgsLength, char *aArgs[])
     VerifyOrExit(size >= OT_RADIO_FRAME_MIN_SIZE, error = kErrorInvalidArgs);
 
     ResetTxPacket();
+    mTxPacket->mInfo.mTxInfo.mCsmaCaEnabled       = csmaCaEnabled;
     mTxPacket->mInfo.mTxInfo.mIsSecurityProcessed = securityProcessed;
     mTxPacket->mLength                            = size;
     mIsTxPacketSet                                = true;
