@@ -26,34 +26,50 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <openthread/platform/infra_if.h>
+/**
+ * @file
+ *   This file includes compile-time configurations for the Wake-up Coordinator and Wake-up End Device roles.
+ *
+ */
 
-#include "ncp/ncp_base.hpp"
+#ifndef CONFIG_WAKEUP_H_
+#define CONFIG_WAKEUP_H_
 
-#if OPENTHREAD_CONFIG_NCP_INFRA_IF_ENABLE
-bool otPlatInfraIfHasAddress(uint32_t aInfraIfIndex, const otIp6Address *aAddress)
-{
-    return ot::Ncp::NcpBase::GetNcpInstance()->InfraIfHasAddress(aInfraIfIndex, aAddress);
-}
+/**
+ * @addtogroup config-wakeup
+ *
+ * @brief
+ *   This module includes configuration variables for the Wake-up Coordinator and Wake-up End Device roles.
+ *
+ * @{
+ *
+ */
 
-otError otPlatInfraIfSendIcmp6Nd(uint32_t            aInfraIfIndex,
-                                 const otIp6Address *aDestAddress,
-                                 const uint8_t      *aBuffer,
-                                 uint16_t            aBufferLength)
-{
-    OT_UNUSED_VARIABLE(aInfraIfIndex);
-    OT_UNUSED_VARIABLE(aDestAddress);
-    OT_UNUSED_VARIABLE(aBuffer);
-    OT_UNUSED_VARIABLE(aBufferLength);
+/**
+ * @def OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+ *
+ * Define to 1 to enable the Wake-up Coordinator role that is capable of establishing
+ * a link with one or more Wake-up End Devices by sending a sequence of wake-up frames.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+#define OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE 0
+#endif
 
-    return OT_ERROR_NOT_IMPLEMENTED;
-}
+/**
+ * @def OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+ *
+ * Define to 1 to enable the Wake-up End Device role that periodically listens for wake-up
+ * frames to establish a link with a Wake-up Coordinator device.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+#define OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE 0
+#endif
 
-otError otPlatInfraIfDiscoverNat64Prefix(uint32_t aInfraIfIndex)
-{
-    OT_UNUSED_VARIABLE(aInfraIfIndex);
+/**
+ * @}
+ *
+ */
 
-    return OT_ERROR_NOT_IMPLEMENTED;
-}
-
-#endif // OPENTHREAD_CONFIG_NCP_INFRA_IF_ENABLE
+#endif // CONFIG_WAKEUP_H_
