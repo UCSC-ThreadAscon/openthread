@@ -118,6 +118,8 @@ class Mle : public InstanceLocator, private NonCopyable
     friend class ot::UnitTester;
 
 public:
+    typedef otDetachGracefullyCallback DetachCallback; ///< Callback to signal end of graceful detach.
+
     /**
      * Initializes the MLE object.
      *
@@ -201,7 +203,7 @@ public:
      * @retval kErrorNone   Successfully started detaching.
      * @retval kErrorBusy   Detaching is already in progress.
      */
-    Error DetachGracefully(otDetachGracefullyCallback aCallback, void *aContext);
+    Error DetachGracefully(DetachCallback aCallback, void *aContext);
 
     /**
      * Indicates whether or not the Thread device is attached to a Thread network.
@@ -790,32 +792,6 @@ private:
     //------------------------------------------------------------------------------------------------------------------
     // Enumerations
 
-    enum Command : uint8_t
-    {
-        kCommandLinkRequest                   = 0,
-        kCommandLinkAccept                    = 1,
-        kCommandLinkAcceptAndRequest          = 2,
-        kCommandLinkReject                    = 3,
-        kCommandAdvertisement                 = 4,
-        kCommandUpdate                        = 5,
-        kCommandUpdateRequest                 = 6,
-        kCommandDataRequest                   = 7,
-        kCommandDataResponse                  = 8,
-        kCommandParentRequest                 = 9,
-        kCommandParentResponse                = 10,
-        kCommandChildIdRequest                = 11,
-        kCommandChildIdResponse               = 12,
-        kCommandChildUpdateRequest            = 13,
-        kCommandChildUpdateResponse           = 14,
-        kCommandAnnounce                      = 15,
-        kCommandDiscoveryRequest              = 16,
-        kCommandDiscoveryResponse             = 17,
-        kCommandLinkMetricsManagementRequest  = 18,
-        kCommandLinkMetricsManagementResponse = 19,
-        kCommandLinkProbe                     = 20,
-        kCommandTimeSync                      = 99,
-    };
-
     enum AttachMode : uint8_t
     {
         kAnyPartition,    // Attach to any Thread partition.
@@ -1110,7 +1086,7 @@ private:
         };
 
         void Send(TxMessage &aMessage, const Metadata &aMetadata);
-        void RemoveMessage(Message::SubType aSubType, MessageType aMessageType, const Ip6::Address *aDestination);
+        void RemoveMessage(Command aCommand, MessageType aMessageType, const Ip6::Address *aDestination);
 
         using DelayTimer = TimerMilliIn<Mle, &Mle::HandleDelayedSenderTimer>;
 
@@ -1240,8 +1216,6 @@ private:
     void       HandleNotifierEvents(Events aEvents);
     void       HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
     void       ReestablishLinkWithNeighbor(Neighbor &aNeighbor);
-    void       HandleDetachGracefullyTimer(void);
-    bool       IsDetachingGracefully(void) { return mDetachGracefullyTimer.IsRunning(); }
     Error      SendChildUpdateRequest(ChildUpdateRequestMode aMode);
     Error      SendDataRequestAfterDelay(const Ip6::Address &aDestination, uint16_t aDelay);
     Error      SendChildUpdateRequest(void);
@@ -1409,10 +1383,9 @@ private:
     //------------------------------------------------------------------------------------------------------------------
     // Variables
 
-    using DetachGracefullyTimer = TimerMilliIn<Mle, &Mle::HandleDetachGracefullyTimer>;
-    using AttachTimer           = TimerMilliIn<Mle, &Mle::HandleAttachTimer>;
-    using MsgTxTimer            = TimerMilliIn<Mle, &Mle::HandleMessageTransmissionTimer>;
-    using MleSocket             = Ip6::Udp::SocketIn<Mle, &Mle::HandleUdpReceive>;
+    using AttachTimer = TimerMilliIn<Mle, &Mle::HandleAttachTimer>;
+    using MsgTxTimer  = TimerMilliIn<Mle, &Mle::HandleMessageTransmissionTimer>;
+    using MleSocket   = Ip6::Udp::SocketIn<Mle, &Mle::HandleUdpReceive>;
 
     static const otMeshLocalPrefix kMeshLocalPrefixInit;
 
@@ -1420,12 +1393,11 @@ private:
     bool mRequestRouteTlv : 1;
     bool mHasRestored : 1;
     bool mReceivedResponseFromParent : 1;
+    bool mDetachingGracefully : 1;
     bool mInitiallyAttachedAsSleepy : 1;
-#if OPENTHREAD_FTD
-    bool mWasLeader : 1;
-#endif
 
     DeviceRole              mRole;
+    DeviceRole              mLastSavedRole;
     DeviceMode              mDeviceMode;
     AttachState             mAttachState;
     ReattachState           mReattachState;
@@ -1434,14 +1406,11 @@ private:
     AddressRegistrationMode mAddressRegistrationMode;
     ChildUpdateRequestState mChildUpdateRequestState;
 
-    uint8_t mParentRequestCounter;
-    uint8_t mChildUpdateAttempts;
-    uint8_t mDataRequestAttempts;
-    uint8_t mAnnounceChannel;
-    uint8_t mAlternateChannel;
-#if OPENTHREAD_FTD
-    uint8_t mLinkRequestAttempts;
-#endif
+    uint8_t  mParentRequestCounter;
+    uint8_t  mChildUpdateAttempts;
+    uint8_t  mDataRequestAttempts;
+    uint8_t  mAnnounceChannel;
+    uint8_t  mAlternateChannel;
     uint16_t mRloc16;
     uint16_t mPreviousParentRloc;
     uint16_t mAttachCounter;
@@ -1471,13 +1440,12 @@ private:
 #if OPENTHREAD_CONFIG_TMF_NETDATA_SERVICE_ENABLE
     ServiceAloc mServiceAlocs[kMaxServiceAlocs];
 #endif
-    Callback<otDetachGracefullyCallback> mDetachGracefullyCallback;
+    Callback<DetachCallback> mDetachGracefullyCallback;
 #if OPENTHREAD_CONFIG_MLE_PARENT_RESPONSE_CALLBACK_API_ENABLE
     Callback<otThreadParentResponseCallback> mParentResponseCallback;
 #endif
     AttachTimer                  mAttachTimer;
     MsgTxTimer                   mMessageTransmissionTimer;
-    DetachGracefullyTimer        mDetachGracefullyTimer;
     Ip6::NetworkPrefix           mMeshLocalPrefix;
     Ip6::Netif::UnicastAddress   mLinkLocalAddress;
     Ip6::Netif::UnicastAddress   mMeshLocalEid;

@@ -778,7 +778,7 @@ Mac::TxFrame *MeshForwarder::HandleFrameRequest(Mac::TxFrames &aTxFrames)
     switch (mSendMessage->GetType())
     {
     case Message::kTypeIp6:
-        if (mSendMessage->GetSubType() == Message::kSubTypeMleDiscoverRequest)
+        if (mSendMessage->IsMleCommand(Mle::kCommandDiscoveryRequest))
         {
             frame = Get<Mle::DiscoverScanner>().PrepareDiscoveryRequestFrame(*frame);
             VerifyOrExit(frame != nullptr);
@@ -792,7 +792,7 @@ Mac::TxFrame *MeshForwarder::HandleFrameRequest(Mac::TxFrames &aTxFrames)
         mMessageNextOffset =
             PrepareDataFrame(*frame, *mSendMessage, mMacAddrs, mAddMeshHeader, mMeshSource, mMeshDest, addFragHeader);
 
-        if ((mSendMessage->GetSubType() == Message::kSubTypeMleChildIdRequest) && mSendMessage->IsLinkSecurityEnabled())
+        if (mSendMessage->IsMleCommand(Mle::kCommandChildIdRequest) && mSendMessage->IsLinkSecurityEnabled())
         {
             LogNote("Child ID Request requires fragmentation, aborting tx");
             mMessageNextOffset = mSendMessage->GetLength();
@@ -840,20 +840,66 @@ exit:
 
 void MeshForwarder::PrepareMacHeaders(Mac::TxFrame &aTxFrame, Mac::TxFrame::Info &aTxFrameInfo, const Message *aMessage)
 {
-    bool iePresent;
+    aTxFrameInfo.mVersion = Mac::Frame::kVersion2006;
 
-    iePresent = CalcIePresent(aMessage);
-    aTxFrameInfo.mVersion =
-        CalcFrameVersion(Get<NeighborTable>().FindNeighbor(aTxFrameInfo.mAddrs.mDestination), iePresent);
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Determine Header IE entries
+
+#if OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT
+
+#if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
+    if ((aMessage != nullptr) && aMessage->IsTimeSync())
+    {
+        aTxFrameInfo.mAppendTimeIe = true;
+        aTxFrameInfo.mVersion      = Mac::Frame::kVersion2015;
+    }
+#endif
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    if (Get<Mac::Mac>().IsCslEnabled() &&
+        !(aMessage != nullptr && aMessage->IsMleCommand(Mle::kCommandDiscoveryRequest)))
+    {
+        aTxFrameInfo.mAppendCslIe = true;
+        aTxFrameInfo.mVersion     = Mac::Frame::kVersion2015;
+    }
+#endif
+
+    aTxFrameInfo.mEmptyPayload = (aMessage == nullptr) || (aMessage->GetLength() == 0);
+
+#endif // OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT
+
+#if (OPENTHREAD_FTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE) || \
+    OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Determine frame version
+
+    if (aTxFrameInfo.mVersion == Mac::Frame::kVersion2006)
+    {
+        const Neighbor *neighbor = Get<NeighborTable>().FindNeighbor(aTxFrameInfo.mAddrs.mDestination);
+
+#if OPENTHREAD_FTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
+        if ((neighbor != nullptr) && Get<ChildTable>().Contains(*neighbor) &&
+            static_cast<const Child *>(neighbor)->IsCslSynchronized())
+        {
+            aTxFrameInfo.mVersion = Mac::Frame::kVersion2015;
+        }
+#endif
+#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
+        if ((neighbor != nullptr) && neighbor->IsEnhAckProbingActive())
+        {
+            aTxFrameInfo.mVersion = Mac::Frame::kVersion2015;
+        }
+#endif
+    }
+
+#endif // OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Prepare MAC headers
 
     aTxFrameInfo.PrepareHeadersIn(aTxFrame);
 
-#if OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT
-    if (iePresent)
-    {
-        AppendHeaderIe(aMessage, aTxFrame);
-    }
-#endif
+    OT_UNUSED_VARIABLE(aMessage);
 }
 
 // This method constructs a MAC data from from a given IPv6 message.
@@ -888,39 +934,40 @@ start:
     {
         frameInfo.mSecurityLevel = Mac::Frame::kSecurityEncMic32;
 
-        switch (aMessage.GetSubType())
+        if (aMessage.GetSubType() == Message::kSubTypeJoinerEntrust)
         {
-        case Message::kSubTypeJoinerEntrust:
             frameInfo.mKeyIdMode = Mac::Frame::kKeyIdMode0;
-            break;
-
-        case Message::kSubTypeMleAnnounce:
+        }
+        else if (aMessage.IsMleCommand(Mle::kCommandAnnounce))
+        {
             frameInfo.mKeyIdMode = Mac::Frame::kKeyIdMode2;
-            break;
-
-        default:
+        }
+        else
+        {
             frameInfo.mKeyIdMode = Mac::Frame::kKeyIdMode1;
-            break;
         }
     }
 
     frameInfo.mPanIds.SetBothSourceDestination(Get<Mac::Mac>().GetPanId());
 
-    switch (aMessage.GetSubType())
+    if (aMessage.IsSubTypeMle())
     {
-    case Message::kSubTypeMleAnnounce:
-        aFrame.SetChannel(aMessage.GetChannel());
-        aFrame.SetRxChannelAfterTxDone(Get<Mac::Mac>().GetPanChannel());
-        frameInfo.mPanIds.SetDestination(Mac::kPanIdBroadcast);
-        break;
+        switch (aMessage.GetMleCommand())
+        {
+        case Mle::kCommandAnnounce:
+            aFrame.SetChannel(aMessage.GetChannel());
+            aFrame.SetRxChannelAfterTxDone(Get<Mac::Mac>().GetPanChannel());
+            frameInfo.mPanIds.SetDestination(Mac::kPanIdBroadcast);
+            break;
 
-    case Message::kSubTypeMleDiscoverRequest:
-    case Message::kSubTypeMleDiscoverResponse:
-        frameInfo.mPanIds.SetDestination(aMessage.GetPanId());
-        break;
+        case Mle::kCommandDiscoveryRequest:
+        case Mle::kCommandDiscoveryResponse:
+            frameInfo.mPanIds.SetDestination(aMessage.GetPanId());
+            break;
 
-    default:
-        break;
+        default:
+            break;
+        }
     }
 
     frameInfo.mType  = Mac::Frame::kTypeData;
@@ -1299,20 +1346,15 @@ void MeshForwarder::FinalizeMessageDirectTx(Message &aMessage, Error aError)
         aMessage.GetTxSuccess() ? mIpCounters.mTxSuccess++ : mIpCounters.mTxFailure++;
     }
 
-    switch (aMessage.GetSubType())
+    if (aMessage.IsMleCommand(Mle::kCommandDiscoveryRequest))
     {
-    case Message::kSubTypeMleDiscoverRequest:
         // Note that `HandleDiscoveryRequestFrameTxDone()` may update
         // `aMessage` and mark it again for direct transmission.
         Get<Mle::DiscoverScanner>().HandleDiscoveryRequestFrameTxDone(aMessage, aError);
-        break;
-
-    case Message::kSubTypeMleChildIdRequest:
+    }
+    else if (aMessage.IsMleCommand(Mle::kCommandChildIdRequest))
+    {
         Get<Mle::Mle>().HandleChildIdRequestTxDone(aMessage);
-        break;
-
-    default:
-        break;
     }
 
 exit:
@@ -1717,85 +1759,6 @@ exit:
     return error;
 }
 #endif
-
-bool MeshForwarder::CalcIePresent(const Message *aMessage)
-{
-    bool iePresent = false;
-
-    OT_UNUSED_VARIABLE(aMessage);
-
-#if OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT
-#if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
-    iePresent |= (aMessage != nullptr && aMessage->IsTimeSync());
-#endif
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (!(aMessage != nullptr && aMessage->GetSubType() == Message::kSubTypeMleDiscoverRequest))
-    {
-        iePresent |= Get<Mac::Mac>().IsCslEnabled();
-    }
-#endif
-#endif
-
-    return iePresent;
-}
-
-#if OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT
-void MeshForwarder::AppendHeaderIe(const Message *aMessage, Mac::TxFrame &aFrame)
-{
-    uint8_t index     = 0;
-    bool    iePresent = false;
-    bool    payloadPresent =
-        (aFrame.GetType() == Mac::Frame::kTypeMacCmd) || (aMessage != nullptr && aMessage->GetLength() != 0);
-
-#if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
-    if (aMessage != nullptr && aMessage->IsTimeSync())
-    {
-        IgnoreError(aFrame.AppendHeaderIeAt<Mac::TimeIe>(index));
-        iePresent = true;
-    }
-#endif
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (Get<Mac::Mac>().IsCslEnabled())
-    {
-        IgnoreError(aFrame.AppendHeaderIeAt<Mac::CslIe>(index));
-        aFrame.SetCslIePresent(true);
-        iePresent = true;
-    }
-#endif
-
-    if (iePresent && payloadPresent)
-    {
-        // Assume no Payload IE in current implementation
-        IgnoreError(aFrame.AppendHeaderIeAt<Mac::Termination2Ie>(index));
-    }
-}
-#endif
-
-Mac::Frame::Version MeshForwarder::CalcFrameVersion(const Neighbor *aNeighbor, bool aIePresent) const
-{
-    Mac::Frame::Version version = Mac::Frame::kVersion2006;
-    OT_UNUSED_VARIABLE(aNeighbor);
-
-    if (aIePresent)
-    {
-        version = Mac::Frame::kVersion2015;
-    }
-#if OPENTHREAD_FTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
-    else if ((aNeighbor != nullptr) && Get<ChildTable>().Contains(*aNeighbor) &&
-             static_cast<const Child *>(aNeighbor)->IsCslSynchronized())
-    {
-        version = Mac::Frame::kVersion2015;
-    }
-#endif
-#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
-    else if (aNeighbor != nullptr && aNeighbor->IsEnhAckProbingActive())
-    {
-        version = Mac::Frame::kVersion2015; ///< Set version to 2015 to fetch Link Metrics data in Enh-ACK.
-    }
-#endif
-
-    return version;
-}
 
 // LCOV_EXCL_START
 

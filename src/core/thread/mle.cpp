@@ -52,11 +52,10 @@ Mle::Mle(Instance &aInstance)
     , mRequestRouteTlv(false)
     , mHasRestored(false)
     , mReceivedResponseFromParent(false)
+    , mDetachingGracefully(false)
     , mInitiallyAttachedAsSleepy(false)
-#if OPENTHREAD_FTD
-    , mWasLeader(false)
-#endif
     , mRole(kRoleDisabled)
+    , mLastSavedRole(kRoleDisabled)
     , mDeviceMode(DeviceMode::kModeRxOnWhenIdle)
     , mAttachState(kAttachStateIdle)
     , mReattachState(kReattachStop)
@@ -69,9 +68,6 @@ Mle::Mle(Instance &aInstance)
     , mDataRequestAttempts(0)
     , mAnnounceChannel(0)
     , mAlternateChannel(0)
-#if OPENTHREAD_FTD
-    , mLinkRequestAttempts(0)
-#endif
     , mRloc16(kInvalidRloc16)
     , mPreviousParentRloc(kInvalidRloc16)
     , mAttachCounter(0)
@@ -91,7 +87,6 @@ Mle::Mle(Instance &aInstance)
 #endif
     , mAttachTimer(aInstance)
     , mMessageTransmissionTimer(aInstance)
-    , mDetachGracefullyTimer(aInstance)
 {
     mParent.Init(aInstance);
     mParentCandidate.Init(aInstance);
@@ -230,11 +225,18 @@ void Mle::Stop(StopMode aMode)
     Get<ThreadNetif>().RemoveUnicastAddress(mMeshLocalRloc);
     Get<ThreadNetif>().RemoveUnicastAddress(mMeshLocalEid);
 
+#if OPENTHREAD_FTD
+    Get<MleRouter>().mRouterRoleRestorer.Stop();
+#endif
+
     SetRole(kRoleDisabled);
 
 exit:
-    mDetachGracefullyTimer.Stop();
-    mDetachGracefullyCallback.InvokeAndClearIfSet();
+    if (mDetachingGracefully)
+    {
+        mDetachingGracefully = false;
+        mDetachGracefullyCallback.InvokeAndClearIfSet();
+    }
 }
 
 void Mle::ResetCounters(void)
@@ -366,7 +368,9 @@ void Mle::Restore(void)
     // force re-attach when version mismatch.
     VerifyOrExit(networkInfo.GetVersion() == kThreadVersion);
 
-    switch (networkInfo.GetRole())
+    mLastSavedRole = static_cast<DeviceRole>(networkInfo.GetRole());
+
+    switch (mLastSavedRole)
     {
     case kRoleChild:
     case kRoleRouter:
@@ -425,8 +429,6 @@ void Mle::Restore(void)
         Get<MleRouter>().SetPreviousPartitionId(networkInfo.GetPreviousPartitionId());
         Get<ChildTable>().Restore();
     }
-
-    mWasLeader = networkInfo.GetRole() == kRoleLeader;
 #endif
 
     // Successfully restored the network information from
@@ -456,6 +458,7 @@ Error Mle::Store(void)
         networkInfo.SetExtAddress(Get<Mac::Mac>().GetExtAddress());
         networkInfo.SetMeshLocalIid(mMeshLocalEid.GetAddress().GetIid());
         networkInfo.SetVersion(kThreadVersion);
+        mLastSavedRole = mRole;
 
         if (IsChild())
         {
@@ -1386,6 +1389,20 @@ void Mle::HandleAttachTimer(void)
     bool              shouldAnnounce = true;
     ParentRequestType type;
 
+    if (mDetachingGracefully)
+    {
+        Stop();
+        ExitNow();
+    }
+
+#if OPENTHREAD_FTD
+    if (IsDetached() && Get<MleRouter>().mRouterRoleRestorer.IsActive())
+    {
+        Get<MleRouter>().mRouterRoleRestorer.HandleTimer();
+        ExitNow();
+    }
+#endif
+
     // First, check if we are waiting to receive parent responses and
     // found an acceptable parent candidate.
 
@@ -1792,13 +1809,6 @@ void Mle::ScheduleMessageTransmissionTimer(void)
 {
     uint32_t interval = 0;
 
-#if OPENTHREAD_FTD
-    if (mRole == kRoleDetached && mLinkRequestAttempts > 0)
-    {
-        ExitNow(interval = Random::NonCrypto::GetUint32InRange(kMulticastRetxDelayMin, kMulticastRetxDelayMax));
-    }
-#endif
-
     switch (mChildUpdateRequestState)
     {
     case kChildUpdateRequestNone:
@@ -1853,19 +1863,6 @@ void Mle::HandleMessageTransmissionTimer(void)
     //  - Retransmission of "Child Update Request",
     //  - Retransmission of "Data Request" on a child,
     //  - Sending periodic keep-alive "Child Update Request" messages on a non-sleepy (rx-on) child.
-    //  - Retransmission of "Link Request" after router reset
-
-#if OPENTHREAD_FTD
-    // Retransmit multicast link request if no response has been received
-    // and maximum transmission limit has not been reached.
-    if (mRole == kRoleDetached && mLinkRequestAttempts > 0)
-    {
-        IgnoreError(Get<MleRouter>().SendLinkRequest(nullptr));
-        mLinkRequestAttempts--;
-        ScheduleMessageTransmissionTimer();
-        ExitNow();
-    }
-#endif
 
     switch (mChildUpdateRequestState)
     {
@@ -3513,7 +3510,7 @@ void Mle::HandleChildUpdateResponseOnChild(RxInfo &aRxInfo)
         switch (Tlv::Find<TimeoutTlv>(aRxInfo.mMessage, timeout))
         {
         case kErrorNone:
-            if (timeout == 0 && IsDetachingGracefully())
+            if (timeout == 0 && mDetachingGracefully)
             {
                 Stop();
             }
@@ -4253,14 +4250,12 @@ uint64_t Mle::CalcParentCslMetric(const Mac::CslAccuracy &aCslAccuracy) const
 }
 #endif
 
-Error Mle::DetachGracefully(otDetachGracefullyCallback aCallback, void *aContext)
+Error Mle::DetachGracefully(DetachCallback aCallback, void *aContext)
 {
     Error    error   = kErrorNone;
     uint32_t timeout = kDetachGracefullyTimeout;
 
-    VerifyOrExit(!IsDetachingGracefully(), error = kErrorBusy);
-
-    OT_ASSERT(!mDetachGracefullyCallback.IsSet());
+    VerifyOrExit(!mDetachingGracefully, error = kErrorBusy);
 
     mDetachGracefullyCallback.Set(aCallback, aContext);
 
@@ -4293,13 +4288,12 @@ Error Mle::DetachGracefully(otDetachGracefullyCallback aCallback, void *aContext
         break;
     }
 
-    mDetachGracefullyTimer.Start(timeout);
+    mDetachingGracefully = true;
+    mAttachTimer.Start(timeout);
 
 exit:
     return error;
 }
-
-void Mle::HandleDetachGracefullyTimer(void) { Stop(); }
 
 //---------------------------------------------------------------------------------------------------------------------
 // TlvList
@@ -4381,7 +4375,7 @@ void Mle::DelayedSender::Send(TxMessage &aMessage, const Metadata &aMetadata)
 
     aMetadata.RemoveFrom(aMessage);
 
-    if (aMessage.GetSubType() == Message::kSubTypeMleDataRequest)
+    if (aMessage.IsMleCommand(kCommandDataRequest))
     {
         SuccessOrExit(error = aMessage.AppendActiveAndPendingTimestampTlvs());
     }
@@ -4408,17 +4402,15 @@ exit:
 
 void Mle::DelayedSender::RemoveDataResponseMessage(void)
 {
-    RemoveMessage(Message::kSubTypeMleDataResponse, kTypeDataResponse, nullptr);
+    RemoveMessage(kCommandDataResponse, kTypeDataResponse, nullptr);
 }
 
 void Mle::DelayedSender::RemoveDataRequestMessage(const Ip6::Address &aDestination)
 {
-    RemoveMessage(Message::kSubTypeMleDataRequest, kTypeDataRequest, &aDestination);
+    RemoveMessage(kCommandDataRequest, kTypeDataRequest, &aDestination);
 }
 
-void Mle::DelayedSender::RemoveMessage(Message::SubType    aSubType,
-                                       MessageType         aMessageType,
-                                       const Ip6::Address *aDestination)
+void Mle::DelayedSender::RemoveMessage(Command aCommand, MessageType aMessageType, const Ip6::Address *aDestination)
 {
     for (Message &message : mQueue)
     {
@@ -4426,8 +4418,7 @@ void Mle::DelayedSender::RemoveMessage(Message::SubType    aSubType,
 
         metadata.ReadFrom(message);
 
-        if ((message.GetSubType() == aSubType) &&
-            ((aDestination == nullptr) || (metadata.mDestination == *aDestination)))
+        if (message.IsMleCommand(aCommand) && ((aDestination == nullptr) || (metadata.mDestination == *aDestination)))
         {
             mQueue.DequeueAndFree(message);
             Log(kMessageRemoveDelayed, aMessageType, metadata.mDestination);
@@ -4443,52 +4434,20 @@ Mle::TxMessage *Mle::NewMleMessage(Command aCommand)
     Error             error = kErrorNone;
     TxMessage        *message;
     Message::Settings settings(Message::kNoLinkSecurity, Message::kPriorityNet);
-    Message::SubType  subType;
     uint8_t           securitySuite;
 
     message = static_cast<TxMessage *>(mSocket.NewMessage(0, settings));
     VerifyOrExit(message != nullptr, error = kErrorNoBufs);
 
     securitySuite = k154Security;
-    subType       = Message::kSubTypeMleGeneral;
 
-    switch (aCommand)
+    if ((aCommand == kCommandDiscoveryRequest) || (aCommand == kCommandDiscoveryResponse))
     {
-    case kCommandAnnounce:
-        subType = Message::kSubTypeMleAnnounce;
-        break;
-
-    case kCommandDiscoveryRequest:
-        subType       = Message::kSubTypeMleDiscoverRequest;
         securitySuite = kNoSecurity;
-        break;
-
-    case kCommandDiscoveryResponse:
-        subType       = Message::kSubTypeMleDiscoverResponse;
-        securitySuite = kNoSecurity;
-        break;
-
-    case kCommandChildUpdateRequest:
-        subType = Message::kSubTypeMleChildUpdateRequest;
-        break;
-
-    case kCommandDataResponse:
-        subType = Message::kSubTypeMleDataResponse;
-        break;
-
-    case kCommandChildIdRequest:
-        subType = Message::kSubTypeMleChildIdRequest;
-        break;
-
-    case kCommandDataRequest:
-        subType = Message::kSubTypeMleDataRequest;
-        break;
-
-    default:
-        break;
     }
 
-    message->SetSubType(subType);
+    message->SetSubType(Message::kSubTypeMle);
+    message->SetMleCommand(aCommand);
 
     SuccessOrExit(error = message->Append(securitySuite));
 
