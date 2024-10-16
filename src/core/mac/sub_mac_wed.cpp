@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2018, The OpenThread Authors.
+ *  Copyright (c) 2024, The OpenThread Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -28,54 +28,63 @@
 
 /**
  * @file
- *   This file implements MTD-specific mesh forwarding of IPv6/6LoWPAN messages.
+ *   This file implements the Wake-up End Device of the subset of IEEE 802.15.4 MAC primitives.
  */
 
-#include "mesh_forwarder.hpp"
+#include "sub_mac.hpp"
 
-#if OPENTHREAD_MTD
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+
+#include "instance/instance.hpp"
 
 namespace ot {
+namespace Mac {
 
-void MeshForwarder::SendMessage(OwnedPtr<Message> aMessagePtr)
+RegisterLogModule("SubMac");
+
+void SubMac::WedInit(void)
 {
-    Message &message = *aMessagePtr.Release();
-
-    message.SetDirectTransmission();
-    message.SetOffset(0);
-    message.SetDatagramTag(0);
-    message.SetTimestampToNow();
-
-    mSendQueue.Enqueue(message);
-    mScheduleTransmissionTask.Post();
-
-#if (OPENTHREAD_CONFIG_MAX_FRAMES_IN_DIRECT_TX_QUEUE > 0)
-    ApplyDirectTxQueueLimit(message);
-#endif
+    mWakeupListenInterval = 0;
+    mWedTimer.Stop();
 }
 
-Error MeshForwarder::EvictMessage(Message::Priority aPriority)
+void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aDuration, uint8_t aChannel)
 {
-    Error    error = kErrorNotFound;
-    Message *message;
+    VerifyOrExit(RadioSupportsReceiveTiming());
 
-#if OPENTHREAD_CONFIG_DELAY_AWARE_QUEUE_MANAGEMENT_ENABLE
-    error = RemoveAgedMessages();
-    VerifyOrExit(error == kErrorNotFound);
-#endif
+    mWakeupListenInterval = aInterval;
+    mWakeupListenDuration = aDuration;
+    mWakeupChannel        = aChannel;
+    mWedTimer.Stop();
 
-    VerifyOrExit((message = mSendQueue.GetTail()) != nullptr);
-
-    if (message->GetPriority() < static_cast<uint8_t>(aPriority))
+    if (aEnable)
     {
-        FinalizeAndRemoveMessage(*message, kErrorNoBufs, kMessageEvict);
-        ExitNow(error = kErrorNone);
+        mWedSampleTime      = TimerMicro::GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
+        mWedSampleTimeRadio = Get<Radio>().GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
+
+        HandleWedTimer();
     }
 
 exit:
-    return error;
+    return;
 }
 
+void SubMac::HandleWedTimer(Timer &aTimer) { aTimer.Get<SubMac>().HandleWedTimer(); }
+
+void SubMac::HandleWedTimer(void)
+{
+    mWedSampleTime += mWakeupListenInterval;
+    mWedSampleTimeRadio += mWakeupListenInterval;
+    mWedTimer.FireAt(mWedSampleTime + mWakeupListenDuration + kWedReceiveTimeAfter);
+
+    if (mState != kStateDisabled)
+    {
+        IgnoreError(
+            Get<Radio>().ReceiveAt(mWakeupChannel, static_cast<uint32_t>(mWedSampleTimeRadio), mWakeupListenDuration));
+    }
+}
+
+} // namespace Mac
 } // namespace ot
 
-#endif // OPENTHREAD_MTD
+#endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
