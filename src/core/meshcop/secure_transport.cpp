@@ -48,20 +48,20 @@ namespace MeshCoP {
 RegisterLogModule("SecTransport");
 
 #if (MBEDTLS_VERSION_NUMBER >= 0x03010000)
-const uint16_t SecureTransport::sGroups[] = {MBEDTLS_SSL_IANA_TLS_GROUP_SECP256R1, MBEDTLS_SSL_IANA_TLS_GROUP_NONE};
+const uint16_t SecureTransport::kGroups[] = {MBEDTLS_SSL_IANA_TLS_GROUP_SECP256R1, MBEDTLS_SSL_IANA_TLS_GROUP_NONE};
 #else
-const mbedtls_ecp_group_id SecureTransport::sCurves[] = {MBEDTLS_ECP_DP_SECP256R1, MBEDTLS_ECP_DP_NONE};
+const mbedtls_ecp_group_id SecureTransport::kCurves[] = {MBEDTLS_ECP_DP_SECP256R1, MBEDTLS_ECP_DP_NONE};
 #endif
 
 #if defined(MBEDTLS_KEY_EXCHANGE__WITH_CERT__ENABLED) || defined(MBEDTLS_KEY_EXCHANGE_WITH_CERT_ENABLED)
 #if (MBEDTLS_VERSION_NUMBER >= 0x03020000)
-const uint16_t SecureTransport::sSignatures[] = {MBEDTLS_TLS1_3_SIG_ECDSA_SECP256R1_SHA256, MBEDTLS_TLS1_3_SIG_NONE};
+const uint16_t SecureTransport::kSignatures[] = {MBEDTLS_TLS1_3_SIG_ECDSA_SECP256R1_SHA256, MBEDTLS_TLS1_3_SIG_NONE};
 #else
-const int SecureTransport::sHashes[] = {MBEDTLS_MD_SHA256, MBEDTLS_MD_NONE};
+const int SecureTransport::kHashes[] = {MBEDTLS_MD_SHA256, MBEDTLS_MD_NONE};
 #endif
 #endif
 
-SecureTransport::SecureTransport(Instance &aInstance, bool aLayerTwoSecurity, bool aDatagramTransport)
+SecureTransport::SecureTransport(Instance &aInstance, LinkSecurityMode aLayerTwoSecurity, bool aDatagramTransport)
     : InstanceLocator(aInstance)
     , mState(kStateClosed)
     , mPskLength(0)
@@ -318,15 +318,15 @@ Error SecureTransport::Setup(bool aClient)
     if (mCipherSuites[0] == MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8)
     {
 #if (MBEDTLS_VERSION_NUMBER >= 0x03010000)
-        mbedtls_ssl_conf_groups(&mConf, sGroups);
+        mbedtls_ssl_conf_groups(&mConf, kGroups);
 #else
-        mbedtls_ssl_conf_curves(&mConf, sCurves);
+        mbedtls_ssl_conf_curves(&mConf, kCurves);
 #endif
 #if defined(MBEDTLS_KEY_EXCHANGE__WITH_CERT__ENABLED) || defined(MBEDTLS_KEY_EXCHANGE_WITH_CERT_ENABLED)
 #if (MBEDTLS_VERSION_NUMBER >= 0x03020000)
-        mbedtls_ssl_conf_sig_algs(&mConf, sSignatures);
+        mbedtls_ssl_conf_sig_algs(&mConf, kSignatures);
 #else
-        mbedtls_ssl_conf_sig_hashes(&mConf, sHashes);
+        mbedtls_ssl_conf_sig_hashes(&mConf, kHashes);
 #endif
 #endif
     }
@@ -1144,29 +1144,33 @@ void SecureTransport::HandleMbedtlsDebug(void *aContext, int aLevel, const char 
 
 void SecureTransport::HandleMbedtlsDebug(int aLevel, const char *aFile, int aLine, const char *aStr)
 {
-    OT_UNUSED_VARIABLE(aStr);
-    OT_UNUSED_VARIABLE(aFile);
-    OT_UNUSED_VARIABLE(aLine);
+    LogLevel logLevel = kLogLevelDebg;
 
     switch (aLevel)
     {
     case 1:
-        LogCrit("[%u] %s", mSocket.GetSockName().mPort, aStr);
+        logLevel = kLogLevelCrit;
         break;
 
     case 2:
-        LogWarn("[%u] %s", mSocket.GetSockName().mPort, aStr);
+        logLevel = kLogLevelWarn;
         break;
 
     case 3:
-        LogInfo("[%u] %s", mSocket.GetSockName().mPort, aStr);
+        logLevel = kLogLevelInfo;
         break;
 
     case 4:
     default:
-        LogDebg("[%u] %s", mSocket.GetSockName().mPort, aStr);
         break;
     }
+
+    LogAt(logLevel, "[%u] %s", mSocket.GetSockName().mPort, aStr);
+
+    OT_UNUSED_VARIABLE(aStr);
+    OT_UNUSED_VARIABLE(aFile);
+    OT_UNUSED_VARIABLE(aLine);
+    OT_UNUSED_VARIABLE(logLevel);
 }
 
 Error SecureTransport::HandleSecureTransportSend(const uint8_t   *aBuf,
