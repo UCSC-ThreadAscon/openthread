@@ -375,7 +375,7 @@ void MleRouter::HandleChildStart(AttachMode aMode)
 
     case kAnyPartition:
     case kBetterParent:
-
+    case kSelectedParent:
         // If attach was initiated due to receiving an MLE Announce
         // message, all rx-on-when-idle devices will immediately
         // attempt to attach as well. This aligns with the Thread 1.1
@@ -1311,6 +1311,10 @@ Error MleRouter::HandleAdvertisementOnFtd(RxInfo &aRxInfo, uint16_t aSourceAddre
             }
         }
 
+#if OPENTHREAD_CONFIG_PARENT_SEARCH_ENABLE
+        router->SetSelectableAsParent(true);
+#endif
+
         router->SetLastHeard(TimerMilli::GetNow());
 
         ExitNow();
@@ -1628,7 +1632,7 @@ void MleRouter::HandleTimeTick(void)
         }
         else if (IsRouterOrLeader() && child.IsStateRestored())
         {
-            IgnoreError(SendChildUpdateRequest(child));
+            IgnoreError(SendChildUpdateRequestToChild(child));
         }
     }
 
@@ -1663,6 +1667,15 @@ void MleRouter::HandleTimeTick(void)
                 continue;
             }
         }
+
+#if OPENTHREAD_CONFIG_PARENT_SEARCH_ENABLE
+        router.DecrementParentReselectTimeout();
+
+        if (age >= kMaxNeighborAge)
+        {
+            router.SetSelectableAsParent(false);
+        }
+#endif
 
         if (router.IsStateLinkRequest() && (age >= kLinkRequestTimeout))
         {
@@ -2180,7 +2193,7 @@ void MleRouter::HandleChildUpdateRequestOnParent(RxInfo &aRxInfo)
         if (mode.IsRxOnWhenIdle())
         {
             tlvList.Add(Tlv::kStatus);
-            SendChildUpdateResponse(nullptr, aRxInfo.mMessageInfo, tlvList, challenge);
+            SendChildUpdateResponseToChild(nullptr, aRxInfo.mMessageInfo, tlvList, challenge);
         }
 
         ExitNow();
@@ -2347,7 +2360,7 @@ void MleRouter::HandleChildUpdateRequestOnParent(RxInfo &aRxInfo)
     }
 #endif
 
-    SendChildUpdateResponse(child, aRxInfo.mMessageInfo, tlvList, challenge);
+    SendChildUpdateResponseToChild(child, aRxInfo.mMessageInfo, tlvList, challenge);
 
     aRxInfo.mClass = RxInfo::kPeerMessage;
 
@@ -2595,7 +2608,7 @@ void MleRouter::SynchronizeChildNetworkData(void)
             continue;
         }
 
-        SuccessOrExit(SendChildUpdateRequest(child));
+        SuccessOrExit(SendChildUpdateRequestToChild(child));
     }
 
 exit:
@@ -2886,7 +2899,7 @@ exit:
     return error;
 }
 
-Error MleRouter::SendChildUpdateRequest(Child &aChild)
+Error MleRouter::SendChildUpdateRequestToChild(Child &aChild)
 {
     static const uint8_t kTlvs[] = {Tlv::kTimeout, Tlv::kAddressRegistration};
 
@@ -2955,10 +2968,10 @@ exit:
     return error;
 }
 
-void MleRouter::SendChildUpdateResponse(Child                  *aChild,
-                                        const Ip6::MessageInfo &aMessageInfo,
-                                        const TlvList          &aTlvList,
-                                        const RxChallenge      &aChallenge)
+void MleRouter::SendChildUpdateResponseToChild(Child                  *aChild,
+                                               const Ip6::MessageInfo &aMessageInfo,
+                                               const TlvList          &aTlvList,
+                                               const RxChallenge      &aChallenge)
 {
     Error      error = kErrorNone;
     TxMessage *message;
