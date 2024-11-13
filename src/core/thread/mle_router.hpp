@@ -362,8 +362,6 @@ public:
      */
     void FillConnectivityTlv(ConnectivityTlv &aTlv);
 
-    Error SendLinkRequest(Neighbor *aNeighbor);
-
 #if OPENTHREAD_CONFIG_MLE_STEERING_DATA_SET_OOB_ENABLE
     /**
      * Sets steering data out of band
@@ -587,8 +585,8 @@ private:
     void     HandleSecurityPolicyChanged(void);
     void     HandleLinkRequest(RxInfo &aRxInfo);
     void     HandleLinkAccept(RxInfo &aRxInfo);
-    Error    HandleLinkAccept(RxInfo &aRxInfo, bool aRequest);
     void     HandleLinkAcceptAndRequest(RxInfo &aRxInfo);
+    void     HandleLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType);
     Error    HandleAdvertisementOnFtd(RxInfo &aRxInfo, uint16_t aSourceAddress, const LeaderData &aLeaderData);
     void     HandleParentRequest(RxInfo &aRxInfo);
     void     HandleChildIdRequest(RxInfo &aRxInfo);
@@ -608,6 +606,7 @@ private:
                                         const Ip6::MessageInfo &aMessageInfo);
     void     SendAddressRelease(void);
     void     SendAdvertisement(void);
+    void     SendLinkRequest(Router *aRouter);
     Error    SendLinkAccept(const LinkAcceptInfo &aInfo);
     void     SendParentResponse(const ParentResponseInfo &aInfo);
     Error    SendChildIdResponse(Child &aChild);
