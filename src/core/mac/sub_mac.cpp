@@ -378,7 +378,17 @@ void SubMac::ProcessTransmitSecurity(void)
 #if !ASCON_DATA_ENCRYPT
     VerifyOrExit(ShouldHandleTransmitSecurity());
 #endif // !ASCON_DATA_ENCRYPT
-    VerifyOrExit(keyIdMode == Frame::kKeyIdMode1);
+
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+    if (mTransmitFrame.GetType() == Frame::kTypeMultipurpose)
+    {
+        VerifyOrExit(keyIdMode == Frame::kKeyIdMode2);
+    }
+    else
+#endif
+    {
+        VerifyOrExit(keyIdMode == Frame::kKeyIdMode1);
+    }
 
     if (!mTransmitFrame.IsHeaderUpdated())
     {

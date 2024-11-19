@@ -186,7 +186,7 @@ public:
      *
      * @returns  UDP port number.
      */
-    uint16_t GetUdpPort(void) const;
+    uint16_t GetUdpPort(void) const { return mSocket.GetSockName().GetPort(); }
 
     /**
      * Binds with a transport callback.
@@ -241,7 +241,7 @@ public:
     /**
      * Disconnects the session.
      */
-    void Disconnect(void);
+    void Disconnect(void) { Disconnect(kDisconnectedLocalClosed); }
 
     /**
      * Closes the socket.
@@ -413,18 +413,6 @@ public:
 
 #endif // OPENTHREAD_CONFIG_TLS_API_ENABLE
 
-#ifdef MBEDTLS_SSL_SRV_C
-    /**
-     * Sets the Client ID used for generating the Hello Cookie.
-     *
-     * @param[in]  aClientId  A pointer to the Client ID.
-     * @param[in]  aLength    Number of bytes in the Client ID.
-     *
-     * @retval kErrorNone  Successfully set the Client ID.
-     */
-    Error SetClientId(const uint8_t *aClientId, uint8_t aLength);
-#endif
-
     /**
      * Sends data within the session.
      *
@@ -453,6 +441,7 @@ public:
     void HandleReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
 private:
+    static constexpr uint16_t kMaxContentLen                   = OPENTHREAD_CONFIG_DTLS_MAX_CONTENT_LEN;
     static constexpr uint32_t kGuardTimeNewConnectionMilli     = 2000;
     static constexpr size_t   kSecureTransportKeyBlockSize     = 40;
     static constexpr size_t   kSecureTransportRandomBufferSize = 32;
@@ -591,9 +580,6 @@ private:
     static void HandleTimer(Timer &aTimer);
     void        HandleTimer(void);
 
-    Error HandleSecureTransportSend(const uint8_t *aBuf, uint16_t aLength, Message::SubType aMessageSubType);
-
-    void Receive(Message &aMessage);
     void Process(void);
     void Disconnect(ConnectEvent aEvent);
 
