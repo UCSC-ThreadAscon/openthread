@@ -74,20 +74,21 @@ const int SecureTransport::kCipherSuites[][2] = {
 
 SecureTransport::SecureTransport(Instance &aInstance, LinkSecurityMode aLayerTwoSecurity, bool aDatagramTransport)
     : InstanceLocator(aInstance)
-    , mState(kStateClosed)
-    , mCipherSuite(kUnspecifiedCipherSuite)
-    , mPskLength(0)
-    , mVerifyPeerCertificate(true)
-    , mTimer(aInstance, SecureTransport::HandleTimer, this)
-    , mTimerIntermediate(0)
-    , mTimerSet(false)
     , mLayerTwoSecurity(aLayerTwoSecurity)
     , mDatagramTransport(aDatagramTransport)
+    , mTimerSet(false)
+    , mVerifyPeerCertificate(true)
+    , mState(kStateClosed)
+    , mCipherSuite(kUnspecifiedCipherSuite)
+    , mMessageSubType(Message::kSubTypeNone)
+    , mConnectEvent(kDisconnectedError)
+    , mPskLength(0)
     , mMaxConnectionAttempts(0)
     , mRemainingConnectionAttempts(0)
     , mReceiveMessage(nullptr)
     , mSocket(aInstance, *this)
-    , mMessageSubType(Message::kSubTypeNone)
+    , mTimer(aInstance, SecureTransport::HandleTimer, this)
+    , mTimerIntermediate(0)
 {
     ClearAllBytes(mPsk);
     ClearAllBytes(mSsl);
@@ -1048,7 +1049,6 @@ void SecureTransport::Process(void)
             break;
 
         case MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY:
-            mbedtls_ssl_close_notify(&mSsl);
             disconnectEvent = kDisconnectedPeerClosed;
             break;
 
@@ -1056,7 +1056,6 @@ void SecureTransport::Process(void)
             break;
 
         case MBEDTLS_ERR_SSL_FATAL_ALERT_MESSAGE:
-            mbedtls_ssl_close_notify(&mSsl);
             disconnectEvent = kDisconnectedError;
             break;
 
