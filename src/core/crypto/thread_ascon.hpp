@@ -26,7 +26,7 @@
 #endif
 
 #include "crypto/aes_ccm.hpp"
-#include "error.h"
+#include <openthread/error.h>
 
 #include <openthread/logging.h>
 
