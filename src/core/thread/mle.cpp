@@ -4941,8 +4941,9 @@ Error Mle::TxMessage::AppendAddressRegistrationTlv(AddressRegistrationMode aMode
 
     for (const Ip6::Netif::UnicastAddress &addr : Get<ThreadNetif>().GetUnicastAddresses())
     {
-        if (addr.GetAddress().IsLinkLocalUnicast() || Get<Mle>().IsRoutingLocator(addr.GetAddress()) ||
-            Get<Mle>().IsAnycastLocator(addr.GetAddress()) || addr.GetAddress() == Get<Mle>().GetMeshLocalEid())
+        if (addr.GetAddress().IsLoopback() || addr.GetAddress().IsLinkLocalUnicast() ||
+            Get<Mle>().IsRoutingLocator(addr.GetAddress()) || Get<Mle>().IsAnycastLocator(addr.GetAddress()) ||
+            addr.GetAddress() == Get<Mle>().GetMeshLocalEid())
         {
             continue;
         }
