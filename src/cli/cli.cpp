@@ -364,6 +364,34 @@ otError Interpreter::SetUserCommands(const otCliCommand *aCommands, uint8_t aLen
 
 #if OPENTHREAD_FTD || OPENTHREAD_MTD
 
+#if OPENTHREAD_CONFIG_UPTIME_ENABLE
+/**
+ * @cli attachtime
+ * @code
+ * attachtime
+ * 01:38:25
+ * Done
+ * @endcode
+ * @par
+ * Prints the current attach time (duration since device was last attached). Requires `OPENTHREAD_CONFIG_UPTIME_ENABLE`.
+ * Duration is formatted as `{hh}:{mm}:{ss}` for hours, minutes, and seconds if it is less than one day. If the
+ * duration is longer than one day, the format is `{dd}d.{hh}:{mm}:{ss}`.
+ */
+template <> otError Interpreter::Process<Cmd("attachtime")>(Arg aArgs[])
+{
+    otError error = OT_ERROR_NONE;
+    char    string[OT_DURATION_STRING_SIZE];
+
+    VerifyOrExit(aArgs[0].IsEmpty(), error = OT_ERROR_INVALID_ARGS);
+
+    otConvertDurationInSecondsToString(otThreadGetCurrentAttachDuration(GetInstancePtr()), string, sizeof(string));
+    OutputLine("%s", string);
+
+exit:
+    return error;
+}
+#endif
+
 #if OPENTHREAD_CONFIG_HISTORY_TRACKER_ENABLE
 template <> otError Interpreter::Process<Cmd("history")>(Arg aArgs[]) { return mHistory.Process(aArgs); }
 #endif
@@ -596,24 +624,37 @@ exit:
 
 void Interpreter::OutputBorderAgentCounters(const otBorderAgentCounters &aCounters)
 {
+    struct BaCounterName
+    {
+        const uint32_t otBorderAgentCounters::*mValuePtr;
+        const char                            *mName;
+    };
+
+    static const BaCounterName kBaCounterNames[] = {
 #if OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
-    OutputLine("epskcActivation: %lu ", ToUlong(aCounters.mEpskcActivations));
-    OutputLine("epskcApiDeactivation: %lu ", ToUlong(aCounters.mEpskcDeactivationClears));
-    OutputLine("epskcTimeoutDeactivation: %lu ", ToUlong(aCounters.mEpskcDeactivationTimeouts));
-    OutputLine("epskcMaxAttemptDeactivation: %lu ", ToUlong(aCounters.mEpskcDeactivationMaxAttempts));
-    OutputLine("epskcDisconnectDeactivation: %lu ", ToUlong(aCounters.mEpskcDeactivationDisconnects));
-    OutputLine("epskcInvalidBaStateError: %lu ", ToUlong(aCounters.mEpskcInvalidBaStateErrors));
-    OutputLine("epskcInvalidArgsError: %lu ", ToUlong(aCounters.mEpskcInvalidArgsErrors));
-    OutputLine("epskcStartSecureSessionError: %lu ", ToUlong(aCounters.mEpskcStartSecureSessionErrors));
-    OutputLine("epskcSecureSessionSuccess: %lu ", ToUlong(aCounters.mEpskcSecureSessionSuccesses));
-    OutputLine("epskcSecureSessionFailure: %lu ", ToUlong(aCounters.mEpskcSecureSessionFailures));
-    OutputLine("epskcCommissionerPetition: %lu ", ToUlong(aCounters.mEpskcCommissionerPetitions));
+        {&otBorderAgentCounters::mEpskcActivations, "epskcActivation"},
+        {&otBorderAgentCounters::mEpskcDeactivationClears, "epskcApiDeactivation"},
+        {&otBorderAgentCounters::mEpskcDeactivationTimeouts, "epskcTimeoutDeactivation"},
+        {&otBorderAgentCounters::mEpskcDeactivationMaxAttempts, "epskcMaxAttemptDeactivation"},
+        {&otBorderAgentCounters::mEpskcDeactivationDisconnects, "epskcDisconnectDeactivation"},
+        {&otBorderAgentCounters::mEpskcInvalidBaStateErrors, "epskcInvalidBaStateError"},
+        {&otBorderAgentCounters::mEpskcInvalidArgsErrors, "epskcInvalidArgsError"},
+        {&otBorderAgentCounters::mEpskcStartSecureSessionErrors, "epskcStartSecureSessionError"},
+        {&otBorderAgentCounters::mEpskcSecureSessionSuccesses, "epskcSecureSessionSuccess"},
+        {&otBorderAgentCounters::mEpskcSecureSessionFailures, "epskcSecureSessionFailure"},
+        {&otBorderAgentCounters::mEpskcCommissionerPetitions, "epskcCommissionerPetition"},
 #endif
-    OutputLine("pskcSecureSessionSuccess: %lu ", ToUlong(aCounters.mPskcSecureSessionSuccesses));
-    OutputLine("pskcSecureSessionFailure: %lu ", ToUlong(aCounters.mPskcSecureSessionFailures));
-    OutputLine("pskcCommissionerPetition: %lu ", ToUlong(aCounters.mPskcCommissionerPetitions));
-    OutputLine("mgmtActiveGet: %lu ", ToUlong(aCounters.mMgmtActiveGets));
-    OutputLine("mgmtPendingGet: %lu", ToUlong(aCounters.mMgmtPendingGets));
+        {&otBorderAgentCounters::mPskcSecureSessionSuccesses, "pskcSecureSessionSuccess"},
+        {&otBorderAgentCounters::mPskcSecureSessionFailures, "pskcSecureSessionFailure"},
+        {&otBorderAgentCounters::mPskcCommissionerPetitions, "pskcCommissionerPetition"},
+        {&otBorderAgentCounters::mMgmtActiveGets, "mgmtActiveGet"},
+        {&otBorderAgentCounters::mMgmtPendingGets, "mgmtPendingGet"},
+    };
+
+    for (const BaCounterName &counter : kBaCounterNames)
+    {
+        OutputLine("%s: %lu", counter.mName, ToUlong(aCounters.*counter.mValuePtr));
+    }
 }
 
 #if OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
@@ -8425,6 +8466,9 @@ otError Interpreter::ProcessCommand(Arg aArgs[])
 
     static constexpr Command kCommands[] = {
 #if OPENTHREAD_FTD || OPENTHREAD_MTD
+#if OPENTHREAD_CONFIG_UPTIME_ENABLE
+        CmdEntry("attachtime"),
+#endif
 #if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE
         CmdEntry("ba"),
 #endif
