@@ -495,6 +495,7 @@ Error Diags::ProcessStart(uint8_t aArgsLength, char *aArgs[])
 
     IgnoreError(Get<Radio>().Enable());
     Get<Radio>().SetPromiscuous(true);
+    Get<Mac::SubMac>().SetRxOnWhenIdle(true);
     otPlatAlarmMilliStop(&GetInstance());
     SuccessOrExit(error = Get<Radio>().Receive(mChannel));
     SuccessOrExit(error = Get<Radio>().SetTransmitPower(mTxPower));
@@ -546,6 +547,7 @@ Error Diags::ProcessStop(uint8_t aArgsLength, char *aArgs[])
     otPlatAlarmMilliStop(&GetInstance());
     otPlatDiagModeSet(false);
     Get<Radio>().SetPromiscuous(false);
+    Get<Mac::SubMac>().SetRxOnWhenIdle(false);
 
     Output("received packets: %d\r\nsent packets: %d\r\n"
            "first received packet: rssi=%d, lqi=%d\r\n"
@@ -634,6 +636,14 @@ Error Diags::ProcessRadio(uint8_t aArgsLength, char *aArgs[])
             Output("invalid\r\n");
             break;
         }
+    }
+    else if (StringMatch(aArgs[0], "enable"))
+    {
+        SuccessOrExit(error = Get<Radio>().Enable());
+    }
+    else if (StringMatch(aArgs[0], "disable"))
+    {
+        SuccessOrExit(error = Get<Radio>().Disable());
     }
 
 exit:
