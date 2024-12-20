@@ -59,6 +59,10 @@ namespace ot {
 
 namespace MeshCoP {
 
+#if !OPENTHREAD_CONFIG_SECURE_TRANSPORT_ENABLE
+#error "Joiner feature requires `OPENTHREAD_CONFIG_SECURE_TRANSPORT_ENABLE`"
+#endif
+
 class Joiner : public InstanceLocator, private NonCopyable
 {
     friend class Tmf::Agent;
@@ -218,10 +222,6 @@ private:
     void  FreeJoinerFinalizeMessage(void);
     void  SendJoinerFinalize(void);
     void  SendJoinerEntrustResponse(const Coap::Message &aRequest, const Ip6::MessageInfo &aRequestInfo);
-
-#if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
-    void LogCertMessage(const char *aText, const Coap::Message &aMessage) const;
-#endif
 
     using JoinerTimer = TimerMilliIn<Joiner, &Joiner::HandleTimer>;
 
