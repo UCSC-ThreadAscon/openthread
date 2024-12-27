@@ -247,16 +247,9 @@ public:
      */
     const Counters &GetCounters(void) { return mCounters; }
 
-    /**
-     * Returns the UDP Proxy port to which the commissioner is currently
-     * bound.
-     *
-     * @returns  The current UDP Proxy port or 0 if no Proxy Transmit has been received yet.
-     */
-    uint16_t GetUdpProxyPort(void) const { return mUdpProxyPort; }
-
 private:
-    static_assert(kMaxEphemeralKeyLength <= Dtls::kPskMaxLength, "Max ephemeral key length is larger than max PSK len");
+    static_assert(kMaxEphemeralKeyLength <= Dtls::Transport::kPskMaxLength,
+                  "Max ephemeral key length is larger than max PSK len");
 
     static constexpr uint16_t kUdpPort          = OPENTHREAD_CONFIG_BORDER_AGENT_UDP_PORT;
     static constexpr uint32_t kKeepAliveTimeout = 50 * 1000; // Timeout to reject a commissioner (in msec)
@@ -295,8 +288,8 @@ private:
 
     template <Uri kUri> void HandleTmf(Coap::Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
 
-    static void HandleConnected(Dtls::ConnectEvent aEvent, void *aContext);
-    void        HandleConnected(Dtls::ConnectEvent aEvent);
+    static void HandleConnected(Dtls::Session::ConnectEvent aEvent, void *aContext);
+    void        HandleConnected(Dtls::Session::ConnectEvent aEvent);
     static void HandleCoapResponse(void                *aContext,
                                    otMessage           *aMessage,
                                    const otMessageInfo *aMessageInfo,
@@ -322,7 +315,6 @@ private:
 #endif
 
     State                      mState;
-    uint16_t                   mUdpProxyPort;
     Ip6::Udp::Receiver         mUdpReceiver;
     Ip6::Netif::UnicastAddress mCommissionerAloc;
     TimeoutTimer               mTimer;
