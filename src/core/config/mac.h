@@ -74,13 +74,8 @@
  * The default maximum number of retries allowed after a transmission failure for direct transmissions.
  *
  * Equivalent to macMaxFrameRetries, default value is 15.
- *
- * ------- UCSC Thread Ascon -------
- * The default number of retries for direct transmissions will be set by the
- * `CONFIG_OPENTHREAD_MAC_DEFAULT_MAX_FRAME_RETRIES_DIRECT` flag defined in
- * `Kconfig.projbuild`.
  */
-#define OPENTHREAD_CONFIG_MAC_DEFAULT_MAX_FRAME_RETRIES_DIRECT CONFIG_OPENTHREAD_MAC_DEFAULT_MAX_FRAME_RETRIES_DIRECT
+#define OPENTHREAD_CONFIG_MAC_DEFAULT_MAX_FRAME_RETRIES_DIRECT 15
 
 /**
  * @def OPENTHREAD_CONFIG_MAC_DEFAULT_MAX_FRAME_RETRIES_INDIRECT
