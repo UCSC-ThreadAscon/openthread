@@ -172,6 +172,12 @@ void BorderAgent::HandleNotifierEvents(Events aEvents)
         }
     }
 
+    if (aEvents.ContainsAny(kEventThreadRoleChanged | kEventThreadExtPanIdChanged | kEventThreadNetworkNameChanged |
+                            kEventThreadBackboneRouterStateChanged | kEventActiveDatasetChanged))
+    {
+        PostNotifyMeshCoPServiceChangedTask();
+    }
+
     if (aEvents.ContainsAny(kEventPskcChanged))
     {
         Pskc pskc;
@@ -184,12 +190,6 @@ void BorderAgent::HandleNotifierEvents(Events aEvents)
         // new pskc will be applied for next connection.
         SuccessOrExit(mDtlsTransport.SetPsk(pskc.m8, Pskc::kSize));
         pskc.Clear();
-    }
-
-    if (aEvents.ContainsAny(kEventThreadRoleChanged | kEventThreadExtPanIdChanged | kEventThreadNetworkNameChanged |
-                            kEventThreadBackboneRouterStateChanged | kEventActiveDatasetChanged))
-    {
-        PostNotifyMeshCoPServiceChangedTask();
     }
 
 exit:
@@ -560,12 +560,14 @@ void BorderAgent::EphemeralKeyManager::SetEnabled(bool aEnabled)
     {
         VerifyOrExit(mState == kStateDisabled);
         SetState(kStateStopped);
+        Get<BorderAgent>().PostNotifyMeshCoPServiceChangedTask();
     }
     else
     {
         VerifyOrExit(mState != kStateDisabled);
         Stop();
         SetState(kStateDisabled);
+        Get<BorderAgent>().PostNotifyMeshCoPServiceChangedTask();
     }
 
 exit:
