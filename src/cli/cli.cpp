@@ -3297,8 +3297,6 @@ exit:
 
 template <> otError Interpreter::Process<Cmd("instanceid")>(Arg aArgs[])
 {
-    otError error = OT_ERROR_INVALID_ARGS;
-
     /**
      * @cli instanceid
      * @code
@@ -3309,13 +3307,7 @@ template <> otError Interpreter::Process<Cmd("instanceid")>(Arg aArgs[])
      * @par api_copy
      * #otInstanceGetId
      */
-    if (aArgs[0].IsEmpty())
-    {
-        OutputLine("%lu", ToUlong(otInstanceGetId(GetInstancePtr())));
-        error = OT_ERROR_NONE;
-    }
-
-    return error;
+    return ProcessGet(aArgs, otInstanceGetId);
 }
 
 template <> otError Interpreter::Process<Cmd("ipaddr")>(Arg aArgs[])
@@ -4080,8 +4072,6 @@ template <> otError Interpreter::Process<Cmd("pskcref")>(Arg aArgs[])
     }
     else
     {
-        otPskcRef pskcRef;
-
         /**
          * @cli pskcref (set)
          * @code
@@ -4092,19 +4082,9 @@ template <> otError Interpreter::Process<Cmd("pskcref")>(Arg aArgs[])
          * @par api_copy
          * #otThreadSetPskcRef
          */
-        if (aArgs[1].IsEmpty())
-        {
-            SuccessOrExit(error = aArgs[0].ParseAsUint32(pskcRef));
-        }
-        else
-        {
-            ExitNow(error = OT_ERROR_INVALID_ARGS);
-        }
-
-        error = otThreadSetPskcRef(GetInstancePtr(), pskcRef);
+        error = ProcessSet(aArgs, otThreadSetPskcRef);
     }
 
-exit:
     return error;
 }
 #endif
@@ -4877,13 +4857,9 @@ template <> otError Interpreter::Process<Cmd("networkkeyref")>(Arg aArgs[])
     }
     else
     {
-        otNetworkKeyRef keyRef;
-
-        SuccessOrExit(error = aArgs[0].ParseAsUint32(keyRef));
-        SuccessOrExit(error = otThreadSetNetworkKeyRef(GetInstancePtr(), keyRef));
+        error = ProcessSet(aArgs, otThreadSetNetworkKeyRef);
     }
 
-exit:
     return error;
 }
 #endif
@@ -7555,6 +7531,7 @@ template <> otError Interpreter::Process<Cmd("networkdiagnostic")>(Arg aArgs[])
      * - `29`: Child TLV
      * - `34`: MLE Counters TLV
      * - `35`: Vendor App URL TLV
+     * - `37`: Enhanced Route TLV
      * @par
      * Sends a network diagnostic request to retrieve specified Type Length Values (TLVs)
      * for the specified addresses(es).
@@ -7663,6 +7640,10 @@ void Interpreter::HandleDiagnosticGetResponse(otError                 aError,
             OutputLine("Route:");
             OutputRoute(kIndentSize, diagTlv.mData.mRoute);
             break;
+        case OT_NETWORK_DIAGNOSTIC_TLV_ENHANCED_ROUTE:
+            OutputLine("EnhRoute:");
+            OutputEnhRoute(kIndentSize, diagTlv.mData.mEnhRoute);
+            break;
         case OT_NETWORK_DIAGNOSTIC_TLV_LEADER_DATA:
             OutputLine("Leader Data:");
             OutputLeaderData(kIndentSize, diagTlv.mData.mLeaderData);
@@ -7756,6 +7737,7 @@ void Interpreter::OutputConnectivity(uint8_t aIndentSize, const otNetworkDiagCon
     OutputLine(aIndentSize, "SedBufferSize: %u", aConnectivity.mSedBufferSize);
     OutputLine(aIndentSize, "SedDatagramCount: %u", aConnectivity.mSedDatagramCount);
 }
+
 void Interpreter::OutputRoute(uint8_t aIndentSize, const otNetworkDiagRoute &aRoute)
 {
     OutputLine(aIndentSize, "IdSequence: %u", aRoute.mIdSequence);
@@ -7776,6 +7758,36 @@ void Interpreter::OutputRouteData(uint8_t aIndentSize, const otNetworkDiagRouteD
     OutputLine(aIndentSize, "LinkQualityOut: %u", aRouteData.mLinkQualityOut);
     OutputLine(aIndentSize, "LinkQualityIn: %u", aRouteData.mLinkQualityIn);
     OutputLine(aIndentSize, "RouteCost: %u", aRouteData.mRouteCost);
+}
+
+void Interpreter::OutputEnhRoute(uint8_t aIndentSize, const otNetworkDiagEnhRoute &aEnhRoute)
+{
+    static constexpr uint8_t kInvalidRouterId = OT_NETWORK_MAX_ROUTER_ID + 1;
+
+    for (uint8_t index = 0; index < aEnhRoute.mRouteCount; index++)
+    {
+        const otNetworkDiagEnhRouteData &routeData = aEnhRoute.mRouteData[index];
+
+        OutputFormat(aIndentSize, "- RouterId:%-2u", routeData.mRouterId);
+
+        if (routeData.mIsSelf)
+        {
+            OutputLine(" The queried device");
+            continue;
+        }
+
+        OutputFormat(" HasLink:%-3s LinkQualityOut:%u LinkQualityIn:%u ", routeData.mHasLink ? "yes" : "no",
+                     routeData.mLinkQualityOut, routeData.mLinkQualityIn);
+
+        if (routeData.mNextHop == kInvalidRouterId)
+        {
+            OutputLine("NextHop:na NextHopCost:na");
+        }
+        else
+        {
+            OutputLine("NextHop:%-2u NextHopCost:%u", routeData.mNextHop, routeData.mNextHopCost);
+        }
+    }
 }
 
 void Interpreter::OutputLeaderData(uint8_t aIndentSize, const otLeaderData &aLeaderData)
