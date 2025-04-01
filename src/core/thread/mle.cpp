@@ -258,7 +258,7 @@ void Mle::ResetCounters(void)
 
 uint32_t Mle::GetCurrentAttachDuration(void) const
 {
-    return IsAttached() ? Uptime::MsecToSec(Get<Uptime>().GetUptime()) - mLastAttachTime : 0;
+    return IsAttached() ? Get<Uptime>().GetUptimeInSeconds() - mLastAttachTime : 0;
 }
 
 void Mle::UpdateRoleTimeCounters(DeviceRole aRole)
@@ -300,7 +300,7 @@ void Mle::SetRole(DeviceRole aRole)
 
     if ((oldRole == kRoleDetached) && IsAttached())
     {
-        mLastAttachTime = Uptime::MsecToSec(Get<Uptime>().GetUptime());
+        mLastAttachTime = Get<Uptime>().GetUptimeInSeconds();
     }
 
     UpdateRoleTimeCounters(oldRole);
@@ -1093,7 +1093,7 @@ bool Mle::IsCslSupported(void) const { return IsChild() && GetParent().IsThreadV
 
 void Mle::InitNeighbor(Neighbor &aNeighbor, const RxInfo &aRxInfo)
 {
-    aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(aNeighbor.GetExtAddress());
+    aNeighbor.GetExtAddress().SetFromIid(aRxInfo.mMessageInfo.GetPeerAddr().GetIid());
     aNeighbor.GetLinkInfo().Clear();
     aNeighbor.GetLinkInfo().AddRss(aRxInfo.mMessage.GetAverageRss());
     aNeighbor.ResetLinkFailures();
@@ -2302,7 +2302,7 @@ Error Mle::ProcessMessageSecurity(Crypto::AesCcm::Mode    aMode,
         break;
     }
 
-    senderAddress->GetIid().ConvertToExtAddress(extAddress);
+    extAddress.SetFromIid(senderAddress->GetIid());
     Crypto::AesCcm::GenerateNonce(extAddress, aHeader.GetFrameCounter(), Mac::Frame::kSecurityEncMic32, nonce);
 
     keySequence = aHeader.GetKeyId();
@@ -2426,7 +2426,7 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     IgnoreError(aMessage.Read(aMessage.GetOffset(), command));
     aMessage.MoveOffset(sizeof(command));
 
-    aMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(extAddr);
+    extAddr.SetFromIid(aMessageInfo.GetPeerAddr().GetIid());
     neighbor = (command == kCommandChildIdResponse) ? mNeighborTable.FindParent(extAddr)
                                                     : mNeighborTable.FindNeighbor(extAddr);
 
@@ -3095,7 +3095,7 @@ void Mle::HandleParentResponse(RxInfo &aRxInfo)
 
     SuccessOrExit(error = aRxInfo.mMessage.ReadAndMatchResponseTlvWith(mParentRequestChallenge));
 
-    aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(extAddress);
+    extAddress.SetFromIid(aRxInfo.mMessageInfo.GetPeerAddr().GetIid());
 
     if (IsChild() && mParent.GetExtAddress() == extAddress)
     {
