@@ -82,6 +82,8 @@ extern "C" void otPlatMdnsHandleHostAddressEvent(otInstance         *aInstance,
                                                  bool                aAdded,
                                                  uint32_t            aInfraIfIndex);
 
+extern "C" void otPlatMdnsHandleHostAddressRemoveAll(otInstance *aInstance, uint32_t aInfraIfIndex);
+
 /**
  * Implements Multicast DNS (mDNS) core.
  */
@@ -98,6 +100,8 @@ class Core : public InstanceLocator, private NonCopyable
                                                  const otIp6Address *aAddress,
                                                  bool                aAdded,
                                                  uint32_t            aInfraIfIndex);
+
+    friend void otPlatMdnsHandleHostAddressRemoveAll(otInstance *aInstance, uint32_t aInfraIfIndex);
 
 public:
     /**
@@ -1144,6 +1148,7 @@ private:
         const AddressArray &GetIp4Addresses(void) const { return mIp4Addresses; }
         const AddressArray &GetIp6Addresses(void) const { return mIp6Addresses; }
         void                HandleAddressEvent(const Ip6::Address &aAddress, bool aAdded, uint32_t aInfraIfIndex);
+        void                HandleAddressRemoveAll(uint32_t aInfraIfIndex);
         void                HandleEventTimer(void);
         void                ClearAddresses(void);
 
@@ -2204,6 +2209,7 @@ private:
 
     void      AfterInstanceInit(void);
     void      HandleHostAddressEvent(const Ip6::Address &aAddress, bool aAdded, uint32_t aInfraIfIndex);
+    void      HandleHostAddressRemoveAll(uint32_t aInfraIfIndex);
     void      InvokeConflictCallback(const char *aName, const char *aServiceType);
     void      HandleMessage(Message &aMessage, bool aIsUnicast, const AddressInfo &aSenderAddress);
     void      AddPassiveSrvTxtCache(const char *aServiceInstance, const char *aServiceType);
@@ -2223,7 +2229,6 @@ private:
     static void     UpdateCacheFlushFlagIn(ResourceRecord &aResourceRecord,
                                            Section         aSection,
                                            bool            aIsLegacyUnicast = false);
-    static void     UpdateRecordLengthInMessage(ResourceRecord &aRecord, Message &aMessage, uint16_t aOffset);
     static void     UpdateCompressOffset(uint16_t &aOffset, uint16_t aNewOffse);
     static bool     QuestionMatches(uint16_t aQuestionRrType, uint16_t aRrType);
     static bool     RrClassIsInternetOrAny(uint16_t aRrClass);

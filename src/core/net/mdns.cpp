@@ -63,6 +63,11 @@ extern "C" void otPlatMdnsHandleHostAddressEvent(otInstance         *aInstance,
     AsCoreType(aInstance).Get<Core>().HandleHostAddressEvent(AsCoreType(aAddress), aAdded, aInfraIfIndex);
 }
 
+extern "C" void otPlatMdnsHandleHostAddressRemoveAll(otInstance *aInstance, uint32_t aInfraIfIndex)
+{
+    AsCoreType(aInstance).Get<Core>().HandleHostAddressRemoveAll(aInfraIfIndex);
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 // Core
 
@@ -284,6 +289,8 @@ void Core::HandleHostAddressEvent(const Ip6::Address &aAddress, bool aAdded, uin
     mLocalHost.HandleAddressEvent(aAddress, aAdded, aInfraIfIndex);
 }
 
+void Core::HandleHostAddressRemoveAll(uint32_t aInfraIfIndex) { mLocalHost.HandleAddressRemoveAll(aInfraIfIndex); }
+
 void Core::HandleMessage(Message &aMessage, bool aIsUnicast, const AddressInfo &aSenderAddress)
 {
     OwnedPtr<Message>   messagePtr(&aMessage);
@@ -454,17 +461,6 @@ void Core::UpdateCacheFlushFlagIn(ResourceRecord &aResourceRecord, Section aSect
     {
         aResourceRecord.SetClass(aResourceRecord.GetClass() | kClassCacheFlushFlag);
     }
-}
-
-void Core::UpdateRecordLengthInMessage(ResourceRecord &aRecord, Message &aMessage, uint16_t aOffset)
-{
-    // Determines the records DATA length and updates it in a message.
-    // Should be called immediately after all the fields in the
-    // record are appended to the message. `aOffset` gives the offset
-    // in the message to the start of the record.
-
-    aRecord.SetLength(aMessage.GetLength() - aOffset - sizeof(ResourceRecord));
-    aMessage.Write(aOffset, aRecord);
 }
 
 void Core::UpdateCompressOffset(uint16_t &aOffset, uint16_t aNewOffset)
@@ -1477,7 +1473,7 @@ void Core::Entry::AppendNsecRecordTo(TxMessage       &aTxMessage,
 
     SuccessOrAssert(message.AppendBytes(&bitmap, bitmap.GetSize()));
 
-    UpdateRecordLengthInMessage(nsec, message, offset);
+    ResourceRecord::UpdateRecordLengthInMessage(message, offset);
     aTxMessage.IncrementRecordCount(aSection);
 
     mAppendedNsec = true;
@@ -1587,6 +1583,30 @@ void Core::LocalHost::HandleAddressEvent(const Ip6::Address &aAddress, bool aAdd
     if (!mEventTimer.IsRunning())
     {
         mEventTimer.Start(kGuardTimeToProcessAddrEvents);
+    }
+
+exit:
+    return;
+}
+
+void Core::LocalHost::HandleAddressRemoveAll(uint32_t aInfraIfIndex)
+{
+    VerifyOrExit(Get<Core>().mIsEnabled);
+    VerifyOrExit(aInfraIfIndex == Get<Core>().mInfraIfIndex);
+
+    mAddrEvents.Clear();
+    mEventTimer.Stop();
+
+    LogInfo("Host address event: remove all");
+
+    for (const Ip6::Address &address : mIp4Addresses)
+    {
+        HandleAddressEvent(address, /* aAdded */ false, aInfraIfIndex);
+    }
+
+    for (const Ip6::Address &address : mIp6Addresses)
+    {
+        HandleAddressEvent(address, /* aAdded */ false, aInfraIfIndex);
     }
 
 exit:
@@ -2950,7 +2970,7 @@ void Core::ServiceEntry::AppendSrvRecordTo(TxMessage &aTxMessage, Section aSecti
     offset = message->GetLength();
     SuccessOrAssert(message->Append(srv));
     AppendHostNameTo(aTxMessage, aSection);
-    UpdateRecordLengthInMessage(srv, *message, offset);
+    ResourceRecord::UpdateRecordLengthInMessage(*message, offset);
 
     aTxMessage.IncrementRecordCount(aSection);
 
@@ -3015,7 +3035,7 @@ void Core::ServiceEntry::AppendPtrRecordTo(TxMessage &aTxMessage, Section aSecti
     offset = message->GetLength();
     SuccessOrAssert(message->Append(ptr));
     AppendServiceNameTo(aTxMessage, aSection);
-    UpdateRecordLengthInMessage(ptr, *message, offset);
+    ResourceRecord::UpdateRecordLengthInMessage(*message, offset);
 
     aTxMessage.IncrementRecordCount(aSection);
 
@@ -3351,7 +3371,7 @@ void Core::ServiceType::AppendPtrRecordTo(TxMessage &aResponse, uint16_t aServic
     offset = message->GetLength();
     SuccessOrAssert(message->Append(ptr));
     aResponse.AppendServiceType(kAnswerSection, mServiceType.AsCString(), aServiceTypeOffset);
-    UpdateRecordLengthInMessage(ptr, *message, offset);
+    ResourceRecord::UpdateRecordLengthInMessage(*message, offset);
 
     aResponse.IncrementRecordCount(kAnswerSection);
 
@@ -5914,7 +5934,7 @@ void Core::BrowseCache::AppendKnownAnswer(TxMessage &aTxMessage, const PtrEntry 
     SuccessOrAssert(Name::AppendLabel(aPtrEntry.mServiceInstance.AsCString(), message));
     aTxMessage.AppendServiceType(kAnswerSection, mServiceType.AsCString(), mServiceTypeOffset);
 
-    UpdateRecordLengthInMessage(ptr, message, offset);
+    ResourceRecord::UpdateRecordLengthInMessage(message, offset);
 
     aTxMessage.IncrementRecordCount(kAnswerSection);
 }
