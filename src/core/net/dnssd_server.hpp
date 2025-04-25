@@ -434,8 +434,10 @@ private:
 #if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
         Error ResolveBySrp(void);
         bool  QueryNameMatchesService(const Srp::Server::Service &aService) const;
+        Error AppendPtrRecord(const Srp::Server::Service &aService);
         Error AppendSrvRecord(const Srp::Server::Service &aService);
         Error AppendTxtRecord(const Srp::Server::Service &aService);
+        Error AppendHostAddresses(const Srp::Server::Service &aService);
         Error AppendHostAddresses(const Srp::Server::Host &aHost);
         Error AppendKeyRecord(const Srp::Server::Host &aHost);
 #endif
@@ -447,6 +449,7 @@ private:
         Error AppendHostIp4Addresses(const ProxyResult &aResult);
         Error AppendGenericRecord(const ProxyResult &aResult);
 #endif
+        template <typename ServiceType> Error AppendServiceRecords(const ServiceType &aService);
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
         void Log(void) const;
@@ -573,7 +576,7 @@ private:
 #endif
 
 #if OPENTHREAD_CONFIG_DNS_UPSTREAM_QUERY_ENABLE
-    static bool               ShouldForwardToUpstream(const Request &aRequest);
+    bool                      ShouldForwardToUpstream(const Request &aRequest) const;
     UpstreamQueryTransaction *AllocateUpstreamQueryTransaction(const Ip6::MessageInfo &aMessageInfo);
     void                      ResetUpstreamQueryTransaction(UpstreamQueryTransaction &aTxn, Error aError);
     Error                     ResolveByUpstream(const Request &aRequest);

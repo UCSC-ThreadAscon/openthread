@@ -157,16 +157,12 @@ void Server::ProcessQuery(Request &aRequest)
     Response     response(GetInstance());
 
 #if OPENTHREAD_CONFIG_DNS_UPSTREAM_QUERY_ENABLE
-    if (mEnableUpstreamQuery && ShouldForwardToUpstream(aRequest))
+    if (ShouldForwardToUpstream(aRequest))
     {
-        Error error = ResolveByUpstream(aRequest);
-
-        if (error == kErrorNone)
+        if (ResolveByUpstream(aRequest) == kErrorNone)
         {
             ExitNow();
         }
-
-        LogWarnOnError(error, "forwarding to upstream");
 
         rcode = Header::kResponseServerFailure;
 
@@ -206,6 +202,10 @@ void Server::ProcessQuery(Request &aRequest)
         ExitNow();
     }
 #endif
+
+    // `ResolveByProxy` may take ownership of `response.mMessage` and
+    // setting it to `nullptr`. In such a case, the `response.Send()`
+    // call will effectively do nothing.
 
     ResolveByProxy(response, *aRequest.mMessageInfo);
 
@@ -386,8 +386,9 @@ exit:
 
 Error Server::Response::ParseQueryName(void)
 {
-    // Parses and validates the query name and updates
-    // the name compression offsets.
+    // Parses the query name, determines name compression
+    // offsets, and validates that the query name is for
+    // `kDefaultDomainName` ("default.service.arpa.").
 
     Error        error = kErrorNone;
     Name::Buffer name;
@@ -450,6 +451,15 @@ void Server::Response::ReadQueryName(Name::Buffer &aName) const { Server::ReadQu
 bool Server::Response::QueryNameMatches(const char *aName) const { return Server::QueryNameMatches(*mMessage, aName); }
 
 Error Server::Response::AppendQueryName(void) { return Name::AppendPointerLabel(sizeof(Header), *mMessage); }
+
+#if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
+Error Server::Response::AppendPtrRecord(const Srp::Server::Service &aService)
+{
+    uint32_t ttl = TimeMilli::MsecToSec(aService.GetExpireTime() - TimerMilli::GetNow());
+
+    return AppendPtrRecord(aService.GetInstanceLabel(), ttl);
+}
+#endif
 
 Error Server::Response::AppendPtrRecord(const char *aInstanceLabel, uint32_t aTtl)
 {
@@ -530,6 +540,11 @@ exit:
 }
 
 #if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
+Error Server::Response::AppendHostAddresses(const Srp::Server::Service &aService)
+{
+    return AppendHostAddresses(aService.GetHost());
+}
+
 Error Server::Response::AppendHostAddresses(const Srp::Server::Host &aHost)
 {
     const Ip6::Address *addrs;
@@ -697,6 +712,41 @@ exit:
     return error;
 }
 
+template <typename ServiceType> Error Server::Response::AppendServiceRecords(const ServiceType &aService)
+{
+    static const Section kSections[] = {kAnswerSection, kAdditionalDataSection};
+
+    // Append SRV and TXT records along with associated host AAAA addresses
+    // in the proper sections.
+
+    Error error = kErrorNone;
+
+    for (Section section : kSections)
+    {
+        mSection = section;
+
+        if (mSection == kAdditionalDataSection)
+        {
+            VerifyOrExit(!(Get<Server>().mTestMode & kTestModeEmptyAdditionalSection));
+        }
+
+        if (mSection == mQuestions.SectionFor(kRrTypeSrv))
+        {
+            SuccessOrExit(error = AppendSrvRecord(aService));
+        }
+
+        if (mSection == mQuestions.SectionFor(kRrTypeTxt))
+        {
+            SuccessOrExit(error = AppendTxtRecord(aService));
+        }
+    }
+
+    error = AppendHostAddresses(aService);
+
+exit:
+    return error;
+}
+
 void Server::Response::IncResourceRecordCount(void)
 {
     switch (mSection)
@@ -728,8 +778,6 @@ void Server::Response::Log(void) const
 
 Error Server::Response::ResolveBySrp(void)
 {
-    static const Section kSections[] = {kAnswerSection, kAdditionalDataSection};
-
     Error                       error          = kErrorNone;
     const Srp::Server::Service *matchedService = nullptr;
     bool                        found          = false;
@@ -771,9 +819,7 @@ Error Server::Response::ResolveBySrp(void)
             {
                 if (QueryNameMatchesService(service))
                 {
-                    uint32_t ttl = TimeMilli::MsecToSec(service.GetExpireTime() - TimerMilli::GetNow());
-
-                    SuccessOrExit(error = AppendPtrRecord(service.GetInstanceLabel(), ttl));
+                    SuccessOrExit(error = AppendPtrRecord(service));
                     matchedService = &service;
                 }
             }
@@ -814,30 +860,7 @@ Error Server::Response::ResolveBySrp(void)
         VerifyOrExit(mQuestions.IsFor(kRrTypeSrv) || mQuestions.IsFor(kRrTypeTxt));
     }
 
-    // Append SRV and TXT records along with associated host AAAA addresses
-    // in the proper sections.
-
-    for (Section section : kSections)
-    {
-        mSection = section;
-
-        if (mSection == kAdditionalDataSection)
-        {
-            VerifyOrExit(!(Get<Server>().mTestMode & kTestModeEmptyAdditionalSection));
-        }
-
-        if (mSection == mQuestions.SectionFor(kRrTypeSrv))
-        {
-            SuccessOrExit(error = AppendSrvRecord(*matchedService));
-        }
-
-        if (mSection == mQuestions.SectionFor(kRrTypeTxt))
-        {
-            SuccessOrExit(error = AppendTxtRecord(*matchedService));
-        }
-    }
-
-    SuccessOrExit(error = AppendHostAddresses(matchedService->GetHost()));
+    error = AppendServiceRecords(*matchedService);
 
 exit:
     return error;
@@ -865,11 +888,13 @@ exit:
 #endif // OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
 
 #if OPENTHREAD_CONFIG_DNS_UPSTREAM_QUERY_ENABLE
-bool Server::ShouldForwardToUpstream(const Request &aRequest)
+bool Server::ShouldForwardToUpstream(const Request &aRequest) const
 {
     bool         shouldForward = false;
     uint16_t     readOffset;
     Name::Buffer name;
+
+    VerifyOrExit(mEnableUpstreamQuery);
 
     VerifyOrExit(aRequest.mHeader.IsRecursionDesiredFlagSet());
     readOffset = sizeof(Header);
@@ -949,6 +974,7 @@ Error Server::ResolveByUpstream(const Request &aRequest)
     mCounters.mUpstreamDnsCounters.mQueries++;
 
 exit:
+    LogWarnOnError(error, "forward to upstream");
     return error;
 }
 #endif // OPENTHREAD_CONFIG_DNS_UPSTREAM_QUERY_ENABLE
@@ -1164,8 +1190,6 @@ void Server::Response::InitFrom(ProxyQuery &aQuery, const ProxyQueryInfo &aInfo)
 
 void Server::Response::Answer(const ServiceInstanceInfo &aInstanceInfo, const Ip6::MessageInfo &aMessageInfo)
 {
-    static const Section kSections[] = {kAnswerSection, kAdditionalDataSection};
-
     Error error = kErrorNone;
 
     if (mQuestions.IsFor(kRrTypePtr))
@@ -1177,27 +1201,7 @@ void Server::Response::Answer(const ServiceInstanceInfo &aInstanceInfo, const Ip
         SuccessOrExit(error = AppendPtrRecord(instanceLabel, aInstanceInfo.mTtl));
     }
 
-    for (Section section : kSections)
-    {
-        mSection = section;
-
-        if (mSection == kAdditionalDataSection)
-        {
-            VerifyOrExit(!(Get<Server>().mTestMode & kTestModeEmptyAdditionalSection));
-        }
-
-        if (mSection == mQuestions.SectionFor(kRrTypeSrv))
-        {
-            SuccessOrExit(error = AppendSrvRecord(aInstanceInfo));
-        }
-
-        if (mSection == mQuestions.SectionFor(kRrTypeTxt))
-        {
-            SuccessOrExit(error = AppendTxtRecord(aInstanceInfo));
-        }
-    }
-
-    error = AppendHostAddresses(aInstanceInfo);
+    error = AppendServiceRecords(aInstanceInfo);
 
 exit:
     if (error != kErrorNone)
