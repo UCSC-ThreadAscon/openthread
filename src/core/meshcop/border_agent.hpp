@@ -49,6 +49,7 @@
 #include "common/non_copyable.hpp"
 #include "common/notifier.hpp"
 #include "common/owned_ptr.hpp"
+#include "common/random.hpp"
 #include "common/tasklet.hpp"
 #include "meshcop/dataset.hpp"
 #include "meshcop/secure_transport.hpp"
@@ -77,9 +78,10 @@ class BorderAgent : public InstanceLocator, private NonCopyable
     class CoapDtlsSession;
 
 public:
-    typedef otBorderAgentId          Id;          ///< Border Agent ID.
-    typedef otBorderAgentCounters    Counters;    ///< Border Agent Counters.
-    typedef otBorderAgentSessionInfo SessionInfo; ///< A session info.
+    typedef otBorderAgentCounters                      Counters;               ///< Border Agent Counters.
+    typedef otBorderAgentSessionInfo                   SessionInfo;            ///< A session info.
+    typedef otBorderAgentMeshCoPServiceChangedCallback ServiceChangedCallback; ///< Service changed callback.
+    typedef otBorderAgentMeshCoPServiceTxtData         ServiceTxtData;         ///< Service TXT data.
 
     /**
      * Represents an iterator for secure sessions.
@@ -120,6 +122,21 @@ public:
 
 #if OPENTHREAD_CONFIG_BORDER_AGENT_ID_ENABLE
     /**
+     *  Represents a Border Agent Identifier.
+     */
+    struct Id : public otBorderAgentId, public Clearable<Id>, public Equatable<Id>
+    {
+        static constexpr uint16_t kLength = OT_BORDER_AGENT_ID_LENGTH; ///< The ID length (number of bytes).
+
+        /**
+         * Generates a random ID.
+         */
+        void GenerateRandom(void) { Random::NonCrypto::Fill(mId); }
+    };
+
+    static_assert(sizeof(Id) == Id::kLength, "sizeof(Id) is not valid");
+
+    /**
      * Gets the randomly generated Border Agent ID.
      *
      * The ID is saved in persistent storage and survives reboots. The typical use case of the ID is to
@@ -140,7 +157,7 @@ public:
      * to set the ID only once after factory reset. If the ID has never been set by calling this
      * method, a random ID will be generated and returned when `GetId()` is called.
      *
-     * @param[out] aId  specifies the Border Agent ID.
+     * @param[in] aId   The Border Agent ID.
      *
      * @retval kErrorNone  If successfully set the Border Agent ID.
      * @retval ...         If failed to set the Border Agent ID.
@@ -163,8 +180,6 @@ public:
      */
     bool IsRunning(void) const { return mIsRunning; }
 
-    typedef otBorderAgentMeshCoPServiceChangedCallback MeshCoPServiceChangedCallback;
-
     /**
      * Sets the callback function used by the Border Agent to notify any changes on the MeshCoP service TXT values.
      *
@@ -178,19 +193,17 @@ public:
      * @param[in] aCallback  The callback to invoke when there are any changes of the MeshCoP service.
      * @param[in] aContext   A pointer to application-specific context.
      */
-    void SetMeshCoPServiceChangedCallback(MeshCoPServiceChangedCallback aCallback, void *aContext);
-
-    typedef otBorderAgentMeshCoPServiceTxtData MeshCoPServiceTxtData;
+    void SetServiceChangedCallback(ServiceChangedCallback aCallback, void *aContext);
 
     /**
-     * Gets the MeshCoP service TXT data.
+     * Prepares the MeshCoP service TXT data.
      *
      * @param[out] aTxtData   A reference to a MeshCoP Service TXT data struct to get the data.
      *
      * @retval kErrorNone     If successfully retrieved the Border Agent MeshCoP Service TXT data.
      * @retval kErrorNoBufs   If the buffer in @p aTxtData doesn't have enough size.
      */
-    Error GetMeshCoPServiceTxtData(MeshCoPServiceTxtData &aTxtData) const;
+    Error PrepareServiceTxtData(ServiceTxtData &aTxtData) const;
 
 #if OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
     /**
@@ -434,10 +447,10 @@ private:
         uint64_t                   mAllocationTime;
     };
 
-    class MeshCoPTxtEncoder : public InstanceLocator
+    class TxtEncoder : public InstanceLocator
     {
     public:
-        MeshCoPTxtEncoder(Instance &aInstance, MeshCoPServiceTxtData &aTxtData)
+        TxtEncoder(Instance &aInstance, ServiceTxtData &aTxtData)
             : InstanceLocator(aInstance)
             , mTxtData(aTxtData)
             , mAppender(mTxtData.mData, sizeof(mTxtData.mData))
@@ -532,8 +545,8 @@ private:
 
         StateBitmap GetStateBitmap(void);
 
-        MeshCoPServiceTxtData &mTxtData;
-        Appender               mAppender;
+        ServiceTxtData &mTxtData;
+        Appender        mAppender;
     };
 
     void Start(void);
@@ -554,10 +567,14 @@ private:
 
     static Coap::Message::Code CoapCodeFromError(Error aError);
 
-    void PostNotifyMeshCoPServiceChangedTask(void);
-    void NotifyMeshCoPServiceChanged(void);
+    void PostServiceTask(void);
+    void HandleServiceTask(void);
+#if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+    // Callback from `RoutingManager`
+    void HandleFavoredOmrPrefixChanged(void) { PostServiceTask(); }
+#endif
 
-    using NotifyMeshCoPServiceChangedTask = TaskletIn<BorderAgent, &BorderAgent::NotifyMeshCoPServiceChanged>;
+    using ServiceTask = TaskletIn<BorderAgent, &BorderAgent::HandleServiceTask>;
 
     bool            mIsRunning;
     Dtls::Transport mDtlsTransport;
@@ -565,8 +582,8 @@ private:
     Id   mId;
     bool mIdInitialized;
 #endif
-    Callback<MeshCoPServiceChangedCallback> mMeshCoPServiceChangedCallback;
-    NotifyMeshCoPServiceChangedTask         mNotifyMeshCoPServiceChangedTask;
+    Callback<ServiceChangedCallback> mServiceChangedCallback;
+    ServiceTask                      mServiceTask;
 #if OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
     EphemeralKeyManager mEphemeralKeyManager;
 #endif
