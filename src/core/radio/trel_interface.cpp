@@ -149,24 +149,19 @@ void Interface::RegisterService(void)
         /* ExtPanId */ sizeof(uint8_t) + sizeof(kTxtRecordExtPanIdKey) - 1 + sizeof(char) +
         sizeof(MeshCoP::ExtendedPanId);
 
-    uint8_t                        txtDataBuffer[kTxtDataSize];
-    MutableData<kWithUint16Length> txtData;
-    Dns::TxtEntry                  txtEntries[2];
+    uint8_t             txtData[kTxtDataSize];
+    Dns::TxtDataEncoder encoder(txtData, sizeof(txtData));
 
     VerifyOrExit(mInitialized && mEnabled);
 
-    txtEntries[0].Init(kTxtRecordExtAddressKey, Get<Mac::Mac>().GetExtAddress().m8, sizeof(Mac::ExtAddress));
-    txtEntries[1].Init(kTxtRecordExtPanIdKey, Get<MeshCoP::ExtendedPanIdManager>().GetExtPanId().m8,
-                       sizeof(MeshCoP::ExtendedPanId));
-
-    txtData.Init(txtDataBuffer, sizeof(txtDataBuffer));
-    SuccessOrAssert(Dns::TxtEntry::AppendEntries(txtEntries, GetArrayLength(txtEntries), txtData));
+    SuccessOrAssert(encoder.AppendEntry(kTxtRecordExtAddressKey, Get<Mac::Mac>().GetExtAddress()));
+    SuccessOrAssert(encoder.AppendEntry(kTxtRecordExtPanIdKey, Get<MeshCoP::ExtendedPanIdManager>().GetExtPanId()));
 
     LogInfo("Registering DNS-SD service: port:%u, txt:\"%s=%s, %s=%s\"", mUdpPort, kTxtRecordExtAddressKey,
             Get<Mac::Mac>().GetExtAddress().ToString().AsCString(), kTxtRecordExtPanIdKey,
             Get<MeshCoP::ExtendedPanIdManager>().GetExtPanId().ToString().AsCString());
 
-    otPlatTrelRegisterService(&GetInstance(), mUdpPort, txtData.GetBytes(), static_cast<uint8_t>(txtData.GetLength()));
+    otPlatTrelRegisterService(&GetInstance(), mUdpPort, txtData, static_cast<uint8_t>(encoder.GetLength()));
 
 exit:
     return;
@@ -274,14 +269,14 @@ Error Interface::ParsePeerInfoTxtData(const Peer::Info       &aInfo,
         if (StringMatch(entry.mKey, kTxtRecordExtAddressKey))
         {
             VerifyOrExit(!parsedExtAddress, error = kErrorParse);
-            VerifyOrExit(entry.mValueLength == sizeof(Mac::ExtAddress), error = kErrorParse);
+            VerifyOrExit(entry.mValueLength >= sizeof(Mac::ExtAddress), error = kErrorParse);
             aExtAddress.Set(entry.mValue);
             parsedExtAddress = true;
         }
         else if (StringMatch(entry.mKey, kTxtRecordExtPanIdKey))
         {
             VerifyOrExit(!parsedExtPanId, error = kErrorParse);
-            VerifyOrExit(entry.mValueLength == sizeof(MeshCoP::ExtendedPanId), error = kErrorParse);
+            VerifyOrExit(entry.mValueLength >= sizeof(MeshCoP::ExtendedPanId), error = kErrorParse);
             memcpy(aExtPanId.m8, entry.mValue, sizeof(MeshCoP::ExtendedPanId));
             parsedExtPanId = true;
         }
