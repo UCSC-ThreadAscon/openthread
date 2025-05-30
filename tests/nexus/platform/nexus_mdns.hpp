@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019, The OpenThread Authors.
+ *  Copyright (c) 2025, The OpenThread Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -26,21 +26,45 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef FUZZER_PLATFORM_H_
-#define FUZZER_PLATFORM_H_
+#ifndef OT_NEXUS_MDNS_HPP_
+#define OT_NEXUS_MDNS_HPP_
 
-#include <openthread/instance.h>
+#include "instance/instance.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace ot {
+namespace Nexus {
 
-void FuzzerPlatformInit(void);
-void FuzzerPlatformProcess(otInstance *aInstance);
-bool FuzzerPlatformResetWasRequested(void);
+class Mdns
+{
+public:
+    static constexpr uint16_t kUdpPort      = 5353;
+    static constexpr uint32_t kInfraIfIndex = 1;
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
+    using AddressInfo = otPlatMdnsAddressInfo;
 
-#endif // FUZZER_PLATFORM_H_
+    struct PendingTx : public Heap::Allocatable<PendingTx>, public LinkedListEntry<PendingTx>
+    {
+        PendingTx        *mNext;
+        OwnedPtr<Message> mMessage;
+        bool              mIsUnicast;
+        AddressInfo       mAddress;
+    };
+
+    Mdns(void);
+    Error SetListeningEnabled(Instance &aInstance, bool aEnable, uint32_t aInfraIfIndex);
+    void  SendMulticast(Message &aMessage, uint32_t aInfraIfIndex);
+    void  SendUnicast(Message &aMessage, const AddressInfo &aAddress);
+
+    void SignalIfAddresses(Instance &aInstance);
+    void Receive(Instance &aInstance, const PendingTx &aPendingTx, const AddressInfo &aSenderAddress);
+    void GetAddress(AddressInfo &aAddress) const;
+
+    bool                      mEnabled;
+    Heap::Array<Ip6::Address> mIfAddresses;
+    OwningList<PendingTx>     mPendingTxList;
+};
+
+} // namespace Nexus
+} // namespace ot
+
+#endif // OT_NEXUS_MDNS_HPP_

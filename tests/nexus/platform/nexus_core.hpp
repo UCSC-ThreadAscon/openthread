@@ -76,6 +76,7 @@ private:
 
     void Process(Node &aNode);
     void ProcessRadio(Node &aNode);
+    void ProcessMdns(Node &aNode);
 
     static Core *sCore;
 

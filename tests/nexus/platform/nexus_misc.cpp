@@ -84,6 +84,7 @@ void otPlatFree(void *aPtr) { free(aPtr); }
 
 otError otPlatEntropyGet(uint8_t *aOutput, uint16_t aOutputLength)
 {
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     Error  error = OT_ERROR_NONE;
     FILE  *file  = nullptr;
     size_t readLength;
@@ -102,36 +103,14 @@ otError otPlatEntropyGet(uint8_t *aOutput, uint16_t aOutputLength)
 
 exit:
     return error;
-}
+#else
+    for (uint16_t length = 0; length < aOutputLength; length++)
+    {
+        aOutput[length] = (uint8_t)rand();
+    }
 
-//---------------------------------------------------------------------------------------------------------------------
-// otPlatMdns
-
-OT_TOOL_WEAK otError otPlatMdnsSetListeningEnabled(otInstance *aInstance, bool aEnable, uint32_t aInfraIfIndex)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-    OT_UNUSED_VARIABLE(aEnable);
-    OT_UNUSED_VARIABLE(aInfraIfIndex);
-
-    return kErrorNone;
-}
-
-OT_TOOL_WEAK void otPlatMdnsSendMulticast(otInstance *aInstance, otMessage *aMessage, uint32_t aInfraIfIndex)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-    OT_UNUSED_VARIABLE(aInfraIfIndex);
-
-    AsCoreType(aMessage).Free();
-}
-
-OT_TOOL_WEAK void otPlatMdnsSendUnicast(otInstance                  *aInstance,
-                                        otMessage                   *aMessage,
-                                        const otPlatMdnsAddressInfo *aAddress)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-    OT_UNUSED_VARIABLE(aAddress);
-
-    AsCoreType(aMessage).Free();
+    return OT_ERROR_NONE;
+#endif
 }
 
 //---------------------------------------------------------------------------------------------------------------------
