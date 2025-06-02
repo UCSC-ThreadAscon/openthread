@@ -91,9 +91,9 @@
 #include "meshcop/joiner_router.hpp"
 #include "meshcop/meshcop_leader.hpp"
 #include "meshcop/network_name.hpp"
-#include "net/dhcp6.hpp"
 #include "net/dhcp6_client.hpp"
 #include "net/dhcp6_server.hpp"
+#include "net/dhcp6_types.hpp"
 #include "net/dns_client.hpp"
 #include "net/dns_dso.hpp"
 #include "net/dnssd.hpp"
@@ -480,9 +480,12 @@ private:
     MessagePool    mMessagePool;
 
 #if OPENTHREAD_CONFIG_PLATFORM_DNSSD_ENABLE || OPENTHREAD_CONFIG_MULTICAST_DNS_ENABLE
-    // DNS-SD (mDNS) platform is initialized early to
-    // allow other modules to use it.
+    // DNS-SD platform and mDNS are initialized early to
+    // allow other modules to use them.
     Dnssd mDnssd;
+#endif
+#if OPENTHREAD_CONFIG_MULTICAST_DNS_ENABLE
+    Dns::Multicast::Core mMdnsCore;
 #endif
 
 #if OPENTHREAD_CONFIG_PLATFORM_KEY_REFERENCES_ENABLE
@@ -527,10 +530,6 @@ private:
 
 #if OPENTHREAD_CONFIG_DNS_DSO_ENABLE
     Dns::Dso mDnsDso;
-#endif
-
-#if OPENTHREAD_CONFIG_MULTICAST_DNS_ENABLE
-    Dns::Multicast::Core mMdnsCore;
 #endif
 
 #if OPENTHREAD_CONFIG_SNTP_CLIENT_ENABLE
