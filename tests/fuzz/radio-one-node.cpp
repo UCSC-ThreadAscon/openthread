@@ -62,6 +62,20 @@ public:
         return buf;
     }
 
+    uint8_t ConsumeIntegralInRange(uint8_t aMin, uint8_t aMax)
+    {
+        assert(aMin < aMax);
+
+        uint16_t range = aMax - aMin;
+        uint8_t  result;
+
+        ConsumeData(&result, sizeof(result));
+
+        result = result % (range + 1);
+
+        return result + aMin;
+    }
+
     size_t RemainingBytes(void) { return mSize; }
 
 private:
@@ -96,6 +110,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
     node.GetInstance().SetLogLevel(kLogLevelInfo);
 
+    node.GetInstance().Get<BorderRouter::RoutingManager>().Init(/* aInfraIfIndex */ 1, /* aInfraIfIsRunning */ true);
+    node.GetInstance().Get<BorderRouter::RoutingManager>().SetEnabled(true);
     node.GetInstance().Get<Srp::Server>().SetAutoEnableMode(true);
     node.GetInstance().Get<BorderRouter::RoutingManager>().SetDhcp6PdEnabled(true);
     node.GetInstance().Get<BorderRouter::RoutingManager>().SetNat64PrefixManagerEnabled(true);
@@ -105,14 +121,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     Log("Form network");
 
     node.Form();
-    nexus.AdvanceTime(13 * 1000);
+    nexus.AdvanceTime(60 * 1000);
     VerifyOrQuit(node.Get<Mle::Mle>().IsLeader());
+    VerifyOrQuit(node.Get<Srp::Server>().GetState() == Srp::Server::kStateRunning);
 
     Log("---------------------------------------------------------------------------------------");
     Log("Fuzz");
 
-    fdp.ConsumeData(&error, sizeof(error));
-    VerifyOrExit((OT_ERROR_NONE <= error) && (error < OT_NUM_ERRORS));
+    error = static_cast<otError>(fdp.ConsumeIntegralInRange(OT_ERROR_NONE, OT_NUM_ERRORS - 1));
 
     fdp.ConsumeData(&frame, sizeof(frame));
 
