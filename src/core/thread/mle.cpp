@@ -3371,16 +3371,20 @@ exit:
 
 void Mle::HandleChildUpdateRequest(RxInfo &aRxInfo)
 {
+    VerifyOrExit(IsAttached());
+
 #if OPENTHREAD_FTD
     if (IsRouterOrLeader())
     {
         HandleChildUpdateRequestOnParent(aRxInfo);
+        ExitNow();
     }
-    else
 #endif
-    {
-        HandleChildUpdateRequestOnChild(aRxInfo);
-    }
+
+    HandleChildUpdateRequestOnChild(aRxInfo);
+
+exit:
+    return;
 }
 
 void Mle::HandleChildUpdateRequestOnChild(RxInfo &aRxInfo)
