@@ -154,7 +154,7 @@ Error Diags::ProcessStart(uint8_t aArgsLength, char *aArgs[])
     OT_UNUSED_VARIABLE(aArgsLength);
     OT_UNUSED_VARIABLE(aArgs);
 
-    otPlatDiagModeSet(true);
+    Get<Radio>().SetDiagMode(true);
 
     return kErrorNone;
 }
@@ -164,7 +164,7 @@ Error Diags::ProcessStop(uint8_t aArgsLength, char *aArgs[])
     OT_UNUSED_VARIABLE(aArgsLength);
     OT_UNUSED_VARIABLE(aArgs);
 
-    otPlatDiagModeSet(false);
+    Get<Radio>().SetDiagMode(false);
 
     return kErrorNone;
 }
@@ -188,6 +188,7 @@ const struct Diags::Command Diags::sCommands[] = {
     {"stats", &Diags::ProcessStats},
     {"stop", &Diags::ProcessStop},
     {"stream", &Diags::ProcessStream},
+    {"sweep", &Diags::ProcessSweep},
 };
 
 Diags::Diags(Instance &aInstance)
@@ -202,6 +203,8 @@ Diags::Diags(Instance &aInstance)
     , mIsTxPacketSet(false)
     , mIsAsyncSend(false)
     , mDiagSendOn(false)
+    , mIsSleepOn(false)
+    , mIsAsyncSweep(false)
     , mOutputCallback(nullptr)
     , mOutputContext(nullptr)
 {
@@ -500,7 +503,7 @@ Error Diags::ProcessStart(uint8_t aArgsLength, char *aArgs[])
     otPlatAlarmMilliStop(&GetInstance());
     SuccessOrExit(error = Get<Radio>().Receive(mChannel));
     SuccessOrExit(error = Get<Radio>().SetTransmitPower(mTxPower));
-    otPlatDiagModeSet(true);
+    Get<Radio>().SetDiagMode(true);
     mStats.Clear();
 
 exit:
@@ -547,11 +550,54 @@ Error Diags::ProcessStop(uint8_t aArgsLength, char *aArgs[])
     OT_UNUSED_VARIABLE(aArgs);
 
     otPlatAlarmMilliStop(&GetInstance());
-    otPlatDiagModeSet(false);
+    Get<Radio>().SetDiagMode(false);
     Get<Radio>().SetPromiscuous(false);
     Get<Mac::SubMac>().SetRxOnWhenIdle(false);
 
     return kErrorNone;
+}
+
+Error Diags::ProcessSweep(uint8_t aArgsLength, char *aArgs[])
+{
+    Error   error = kErrorNone;
+    uint8_t txLength;
+
+    VerifyOrExit(aArgsLength >= 1, error = kErrorInvalidArgs);
+    VerifyOrExit(mCurTxCmd == kTxCmdNone, error = kErrorInvalidState);
+
+    if (StringMatch(aArgs[0], "async"))
+    {
+        aArgs++;
+        aArgsLength--;
+        VerifyOrExit(aArgsLength >= 1, error = kErrorInvalidArgs);
+        mIsAsyncSweep = true;
+    }
+    else
+    {
+        mIsAsyncSweep = false;
+    }
+
+    SuccessOrExit(error = Utils::CmdLineParser::ParseAsUint8(aArgs[0], txLength));
+
+    VerifyOrExit(txLength <= OT_RADIO_FRAME_MAX_SIZE, error = kErrorInvalidArgs);
+    VerifyOrExit(txLength >= OT_RADIO_FRAME_MIN_SIZE, error = kErrorInvalidArgs);
+
+    mTxLen         = txLength;
+    mIsTxPacketSet = false;
+
+    mChannel = Radio::kChannelMin;
+    otPlatDiagChannelSet(mChannel);
+
+    SuccessOrExit(error = TransmitPacket());
+    mCurTxCmd = kTxCmdSweep;
+
+    if (!mIsAsyncSweep)
+    {
+        error = kErrorPending;
+    }
+
+exit:
+    return error;
 }
 
 Error Diags::TransmitPacket(void)
@@ -878,9 +924,28 @@ void Diags::TransmitDone(Error aError)
     }
 
     UpdateTxStats(aError);
-    VerifyOrExit((mCurTxCmd == kTxCmdSend) && (mTxPackets > 0));
+    VerifyOrExit(((mCurTxCmd == kTxCmdSend) && (mTxPackets > 0)) || (mCurTxCmd == kTxCmdSweep));
 
-    if (mTxPackets > 1)
+    if (mCurTxCmd == kTxCmdSweep)
+    {
+        if (IsChannelValid(mChannel + 1))
+        {
+            mChannel += 1;
+            otPlatDiagChannelSet(mChannel);
+
+            IgnoreError(TransmitPacket());
+        }
+        else
+        {
+            mCurTxCmd = kTxCmdNone;
+
+            if (!mIsAsyncSweep)
+            {
+                Output("OT_ERROR_NONE");
+            }
+        }
+    }
+    else if (mTxPackets > 1)
     {
         mTxPackets--;
         IgnoreError(TransmitPacket());
@@ -1195,11 +1260,11 @@ Error Diags::ProcessCmd(uint8_t aArgsLength, char *aArgs[])
 
     if (aArgsLength == 0)
     {
-        Output("diagnostics mode is %s\r\n", otPlatDiagModeGet() ? "enabled" : "disabled");
+        Output("diagnostics mode is %s\r\n", IsEnabled() ? "enabled" : "disabled");
         ExitNow();
     }
 
-    if (!otPlatDiagModeGet() && !StringMatch(aArgs[0], "start"))
+    if (!IsEnabled() && !StringMatch(aArgs[0], "start"))
     {
         Output("diagnostics mode is disabled\r\n");
         ExitNow(error = kErrorInvalidState);
@@ -1249,7 +1314,7 @@ void Diags::Output(const char *aFormat, ...)
     va_end(args);
 }
 
-bool Diags::IsEnabled(void) { return otPlatDiagModeGet(); }
+bool Diags::IsEnabled(void) { return Get<Radio>().GetDiagMode(); }
 
 } // namespace FactoryDiags
 } // namespace ot
