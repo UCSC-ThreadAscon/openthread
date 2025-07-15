@@ -216,7 +216,7 @@ public:
      * @retval kErrorNone   Successfully started detaching.
      * @retval kErrorBusy   Detaching is already in progress.
      */
-    Error DetachGracefully(DetachCallback aCallback, void *aContext);
+    Error DetachGracefully(DetachCallback aCallback, void *aContext) { return mDetacher.Detach(aCallback, aContext); }
 
     /**
      * Indicates whether or not the Thread device is attached to a Thread network.
@@ -634,21 +634,6 @@ public:
         mParentResponseCallback.Set(aCallback, aContext);
     }
 #endif
-    /**
-     * Notifies MLE whether the Child ID Request message was transmitted successfully.
-     *
-     * @param[in]  aMessage  The transmitted message.
-     */
-    void HandleChildIdRequestTxDone(Message &aMessage);
-
-    /**
-     * Requests MLE layer to prepare and send a shorter version of Child ID Request message by only
-     * including the mesh-local IPv6 address in the Address Registration TLV.
-     *
-     * Should be called when a previous MLE Child ID Request message would require fragmentation at 6LoWPAN
-     * layer.
-     */
-    void RequestShorterChildIdRequest(void);
 
     /**
      * Schedules a Child Update Request.
@@ -1182,7 +1167,7 @@ private:
     // All time intervals are in milliseconds
     static constexpr uint32_t kParentRequestRouterTimeout    = 750;  // Wait time after tx of Parent Req to routers
     static constexpr uint32_t kParentRequestReedTimeout      = 1250; // Wait timer after tx of Parent Req to REEDs
-    static constexpr uint32_t kParentRequestDuplicateMargin  = 50;   // Margin to detect duplicate received Parent Req
+    static constexpr uint32_t kParentRequestDuplicateTimeout = 700;  // Min time to detect duplicate Parent Req rx
     static constexpr uint32_t kChildIdResponseTimeout        = 1250; // Wait time to receive Child ID Response
     static constexpr uint32_t kAttachStartJitter             = 50;   // Max jitter time added to start of attach
     static constexpr uint32_t kAnnounceProcessTimeout        = 250;  // Delay after Announce rx before processing
@@ -1197,7 +1182,6 @@ private:
     static constexpr uint32_t kMaxLinkAcceptDelay            = 1000; // Max delay to tx Link Accept for multicast Req
     static constexpr uint32_t kChildIdRequestTimeout         = 5000; // Max delay to rx a Child ID Req after Parent Res
     static constexpr uint32_t kLinkRequestTimeout            = 2000; // Max delay to rx a Link Accept
-    static constexpr uint32_t kDetachGracefullyTimeout       = 1000; // Timeout for graceful detach
     static constexpr uint32_t kUnicastRetxDelay              = 1000; // Base delay for MLE unicast retx
     static constexpr uint32_t kMulticastRetxDelay            = 5000; // Base delay for MLE multicast retx
     static constexpr uint32_t kMulticastRetxDelayMin         = kMulticastRetxDelay * 9 / 10;  // 0.9 * base delay
@@ -1619,19 +1603,19 @@ private:
 
         void Stop(void);
 
-        void ScheduleDataRequest(const Ip6::Address &aDestination, uint16_t aDelay);
-        void ScheduleChildUpdateRequestToParent(uint16_t aDelay);
+        void ScheduleDataRequest(const Ip6::Address &aDestination, uint32_t aDelay);
+        void ScheduleChildUpdateRequestToParent(uint32_t aDelay);
 #if OPENTHREAD_FTD
-        void ScheduleParentResponse(const ParentResponseInfo &aInfo, uint16_t aDelay);
-        void ScheduleAdvertisement(const Ip6::Address &aDestination, uint16_t aDelay);
-        void ScheduleMulticastDataResponse(uint16_t aDelay);
-        void ScheduleLinkRequest(const Router &aRouter, uint16_t aDelay);
+        void ScheduleParentResponse(const ParentResponseInfo &aInfo, uint32_t aDelay);
+        void ScheduleAdvertisement(const Ip6::Address &aDestination, uint32_t aDelay);
+        void ScheduleMulticastDataResponse(uint32_t aDelay);
+        void ScheduleLinkRequest(const Router &aRouter, uint32_t aDelay);
         void RemoveScheduledLinkRequest(const Router &aRouter);
         bool HasAnyScheduledLinkRequest(const Router &aRouter) const;
-        void ScheduleLinkAccept(const LinkAcceptInfo &aInfo, uint16_t aDelay);
+        void ScheduleLinkAccept(const LinkAcceptInfo &aInfo, uint32_t aDelay);
         void ScheduleDiscoveryResponse(const Ip6::Address          &aDestination,
                                        const DiscoveryResponseInfo &aInfo,
-                                       uint16_t                     aDelay);
+                                       uint32_t                     aDelay);
 #endif
         void RemoveScheduledChildUpdateRequestToParent(void);
 
@@ -1652,7 +1636,7 @@ private:
 
         void AddSchedule(MessageType         aMessageType,
                          const Ip6::Address &aDestination,
-                         uint16_t            aDelay,
+                         uint32_t            aDelay,
                          const void         *aInfo,
                          uint16_t            aInfoSize);
         void Execute(const Schedule &aSchedule);
@@ -1733,6 +1717,38 @@ private:
         void     SetAloc16(uint16_t aAloc16) { GetAddress().GetIid().SetLocator(aAloc16); }
     };
 #endif
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    void HandleDetacherTimer(void) { mDetacher.HandleTimer(); }
+
+    class Detacher : public InstanceLocator
+    {
+        // Manages graceful detach process.
+
+    public:
+        explicit Detacher(Instance &aInstance);
+
+        Error Detach(DetachCallback aCallback, void *aContext);
+        void  HandleTimer(void);
+        Error HandleChildUpdateResponse(uint32_t aTimeout);
+        void  HandleStop(void);
+
+    private:
+        static constexpr uint32_t kTimeout = 1000;
+
+        enum State : uint8_t
+        {
+            kIdle,
+            kDetaching,
+        };
+
+        using DetachTimer = TimerMilliIn<Mle, &Mle::HandleDetacherTimer>;
+
+        State                    mState;
+        Callback<DetachCallback> mCallback;
+        DetachTimer              mTimer;
+    };
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -2002,6 +2018,7 @@ private:
     uint32_t   GetAttachStartDelay(void) const;
     void       SendParentRequest(ParentRequestType aType);
     Error      SendChildIdRequest(void);
+    void       HandleChildIdRequestTxDone(const Message &aMessage);
     Error      GetNextAnnounceChannel(uint8_t &aChannel) const;
     bool       HasMoreChannelsToAnnounce(void) const;
     bool       PrepareAnnounceState(void);
@@ -2069,6 +2086,8 @@ private:
     void GetAsconKey(uint32_t keyId, void *asconKey);
 
     /** --- End Thread ASCON Functions --- */
+
+    static void HandleChildIdRequestTxDone(const otMessage *aMessage, otError aError, void *aContext);
 
 #if OPENTHREAD_CONFIG_MLE_INFORM_PREVIOUS_PARENT_ON_REATTACH
     void InformPreviousParent(void);
@@ -2231,7 +2250,6 @@ private:
     bool mRequestRouteTlv : 1;
     bool mHasRestored : 1;
     bool mReceivedResponseFromParent : 1;
-    bool mDetachingGracefully : 1;
     bool mInitiallyAttachedAsSleepy : 1;
 
     DeviceRole              mRole;
@@ -2264,6 +2282,7 @@ private:
     ParentCandidate mParentCandidate;
     MleSocket       mSocket;
     Counters        mCounters;
+    Detacher        mDetacher;
     RetxTracker     mRetxTracker;
     AnnounceHandler mAnnounceHandler;
 #if OPENTHREAD_CONFIG_PARENT_SEARCH_ENABLE
@@ -2272,7 +2291,6 @@ private:
 #if OPENTHREAD_CONFIG_TMF_NETDATA_SERVICE_ENABLE
     ServiceAloc mServiceAlocs[kMaxServiceAlocs];
 #endif
-    Callback<DetachCallback> mDetachGracefullyCallback;
 #if OPENTHREAD_CONFIG_MLE_PARENT_RESPONSE_CALLBACK_API_ENABLE
     Callback<otThreadParentResponseCallback> mParentResponseCallback;
 #endif

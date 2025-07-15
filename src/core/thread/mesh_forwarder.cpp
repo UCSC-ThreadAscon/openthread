@@ -1283,10 +1283,6 @@ void MeshForwarder::FinalizeMessageDirectTx(Message &aMessage, Error aError)
         // `aMessage` and mark it again for direct transmission.
         Get<Mle::DiscoverScanner>().HandleDiscoveryRequestFrameTxDone(aMessage, aError);
     }
-    else if (aMessage.IsMleCommand(Mle::kCommandChildIdRequest))
-    {
-        Get<Mle::Mle>().HandleChildIdRequestTxDone(aMessage);
-    }
 
     aMessage.InvokeTxCallback(aError);
 
@@ -1455,7 +1451,7 @@ void MeshForwarder::HandleFragment(RxInfo &aRxInfo)
         message->SetTimestampToNow();
         message->UpdateLinkInfoFrom(aRxInfo.mLinkInfo);
 
-        VerifyOrExit(Get<Ip6::Filter>().Accept(*message), error = kErrorDrop);
+        SuccessOrExit(error = Get<Ip6::Filter>().Apply(*message));
 
 #if OPENTHREAD_FTD
         CheckReachabilityToSendIcmpError(*message, aRxInfo.mMacAddrs);
@@ -1603,7 +1599,7 @@ void MeshForwarder::HandleLowpanHc(RxInfo &aRxInfo)
 
     message->UpdateLinkInfoFrom(aRxInfo.mLinkInfo);
 
-    VerifyOrExit(Get<Ip6::Filter>().Accept(*message), error = kErrorDrop);
+    SuccessOrExit(error = Get<Ip6::Filter>().Apply(*message));
 
 #if OPENTHREAD_FTD
     CheckReachabilityToSendIcmpError(*message, aRxInfo.mMacAddrs);

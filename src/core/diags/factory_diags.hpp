@@ -244,6 +244,7 @@ private:
     void UpdateTxStats(Error aError);
 
     static bool IsChannelValid(uint8_t aChannel);
+    static bool IsFrameLengthValid(uint16_t aLength);
 
     static const struct Command sCommands[];
 
@@ -263,7 +264,7 @@ private:
     uint32_t      mTxPackets;
     uint8_t       mChannel;
     int8_t        mTxPower;
-    uint8_t       mTxLen;
+    uint16_t      mTxLen;
     TxCmd         mCurTxCmd;
     bool          mIsHeaderUpdated : 1;
     bool          mIsSecurityProcessed : 1;
