@@ -531,9 +531,8 @@ exit:
     return;
 }
 
-Error Mle::Store(void)
+void Mle::Store(void)
 {
-    Error                 error = kErrorNone;
     Settings::NetworkInfo networkInfo;
 
     networkInfo.Init();
@@ -560,7 +559,7 @@ Error Mle::Store(void)
             parentInfo.SetExtAddress(mParent.GetExtAddress());
             parentInfo.SetVersion(mParent.GetVersion());
 
-            SuccessOrExit(error = Get<Settings>().Save(parentInfo));
+            Get<Settings>().Save(parentInfo);
         }
     }
     else
@@ -581,7 +580,7 @@ Error Mle::Store(void)
     networkInfo.SetMacFrameCounter(Get<KeyManager>().GetMaximumMacFrameCounter() + mStoreFrameCounterAhead);
     networkInfo.SetDeviceMode(mDeviceMode.Get());
 
-    SuccessOrExit(error = Get<Settings>().Save(networkInfo));
+    Get<Settings>().Save(networkInfo);
 
     Get<KeyManager>().SetStoredMleFrameCounter(networkInfo.GetMleFrameCounter());
     Get<KeyManager>().SetStoredMacFrameCounter(networkInfo.GetMacFrameCounter());
@@ -589,7 +588,7 @@ Error Mle::Store(void)
     LogDebg("Store Network Information");
 
 exit:
-    return error;
+    return;
 }
 
 Error Mle::BecomeDetached(void)
@@ -884,7 +883,7 @@ Error Mle::SetDeviceMode(DeviceMode aDeviceMode)
 
     LogNote("Mode 0x%02x -> 0x%02x [%s]", oldMode.Get(), mDeviceMode.Get(), mDeviceMode.ToString().AsCString());
 
-    IgnoreError(Store());
+    Store();
 
 #if OPENTHREAD_FTD
     if (!aDeviceMode.IsFullThreadDevice())
@@ -1234,7 +1233,7 @@ void Mle::HandleNotifierEvents(Events aEvents)
 
         if (aEvents.Contains(kEventThreadKeySeqCounterChanged) || IsAttached())
         {
-            IgnoreError(Store());
+            Store();
         }
     }
 
