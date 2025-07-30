@@ -2372,7 +2372,6 @@ private:
     uint8_t mMaxChildIpAddresses;
 #endif
     int8_t   mParentPriority;
-    uint16_t mNextChildId;
     uint32_t mPreviousPartitionIdRouter;
     uint32_t mPreviousPartitionId;
 #if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
