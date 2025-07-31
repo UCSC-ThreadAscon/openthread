@@ -37,6 +37,7 @@
 
 #include "instance/instance.hpp"
 #include "openthread/platform/toolchain.h"
+#include "radio/ble_secure.hpp"
 #include "utils/static_counter.hpp"
 
 namespace ot {
@@ -354,6 +355,10 @@ void Mle::SetRole(DeviceRole aRole)
         mCounters.mLeaderRole++;
         break;
     }
+
+#if OPENTHREAD_CONFIG_BLE_TCAT_ENABLE
+    IgnoreError(Get<Ble::BleSecure>().NotifyAdvertisementChanged());
+#endif
 
     // If the previous state is disabled, the parent can be in kStateRestored.
     if (!IsChild() && oldRole != kRoleDisabled)
@@ -833,7 +838,7 @@ Error Mle::SetDeviceMode(DeviceMode aDeviceMode)
     mDeviceMode = aDeviceMode;
 
 #if OPENTHREAD_CONFIG_HISTORY_TRACKER_ENABLE
-    Get<Utils::HistoryTracker>().RecordNetworkInfo();
+    Get<HistoryTracker::Local>().RecordNetworkInfo();
 #endif
 
 #if OPENTHREAD_CONFIG_OTNS_ENABLE
