@@ -73,6 +73,9 @@ Translator::Translator(Instance &aInstance)
     mNat64Prefix.Clear();
     mIp4Cidr.Clear();
     mTimer.Start(kIdleTimeout);
+
+    mCounters.Clear();
+    ClearAllBytes(mErrorCounters);
 }
 
 Message *Translator::NewIp4Message(const Message::Settings &aSettings)
@@ -105,6 +108,16 @@ exit:
     }
 
     return error;
+}
+
+uint16_t Translator::GetSourcePortOrIcmp6Id(const Ip6::Headers &aIp6Headers)
+{
+    return aIp6Headers.IsIcmp6() ? aIp6Headers.GetIcmpHeader().GetId() : aIp6Headers.GetSourcePort();
+}
+
+uint16_t Translator::GetDestinationPortOrIcmp4Id(const Ip4::Headers &aIp4Headers)
+{
+    return aIp4Headers.IsIcmp4() ? aIp4Headers.GetIcmpHeader().GetId() : aIp4Headers.GetDestinationPort();
 }
 
 Translator::Result Translator::TranslateFromIp6(Message &aMessage)
@@ -148,7 +161,7 @@ Translator::Result Translator::TranslateFromIp6(Message &aMessage)
 #if OPENTHREAD_CONFIG_NAT64_PORT_TRANSLATION_ENABLE
     srcPortOrId = mapping->mTranslatedPortOrId;
 #else
-    srcPortOrId = ip6Headers.IsIcmp6() ? ip6Headers.GetIcmpHeader().GetId() : ip6Headers.GetSourcePort();
+    srcPortOrId = GetSourcePortOrIcmp6Id(ip6Headers);
 #endif
 
     aMessage.RemoveHeader(sizeof(Ip6::Header));
@@ -203,13 +216,13 @@ Translator::Result Translator::TranslateFromIp6(Message &aMessage)
 
     aMessage.SetType(Message::kTypeIp4);
 
-    mCounters.Count6To4Packet(ip6Headers.GetIpProto(), ip6Headers.GetIpLength());
-    mapping->mCounters.Count6To4Packet(ip6Headers.GetIpProto(), ip6Headers.GetIpLength());
+    mCounters.Count6To4Packet(ip6Headers);
+    mapping->mCounters.Count6To4Packet(ip6Headers);
 
 exit:
     if (result == kDrop)
     {
-        mErrorCounters.Count6To4(dropReason);
+        mErrorCounters.mCount6To4[dropReason]++;
     }
 
     return result;
@@ -260,7 +273,7 @@ Translator::Result Translator::TranslateToIp6(Message &aMessage)
 #if OPENTHREAD_CONFIG_NAT64_PORT_TRANSLATION_ENABLE
     dstPortOrId = mapping->mSrcPortOrId;
 #else
-    dstPortOrId = ip4Headers.IsIcmp4() ? ip4Headers.GetIcmpHeader().GetId() : ip4Headers.GetDestinationPort();
+    dstPortOrId = GetDestinationPortOrIcmp4Id(ip4Headers);
 #endif
 
     aMessage.RemoveHeader(sizeof(Ip4::Header));
@@ -318,13 +331,13 @@ Translator::Result Translator::TranslateToIp6(Message &aMessage)
 
     aMessage.SetType(Message::kTypeIp6);
 
-    mCounters.Count4To6Packet(ip4Headers.GetIpProto(), ip4Headers.GetIpLength() - sizeof(Ip4::Header));
-    mapping->mCounters.Count4To6Packet(ip4Headers.GetIpProto(), ip4Headers.GetIpLength() - sizeof(Ip4::Header));
+    mCounters.Count4To6Packet(ip4Headers);
+    mapping->mCounters.Count4To6Packet(ip4Headers);
 
 exit:
     if (result == kDrop)
     {
-        mErrorCounters.Count4To6(dropReason);
+        mErrorCounters.mCount4To6[dropReason]++;
     }
 
     return result;
@@ -466,7 +479,7 @@ Translator::Mapping *Translator::AllocateMapping(const Ip6::Headers &aIp6Headers
     mapping->mIp6Address = aIp6Headers.GetSourceAddress();
     mapping->mIp4Address = ip4Addr;
 #if OPENTHREAD_CONFIG_NAT64_PORT_TRANSLATION_ENABLE
-    mapping->mSrcPortOrId = aIp6Headers.IsIcmp6() ? aIp6Headers.GetIcmpHeader().GetId() : aIp6Headers.GetSourcePort();
+    mapping->mSrcPortOrId        = GetSourcePortOrIcmp6Id(aIp6Headers);
     mapping->mTranslatedPortOrId = AllocateSourcePort(mapping->mSrcPortOrId);
 #else
     mapping->mSrcPortOrId        = 0;
@@ -482,12 +495,7 @@ exit:
 
 Translator::Mapping *Translator::FindOrAllocateMapping(const Ip6::Headers &aIp6Headers)
 {
-#if OPENTHREAD_CONFIG_NAT64_PORT_TRANSLATION_ENABLE
-    uint16_t srcPortOrId = aIp6Headers.IsIcmp6() ? aIp6Headers.GetIcmpHeader().GetId() : aIp6Headers.GetSourcePort();
-    Mapping *mapping     = mActiveMappings.FindMatching(aIp6Headers.GetSourceAddress(), srcPortOrId);
-#else
-    Mapping *mapping = mActiveMappings.FindMatching(aIp6Headers.GetSourceAddress());
-#endif
+    Mapping *mapping = mActiveMappings.FindMatching(aIp6Headers);
 
     // Exit if we found a valid mapping.
     VerifyOrExit(mapping == nullptr);
@@ -500,20 +508,13 @@ exit:
 
 Translator::Mapping *Translator::FindMapping(const Ip4::Headers &aIp4Headers)
 {
-    uint16_t dstPortOrId =
-        aIp4Headers.IsIcmp4() ? aIp4Headers.GetIcmpHeader().GetId() : aIp4Headers.GetDestinationPort();
-
-#if OPENTHREAD_CONFIG_NAT64_PORT_TRANSLATION_ENABLE
-    Mapping *mapping = mActiveMappings.FindMatching(aIp4Headers.GetDestinationAddress(), dstPortOrId);
-#else
-    Mapping *mapping = mActiveMappings.FindMatching(aIp4Headers.GetDestinationAddress());
-    OT_UNUSED_VARIABLE(dstPortOrId);
-#endif
+    Mapping *mapping = mActiveMappings.FindMatching(aIp4Headers);
 
     if (mapping != nullptr)
     {
         mapping->Touch(TimerMilli::GetNow(), aIp4Headers.GetIpProto());
     }
+
     return mapping;
 }
 
@@ -529,14 +530,34 @@ void Translator::Mapping::Touch(TimeMilli aNow, uint8_t aProtocol)
     }
 }
 
-bool Translator::Mapping::Matches(const Ip6::Address &aIp6Address, const uint16_t aPort) const
+bool Translator::Mapping::Matches(const Ip6::Headers &aIp6Headers) const
 {
-    return ((mIp6Address == aIp6Address) && (mSrcPortOrId == aPort));
+    bool matches = false;
+
+#if OPENTHREAD_CONFIG_NAT64_PORT_TRANSLATION_ENABLE
+    VerifyOrExit(mSrcPortOrId == GetSourcePortOrIcmp6Id(aIp6Headers));
+#endif
+    VerifyOrExit(mIp6Address == aIp6Headers.GetSourceAddress());
+
+    matches = true;
+
+exit:
+    return matches;
 }
 
-bool Translator::Mapping::Matches(const Ip4::Address &aIp4Address, const uint16_t aPort) const
+bool Translator::Mapping::Matches(const Ip4::Headers &aIp4Headers) const
 {
-    return ((mIp4Address == aIp4Address) && (mTranslatedPortOrId == aPort));
+    bool matches = false;
+
+#if OPENTHREAD_CONFIG_NAT64_PORT_TRANSLATION_ENABLE
+    VerifyOrExit(mTranslatedPortOrId == GetDestinationPortOrIcmp4Id(aIp4Headers));
+#endif
+    VerifyOrExit(mIp4Address == aIp4Headers.GetDestinationAddress());
+
+    matches = true;
+
+exit:
+    return matches;
 }
 
 Error Translator::TranslateIcmp4(Message &aMessage, uint16_t aOriginalId)
@@ -751,48 +772,56 @@ exit:
     return error;
 }
 
-void Translator::ProtocolCounters::Count6To4Packet(uint8_t aProtocol, uint64_t aPacketSize)
+void Translator::ProtocolCounters::Count6To4Packet(const Ip6::Headers &aIp6Headers)
 {
-    switch (aProtocol)
+    uint16_t size = aIp6Headers.GetIpLength();
+
+    switch (aIp6Headers.GetIpProto())
     {
     case Ip6::kProtoUdp:
-        mUdp.m6To4Packets++;
-        mUdp.m6To4Bytes += aPacketSize;
+        Update6To4(mUdp, size);
         break;
     case Ip6::kProtoTcp:
-        mTcp.m6To4Packets++;
-        mTcp.m6To4Bytes += aPacketSize;
+        Update6To4(mTcp, size);
         break;
     case Ip6::kProtoIcmp6:
-        mIcmp.m6To4Packets++;
-        mIcmp.m6To4Bytes += aPacketSize;
+        Update6To4(mIcmp, size);
         break;
     }
 
-    mTotal.m6To4Packets++;
-    mTotal.m6To4Bytes += aPacketSize;
+    Update6To4(mTotal, size);
 }
 
-void Translator::ProtocolCounters::Count4To6Packet(uint8_t aProtocol, uint64_t aPacketSize)
+void Translator::ProtocolCounters::Update6To4(Counters &aCounters, uint16_t aSize)
 {
-    switch (aProtocol)
+    aCounters.m6To4Packets++;
+    aCounters.m6To4Bytes += aSize;
+}
+
+void Translator::ProtocolCounters::Count4To6Packet(const Ip4::Headers &aIp4Headers)
+{
+    uint16_t size = aIp4Headers.GetIpLength() - sizeof(Ip4::Header);
+
+    switch (aIp4Headers.GetIpProto())
     {
     case Ip4::kProtoUdp:
-        mUdp.m4To6Packets++;
-        mUdp.m4To6Bytes += aPacketSize;
+        Update4To6(mUdp, size);
         break;
     case Ip4::kProtoTcp:
-        mTcp.m4To6Packets++;
-        mTcp.m4To6Bytes += aPacketSize;
+        Update4To6(mTcp, size);
         break;
     case Ip4::kProtoIcmp:
-        mIcmp.m4To6Packets++;
-        mIcmp.m4To6Bytes += aPacketSize;
+        Update4To6(mIcmp, size);
         break;
     }
 
-    mTotal.m4To6Packets++;
-    mTotal.m4To6Bytes += aPacketSize;
+    Update4To6(mTotal, size);
+}
+
+void Translator::ProtocolCounters::Update4To6(Counters &aCounters, uint16_t aSize)
+{
+    aCounters.m4To6Packets++;
+    aCounters.m4To6Bytes += aSize;
 }
 
 void Translator::UpdateState(void)
