@@ -2132,6 +2132,7 @@ private:
     void       SendAnnounce(uint8_t aChannel, AnnounceMode aMode);
     void       SendAnnounce(uint8_t aChannel, const Ip6::Address &aDestination, AnnounceMode aMode = kNormalAnnounce);
     bool       IsNetworkDataNewer(const LeaderData &aLeaderData);
+    bool       ShouldRegisterMulticastAddrsWithParent(void) const;
     Error      ProcessMessageSecurity(Crypto::AesCcm::Mode    aMode,
                                       Message                &aMessage,
                                       const Ip6::MessageInfo &aMessageInfo,
@@ -2318,6 +2319,11 @@ private:
                                              otMessage           *aMessage,
                                              const otMessageInfo *aMessageInfo,
                                              otError              aResult);
+
+#if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
+    const char *RouterUpgradeReasonToString(uint8_t aReason);
+#endif
+
 #endif // OPENTHREAD_FTD
 
     //------------------------------------------------------------------------------------------------------------------
