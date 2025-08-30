@@ -37,8 +37,8 @@
 #include "openthread-core-config.h"
 
 #include "common/array.hpp"
-#include "common/linked_list.hpp"
 #include "common/locator.hpp"
+#include "common/owning_list.hpp"
 #include "common/pool.hpp"
 #include "common/timer.hpp"
 #include "net/ip4_types.hpp"
@@ -124,7 +124,9 @@ public:
     /**
      * Represents the counters for the protocols supported by NAT64.
      */
-    class ProtocolCounters : public otNat64ProtocolCounters, public Clearable<ProtocolCounters>
+    class ProtocolCounters : public otNat64ProtocolCounters,
+                             public Clearable<ProtocolCounters>,
+                             public Equatable<ProtocolCounters>
     {
         friend class Translator;
 
@@ -166,10 +168,7 @@ public:
     /**
      * Translates an IPv4 datagram to an IPv6 datagram and sends it via Thread interface.
      *
-     * The caller transfers ownership of @p aMessage when making this call. OpenThread will free @p aMessage when
-     * processing is complete, including when a value other than `kErrorNone` is returned.
-     *
-     * @param[in]  aMessage          A reference to the message.
+     * @param[in] aMessagePtr   An owned pointer to a message (ownership is transferred to the method).
      *
      * @retval kErrorNone     Successfully processed the message.
      * @retval kErrorDrop     Message was well-formed but not fully processed due to datagram processing rules.
@@ -177,7 +176,7 @@ public:
      * @retval kErrorNoRoute  No route to host.
      * @retval kErrorParse    Encountered a malformed header when processing the message.
      */
-    Error SendMessage(Message &aMessage);
+    Error SendMessage(OwnedPtr<Message> aMessagePtr);
 
     /**
      * Allocate a new message buffer for sending an IPv4 message (which will be translated into an IPv6 datagram by
@@ -322,12 +321,14 @@ private:
     static constexpr DropReason kReasonUnsupportedProto = OT_NAT64_DROP_REASON_UNSUPPORTED_PROTO;
     static constexpr DropReason kReasonNoMapping        = OT_NAT64_DROP_REASON_NO_MAPPING;
 
-    struct Mapping : public LinkedListEntry<Mapping>
+    struct Mapping : public InstanceLocatorInit, public LinkedListEntry<Mapping>
     {
         static constexpr uint16_t kInfoStringSize = 70;
 
         typedef String<kInfoStringSize> InfoString;
 
+        void       Init(Instance &aInstance) { InstanceLocatorInit::Init(aInstance); }
+        void       Free(void);
         void       Touch(uint8_t aProtocol);
         InfoString ToString(void) const;
         void       CopyTo(AddressMapping &aMapping, TimeMilli aNow) const;
@@ -352,9 +353,6 @@ private:
 
     Error    TranslateIcmp4(Message &aMessage, uint16_t aOriginalId);
     Error    TranslateIcmp6(Message &aMessage, uint16_t aTranslatedId);
-    uint16_t ReleaseMappings(LinkedList<Mapping> &aMappings);
-    void     ReleaseMapping(Mapping &aMapping);
-    uint16_t ReleaseExpiredMappings(void);
     Mapping *AllocateMapping(const Ip6::Headers &aIp6Headers);
     void     HandleTimer(void);
     void     UpdateState(void);
@@ -372,7 +370,7 @@ private:
     uint64_t                       mNextMappingId;
     Array<Ip4::Address, kPoolSize> mIp4AddressPool;
     Pool<Mapping, kPoolSize>       mMappingPool;
-    LinkedList<Mapping>            mActiveMappings;
+    OwningList<Mapping>            mActiveMappings;
     Ip6::Prefix                    mNat64Prefix;
     Ip4::Cidr                      mIp4Cidr;
     TranslatorTimer                mTimer;
