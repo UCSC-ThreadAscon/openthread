@@ -40,6 +40,26 @@
 
 namespace ot {
 
+static constexpr uint8_t kBitsPerByte = 8; ///< Number of bits in a byte.
+
+/**
+ * Returns the bit-size (number of bits) of a given type or variable.
+ *
+ * @param[in] aItem   The item (type or variable or expression) to get the bit-size of.
+ *
+ * @returns Number of bits of @p aItem.
+ */
+#define BitSizeOf(aItem) (sizeof(aItem) * kBitsPerByte)
+
+/**
+ * Determines number of bytes to represent a given number of bits.
+ *
+ * @param[in] aBitSize    The bit-size (number of bits).
+ *
+ * @returns Number of bytes to represent @p aBitSize.
+ */
+#define BytesForBitSize(aBitSize) static_cast<uint8_t>(((aBitSize) + (kBitsPerByte - 1)) / kBitsPerByte)
+
 /**
  * Counts the number of `1` bits in the binary representation of a given unsigned int bit-mask value.
  *
@@ -63,6 +83,24 @@ template <typename UintType> uint8_t CountBitsInMask(UintType aMask)
 
     return count;
 }
+
+/**
+ * Counts the number of consecutive matching bits between two byte arrays.
+ *
+ * This function compares two byte arrays bit-by-bit, starting from the most significant bit (MSB) of the first byte
+ * in each array. The comparison proceeds until a mismatch is found or until a maximum of @p aMaxBitLength bits have
+ * been successfully compared.
+ *
+ * It is the caller's responsibility to ensure that both @p aFirst and @p aSecond point to buffers large enough to
+ * contain at least @p aMaxBitLength bits.
+ *
+ * @param[in] aFirst         A pointer to the first byte array to compare.
+ * @param[in] aSecond        A pointer to the second byte array to compare.
+ * @param[in] aMaxBitLength  The maximum number of bits to compare from the start of the arrays.
+ *
+ * @return The number of consecutive matching bits.
+ */
+uint16_t CountMatchingBits(const uint8_t *aFirst, const uint8_t *aSecond, uint16_t aMaxBitLength);
 
 /**
  * Sets the specified bit in a given integer to 1.

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020, The OpenThread Authors.
+ *  Copyright (c) 2025, The OpenThread Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -28,75 +28,55 @@
 
 /**
  * @file
- *   This file includes definitions for numeric limits.
+ *   This file includes implementation of bit manipulation utility functions.
  */
 
-#ifndef NUMERIC_LIMITS_HPP_
-#define NUMERIC_LIMITS_HPP_
+#include "bit_utils.hpp"
 
-#include <stdint.h>
+#include "common/code_utils.hpp"
+#include "common/num_utils.hpp"
 
 namespace ot {
 
-/**
- * Provides a way to query properties of arithmetic types.
- *
- * There are no members if `Type` is not a supported arithmetic type.
- */
-template <typename Type> struct NumericLimits
+uint16_t CountMatchingBits(const uint8_t *aFirst, const uint8_t *aSecond, uint16_t aMaxBitLength)
 {
-};
+    uint16_t remainingLen = aMaxBitLength;
+    uint16_t matchedLen   = 0;
+    uint8_t  diffMask     = 0;
 
-// Specialization for different integral types.
+    while (remainingLen > 0)
+    {
+        uint16_t len = Min<uint16_t>(remainingLen, kBitsPerByte);
 
-template <> struct NumericLimits<int8_t>
-{
-    static constexpr int8_t kMin = INT8_MIN;
-    static constexpr int8_t kMax = INT8_MAX;
-};
+        diffMask = (aFirst[0] ^ aSecond[0]);
 
-template <> struct NumericLimits<int16_t>
-{
-    static constexpr int16_t kMin = INT16_MIN;
-    static constexpr int16_t kMax = INT16_MAX;
-};
+        if (diffMask != 0)
+        {
+            break;
+        }
 
-template <> struct NumericLimits<int32_t>
-{
-    static constexpr int32_t kMin = INT32_MIN;
-    static constexpr int32_t kMax = INT32_MAX;
-};
+        matchedLen += len;
+        remainingLen -= len;
+        aFirst++;
+        aSecond++;
+    }
 
-template <> struct NumericLimits<int64_t>
-{
-    static constexpr int64_t kMin = INT64_MIN;
-    static constexpr int64_t kMax = INT64_MAX;
-};
+    VerifyOrExit(diffMask != 0);
 
-template <> struct NumericLimits<uint8_t>
-{
-    static constexpr uint8_t kMin = 0;
-    static constexpr uint8_t kMax = UINT8_MAX;
-};
+    while (remainingLen > 0)
+    {
+        if ((diffMask & 0x80) != 0)
+        {
+            break;
+        }
 
-template <> struct NumericLimits<uint16_t>
-{
-    static constexpr uint16_t kMin = 0;
-    static constexpr uint16_t kMax = UINT16_MAX;
-};
+        diffMask <<= 1;
+        matchedLen++;
+        remainingLen--;
+    }
 
-template <> struct NumericLimits<uint32_t>
-{
-    static constexpr uint32_t kMin = 0;
-    static constexpr uint32_t kMax = UINT32_MAX;
-};
-
-template <> struct NumericLimits<uint64_t>
-{
-    static constexpr uint64_t kMin = 0;
-    static constexpr uint64_t kMax = UINT64_MAX;
-};
+exit:
+    return matchedLen;
+}
 
 } // namespace ot
-
-#endif // NUMERIC_LIMITS_HPP_

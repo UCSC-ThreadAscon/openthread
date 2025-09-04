@@ -121,10 +121,7 @@ Translator::Result Translator::TranslateFromIp6(Message &aMessage)
     uint16_t     srcPortOrId = 0;
     Mapping     *mapping     = nullptr;
 
-    if (mIp4Cidr.mLength == 0 || !mNat64Prefix.IsValidNat64())
-    {
-        ExitNow(result = kNotTranslated);
-    }
+    VerifyOrExit(mState == kStateActive, result = kNotTranslated);
 
     // `ParseFrom()` will do basic checks for the message, including
     // the message length and IP protocol version.
@@ -241,21 +238,10 @@ Translator::Result Translator::TranslateToIp6(Message &aMessage)
     // datagram, forward it directly.
     VerifyOrExit(ip6Header.ParseFrom(aMessage) != kErrorNone, result = kNotTranslated);
 
-    if (mIp4Cidr.mLength == 0)
-    {
-        LogWarn("Incoming message is an IPv4 datagram but no IPv4 CIDR for NAT64 configured, drop");
-        ExitNow(result = kForward);
-    }
-
-    if (!mNat64Prefix.IsValidNat64())
-    {
-        LogWarn("Incoming message is an IPv4 datagram but no NAT64 prefix configured, drop");
-        ExitNow(result = kDrop);
-    }
+    VerifyOrExit(mState == kStateActive, result = kDrop);
 
     if (ip4Headers.ParseFrom(aMessage) != kErrorNone)
     {
-        LogWarn("Incoming message is neither IPv4 nor an IPv6 datagram, drop");
         dropReason = kReasonIllegalPacket;
         ExitNow(result = kDrop);
     }
@@ -663,6 +649,17 @@ void Translator::ClearIp4Cidr(void)
     UpdateState();
 }
 
+Error Translator::GetIp4Cidr(Ip4::Cidr &aCidr) const
+{
+    Error error = kErrorNone;
+
+    VerifyOrExit(mIp4Cidr.mLength > 0, error = kErrorNotFound);
+    aCidr = mIp4Cidr;
+
+exit:
+    return error;
+}
+
 void Translator::SetNat64Prefix(const Ip6::Prefix &aNat64Prefix)
 {
     if (aNat64Prefix.GetLength() == 0)
@@ -688,6 +685,17 @@ exit:
     return;
 }
 
+Error Translator::GetNat64Prefix(Ip6::Prefix &aPrefix) const
+{
+    Error error = kErrorNone;
+
+    VerifyOrExit(mNat64Prefix.mLength > 0, error = kErrorNotFound);
+    aPrefix = mNat64Prefix;
+
+exit:
+    return error;
+}
+
 void Translator::HandleTimer(void)
 {
     mActiveMappings.RemoveAndFreeAllMatching(TimerMilli::GetNow());
@@ -708,28 +716,6 @@ Error Translator::AddressMappingIterator::GetNext(AddressMapping &aMapping)
 
     GetMapping()->CopyTo(aMapping, GetInitTime());
     SetMapping(GetMapping()->GetNext());
-
-exit:
-    return error;
-}
-
-Error Translator::GetIp4Cidr(Ip4::Cidr &aCidr) const
-{
-    Error error = kErrorNone;
-
-    VerifyOrExit(mIp4Cidr.mLength > 0, error = kErrorNotFound);
-    aCidr = mIp4Cidr;
-
-exit:
-    return error;
-}
-
-Error Translator::GetIp6Prefix(Ip6::Prefix &aPrefix) const
-{
-    Error error = kErrorNone;
-
-    VerifyOrExit(mNat64Prefix.mLength > 0, error = kErrorNotFound);
-    aPrefix = mNat64Prefix;
 
 exit:
     return error;
