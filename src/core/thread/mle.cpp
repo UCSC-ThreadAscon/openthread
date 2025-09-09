@@ -1801,6 +1801,10 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
         mP2p.HandleP2pLinkAcceptAndRequest(rxInfo);
         break;
 #endif
+
+    case kCommandP2pLinkTearDown:
+        mP2p.HandleP2pLinkTearDown(rxInfo);
+        break;
 #endif // OPENTHREAD_CONFIG_P2P_ENABLE
 
     default:
@@ -2916,6 +2920,7 @@ const char *Mle::MessageTypeToString(MessageType aType)
         "P2P Link Request",            // (32) kTypeP2pLinkRequest
         "P2P Link Accept and Request", // (33) kTypeP2pLinkAcceptAndRequest
         "P2P Link Accept",             // (34) kTypeP2pLinkAccept
+        "P2P Link Tear Down",          // (35) kTypeP2pLinkTearDown
 #endif
     };
 
@@ -2964,6 +2969,7 @@ const char *Mle::MessageTypeToString(MessageType aType)
         ValidateNextEnum(kTypeP2pLinkRequest);
         ValidateNextEnum(kTypeP2pLinkAcceptAndRequest);
         ValidateNextEnum(kTypeP2pLinkAccept);
+        ValidateNextEnum(kTypeP2pLinkTearDown);
 #endif
     };
 
