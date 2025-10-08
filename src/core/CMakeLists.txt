@@ -35,6 +35,7 @@ set(COMMON_SOURCES
     api/backbone_router_ftd_api.cpp
     api/ble_secure_api.cpp
     api/border_agent_api.cpp
+    api/border_agent_tracker_api.cpp
     api/border_router_api.cpp
     api/border_routing_api.cpp
     api/channel_manager_api.cpp
@@ -95,7 +96,9 @@ set(COMMON_SOURCES
     backbone_router/bbr_manager.cpp
     backbone_router/multicast_listeners_table.cpp
     backbone_router/ndproxy_table.cpp
+    border_router/br_log.cpp
     border_router/br_tracker.cpp
+    border_router/br_types.cpp
     border_router/dhcp6_pd_client.cpp
     border_router/infra_if.cpp
     border_router/routing_manager.cpp
@@ -154,6 +157,7 @@ set(COMMON_SOURCES
     mac/wakeup_tx_scheduler.cpp
     meshcop/announce_begin_client.cpp
     meshcop/border_agent.cpp
+    meshcop/border_agent_tracker.cpp
     meshcop/commissioner.cpp
     meshcop/dataset.cpp
     meshcop/dataset_manager.cpp
@@ -315,6 +319,7 @@ set(RADIO_COMMON_SOURCES
     radio/radio_callbacks.cpp
     radio/radio_platform.cpp
     thread/link_quality.cpp
+    utils/otns.cpp
     utils/parse_cmdline.cpp
     utils/power_calibration.cpp
 )

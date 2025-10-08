@@ -466,6 +466,7 @@ void BorderAgent::RegisterService(void)
     uint16_t       txtDataBufferSize;
     uint16_t       txtDataLength;
 
+    VerifyOrExit(IsEnabled());
     VerifyOrExit(Get<Dnssd>().IsReady());
 
     // Allocate a large enough buffer to fit both the TXT data
@@ -583,8 +584,8 @@ Error BorderAgent::PrepareServiceTxtData(uint8_t *aBuffer, uint16_t aBufferSize,
 
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
     {
-        Ip6::Prefix                                   prefix;
-        BorderRouter::RoutingManager::RoutePreference preference;
+        Ip6::Prefix                   prefix;
+        BorderRouter::RoutePreference preference;
 
         if (Get<BorderRouter::RoutingManager>().GetFavoredOmrPrefix(prefix, preference) == kErrorNone &&
             prefix.GetLength() > 0)

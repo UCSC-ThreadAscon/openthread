@@ -84,6 +84,7 @@
 #include "mac/mac.hpp"
 #include "mac/wakeup_tx_scheduler.hpp"
 #include "meshcop/border_agent.hpp"
+#include "meshcop/border_agent_tracker.hpp"
 #include "meshcop/commissioner.hpp"
 #include "meshcop/dataset_manager.hpp"
 #include "meshcop/dataset_updater.hpp"
@@ -471,6 +472,10 @@ private:
     Uptime mUptime;
 #endif
 
+#if OPENTHREAD_CONFIG_OTNS_ENABLE
+    Utils::Otns mOtns;
+#endif
+
 #if OPENTHREAD_MTD || OPENTHREAD_FTD
     // Notifier, TimeTicker, Settings, and MessagePool are initialized
     // before other member variables since other classes/objects from
@@ -585,6 +590,10 @@ private:
     MeshCoP::BorderAgent mBorderAgent;
 #endif
 
+#if OPENTHREAD_CONFIG_BORDER_AGENT_TRACKER_ENABLE
+    MeshCoP::BorderAgentTracker mBorderAgentTracker;
+#endif
+
 #if OPENTHREAD_CONFIG_COMMISSIONER_ENABLE && OPENTHREAD_FTD
     MeshCoP::Commissioner mCommissioner;
 #endif
@@ -663,7 +672,8 @@ private:
 #endif
 
 #if OPENTHREAD_CONFIG_BLE_TCAT_ENABLE
-    Ble::BleSecure mApplicationBleSecure;
+    Ble::BleSecure     mBleSecure;
+    MeshCoP::TcatAgent mTcatAgent;
 #endif
 
 #if OPENTHREAD_CONFIG_PING_SENDER_ENABLE
@@ -697,10 +707,6 @@ private:
 
 #if OPENTHREAD_CONFIG_ANNOUNCE_SENDER_ENABLE
     AnnounceSender mAnnounceSender;
-#endif
-
-#if OPENTHREAD_CONFIG_OTNS_ENABLE
-    Utils::Otns mOtns;
 #endif
 
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
@@ -756,6 +762,10 @@ template <> inline Radio::Statistics &Instance::Get(void) { return mRadio.mStati
 
 #if OPENTHREAD_CONFIG_UPTIME_ENABLE
 template <> inline Uptime &Instance::Get(void) { return mUptime; }
+#endif
+
+#if OPENTHREAD_CONFIG_OTNS_ENABLE
+template <> inline Utils::Otns &Instance::Get(void) { return mOtns; }
 #endif
 
 #if OPENTHREAD_MTD || OPENTHREAD_FTD
@@ -1019,6 +1029,10 @@ template <> inline MeshCoP::DatasetUpdater &Instance::Get(void) { return mDatase
 template <> inline MeshCoP::BorderAgent &Instance::Get(void) { return mBorderAgent; }
 #endif
 
+#if OPENTHREAD_CONFIG_BORDER_AGENT_TRACKER_ENABLE
+template <> inline MeshCoP::BorderAgentTracker &Instance::Get(void) { return mBorderAgentTracker; }
+#endif
+
 #if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE && OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
 template <> inline MeshCoP::BorderAgent::EphemeralKeyManager &Instance::Get(void)
 {
@@ -1078,10 +1092,6 @@ template <> inline LinkMetrics::Subject &Instance::Get(void) { return mSubject; 
 
 #endif // (OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2)
 
-#if OPENTHREAD_CONFIG_OTNS_ENABLE
-template <> inline Utils::Otns &Instance::Get(void) { return mOtns; }
-#endif
-
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
 template <> inline BorderRouter::RoutingManager &Instance::Get(void) { return mRoutingManager; }
 template <> inline BorderRouter::InfraIf        &Instance::Get(void) { return mRoutingManager.mInfraIf; }
@@ -1113,7 +1123,8 @@ template <> inline Coap::ApplicationCoapSecure &Instance::Get(void) { return mAp
 #endif
 
 #if OPENTHREAD_CONFIG_BLE_TCAT_ENABLE
-template <> inline Ble::BleSecure &Instance::Get(void) { return mApplicationBleSecure; }
+template <> inline Ble::BleSecure     &Instance::Get(void) { return mBleSecure; }
+template <> inline MeshCoP::TcatAgent &Instance::Get(void) { return mTcatAgent; }
 #endif
 
 #endif // OPENTHREAD_MTD || OPENTHREAD_FTD
