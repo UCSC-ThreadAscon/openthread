@@ -75,6 +75,7 @@
 #include "backbone_router/bbr_manager.hpp"
 #include "border_router/dhcp6_pd_client.hpp"
 #include "border_router/routing_manager.hpp"
+#include "border_router/rx_ra_tracker.hpp"
 #include "coap/coap_secure.hpp"
 #include "common/code_utils.hpp"
 #include "common/notifier.hpp"
@@ -587,11 +588,15 @@ private:
 #endif
 
 #if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE
-    MeshCoP::BorderAgent mBorderAgent;
+    MeshCoP::BorderAgent::Manager mBorderAgentManager;
+#endif
+
+#if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE && OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
+    MeshCoP::BorderAgent::EphemeralKeyManager mBorderAgentEphemeralKeyManager;
 #endif
 
 #if OPENTHREAD_CONFIG_BORDER_AGENT_TRACKER_ENABLE
-    MeshCoP::BorderAgentTracker mBorderAgentTracker;
+    MeshCoP::BorderAgent::Tracker mBorderAgentTracker;
 #endif
 
 #if OPENTHREAD_CONFIG_COMMISSIONER_ENABLE && OPENTHREAD_FTD
@@ -710,6 +715,7 @@ private:
 #endif
 
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+    BorderRouter::RxRaTracker    mRxRaTracker;
     BorderRouter::RoutingManager mRoutingManager;
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_TRACK_PEER_BR_INFO_ENABLE
     BorderRouter::NetDataBrTracker mNetDataBrTracker;
@@ -1026,18 +1032,18 @@ template <> inline MeshCoP::DatasetUpdater &Instance::Get(void) { return mDatase
 #endif
 
 #if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE
-template <> inline MeshCoP::BorderAgent &Instance::Get(void) { return mBorderAgent; }
-#endif
-
-#if OPENTHREAD_CONFIG_BORDER_AGENT_TRACKER_ENABLE
-template <> inline MeshCoP::BorderAgentTracker &Instance::Get(void) { return mBorderAgentTracker; }
+template <> inline MeshCoP::BorderAgent::Manager &Instance::Get(void) { return mBorderAgentManager; }
 #endif
 
 #if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE && OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
 template <> inline MeshCoP::BorderAgent::EphemeralKeyManager &Instance::Get(void)
 {
-    return mBorderAgent.GetEphemeralKeyManager();
+    return mBorderAgentEphemeralKeyManager;
 }
+#endif
+
+#if OPENTHREAD_CONFIG_BORDER_AGENT_TRACKER_ENABLE
+template <> inline MeshCoP::BorderAgent::Tracker &Instance::Get(void) { return mBorderAgentTracker; }
 #endif
 
 #if OPENTHREAD_CONFIG_ANNOUNCE_SENDER_ENABLE
@@ -1093,6 +1099,7 @@ template <> inline LinkMetrics::Subject &Instance::Get(void) { return mSubject; 
 #endif // (OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2)
 
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+template <> inline BorderRouter::RxRaTracker    &Instance::Get(void) { return mRxRaTracker; }
 template <> inline BorderRouter::RoutingManager &Instance::Get(void) { return mRoutingManager; }
 template <> inline BorderRouter::InfraIf        &Instance::Get(void) { return mRoutingManager.mInfraIf; }
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_TRACK_PEER_BR_INFO_ENABLE

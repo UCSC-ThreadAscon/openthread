@@ -172,7 +172,10 @@ Instance::Instance(void)
     , mNetworkDiagnosticClient(*this)
 #endif
 #if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE
-    , mBorderAgent(*this)
+    , mBorderAgentManager(*this)
+#endif
+#if OPENTHREAD_CONFIG_BORDER_AGENT_ENABLE && OPENTHREAD_CONFIG_BORDER_AGENT_EPHEMERAL_KEY_ENABLE
+    , mBorderAgentEphemeralKeyManager(*this)
 #endif
 #if OPENTHREAD_CONFIG_BORDER_AGENT_TRACKER_ENABLE
     , mBorderAgentTracker(*this)
@@ -267,6 +270,7 @@ Instance::Instance(void)
     , mAnnounceSender(*this)
 #endif
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+    , mRxRaTracker(*this)
     , mRoutingManager(*this)
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_TRACK_PEER_BR_INFO_ENABLE
     , mNetDataBrTracker(*this)
