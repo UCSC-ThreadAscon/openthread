@@ -32,7 +32,6 @@
  */
 
 #include "commissioner.hpp"
-#include "openthread/logging.h"
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_COMMISSIONER_ENABLE
 
@@ -70,7 +69,6 @@ Commissioner::Commissioner(Instance &aInstance)
 
 void Commissioner::SetState(State aState)
 {
-    otLogNotePlat("Commissioner set state");
     State oldState = mState;
 
     OT_UNUSED_VARIABLE(oldState);
