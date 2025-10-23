@@ -361,7 +361,6 @@ exit:
 
 Error SecureSession::Send(Message &aMessage)
 {
-    otLogNotePlat("Secure Session: Sending Packet");
     Error    error  = kErrorNone;
     uint16_t length = aMessage.GetLength();
     uint8_t  buffer[kApplicationDataMaxLength];
