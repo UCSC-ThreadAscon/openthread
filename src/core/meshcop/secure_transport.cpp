@@ -32,6 +32,7 @@
  */
 
 #include "secure_transport.hpp"
+#include "openthread/logging.h"
 
 #include <mbedtls/debug.h>
 #ifdef MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED
@@ -58,6 +59,8 @@ SecureSession::SecureSession(SecureTransport &aTransport)
 
 void SecureSession::Init(void)
 {
+    otLogNotePlat("Secure Transport: Init");
+
     mTimerSet       = false;
     mIsServer       = false;
     mState          = kStateDisconnected;
@@ -105,6 +108,7 @@ exit:
 
 Error SecureSession::Connect(const Ip6::SockAddr &aSockAddr)
 {
+    otLogNotePlat("Secure Transport: Connect");
     Error error;
 
     VerifyOrExit(mTransport.mIsOpen, error = kErrorInvalidState);
@@ -159,6 +163,7 @@ exit:
 
 Error SecureSession::Setup(void)
 {
+    otLogNotePlat("Secure Session: Setup");
     Error error = kErrorNone;
     int   rval  = 0;
 
@@ -359,6 +364,7 @@ exit:
 
 Error SecureSession::Send(Message &aMessage)
 {
+    otLogNotePlat("Secure Session: Sending Packet");
     Error    error  = kErrorNone;
     uint16_t length = aMessage.GetLength();
     uint8_t  buffer[kApplicationDataMaxLength];
