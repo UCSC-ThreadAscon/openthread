@@ -21,12 +21,12 @@
  * https://github.com/ascon/ascon-c/blob/main/crypto_aead/ascon128av12/ref/api.h
  *
  * It is redefined here so that the LibAscon implementations can use this macro.
-*/
+ */
 #define CRYPTO_ABYTES 16
 #endif
 
-#include "crypto/aes_ccm.hpp"
 #include <openthread/error.h>
+#include "crypto/aes_ccm.hpp"
 
 #include <openthread/logging.h>
 
@@ -39,8 +39,8 @@
  * I got the idea to use `memset()` to clear stack memory from
  * the Google Search AI:
  * https://docs.google.com/document/d/1o-NaEOA-vzWPCv7VX1dONUfwos2epveDk4H_Y2Y5g1Y/edit?usp=sharing
-*/
-#define EmptyMemory(pointer, size) memset((void *) pointer, 0, size)
+ */
+#define EmptyMemory(pointer, size) memset((void *)pointer, 0, size)
 
 /**
  * Converts an AES network key object to 16-byte key that can be used with
@@ -51,9 +51,8 @@
  *
  * @retval keyPtr: the pointer to the network key, or NULL if failed to
  *                 obtain it.
-*/
-void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
-                       void* asconKey);
+ */
+void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey, void *asconKey);
 
 /**
  * Debugging function that prints to the serial monitor the bytes of
@@ -62,11 +61,11 @@ void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
  * @param[in] key: the ASCON key used for encryption
  * @param[in] nonce: the nonce to be used in encryption
  * @param[in] assocData: the associated data
-*/
-#define AsconDebugPrint(key, nonce, assocData)                                   \
-  otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *) key)[0]);                      \
-  otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *) assocData)[0]);    \
-  otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *) nonce)[0]);                  \
+ */
+#define AsconDebugPrint(key, nonce, assocData)                                 \
+    otLogNotePlat("Key: %" PRIu64 "", ((uint64_t *)key)[0]);                   \
+    otLogNotePlat("Associated Data: %" PRIu64 "", ((uint64_t *)assocData)[0]); \
+    otLogNotePlat("Nonce: %" PRIu64 "", ((uint64_t *)nonce)[0]);
 
 /**
  * Determines which LibAscon AEAD encryption function to use.
@@ -80,34 +79,34 @@ void ConvertToAsconKey(const ot::Mac::KeyMaterial &aMacKey,
  * @param[in] assoc_data_len
  * @param[in] plaintext_len
  * @param[in] tag_len
-*/
+ */
 #if LIBASCON
-void libascon_encrypt(uint8_t* ciphertext,
-                      uint8_t* tag,
-                      const uint8_t key[ASCON_AEAD128a_KEY_LEN],
-                      const uint8_t nonce[ASCON_AEAD_NONCE_LEN],
-                      const uint8_t* assoc_data,
-                      const uint8_t* plaintext,
-                      size_t assoc_data_len,
-                      size_t plaintext_len,
-                      size_t tag_len);
+void libascon_encrypt(uint8_t       *ciphertext,
+                      uint8_t       *tag,
+                      const uint8_t  key[ASCON_AEAD128a_KEY_LEN],
+                      const uint8_t  nonce[ASCON_AEAD_NONCE_LEN],
+                      const uint8_t *assoc_data,
+                      const uint8_t *plaintext,
+                      size_t         assoc_data_len,
+                      size_t         plaintext_len,
+                      size_t         tag_len);
 #endif
 
 /**
  * Determines which LibAscon AEAD decryption function to use.
  * Look at `crypto/libascon` for the function API Details.
  *
-*/
+ */
 #if LIBASCON
-bool libascon_decrypt(uint8_t* plaintext,
-                      const uint8_t key[ASCON_AEAD128a_KEY_LEN],
-                      const uint8_t nonce[ASCON_AEAD_NONCE_LEN],
-                      const uint8_t* assoc_data,
-                      const uint8_t* ciphertext,
-                      const uint8_t* expected_tag,
-                      size_t assoc_data_len,
-                      size_t ciphertext_len,
-                      size_t expected_tag_len);
+bool libascon_decrypt(uint8_t       *plaintext,
+                      const uint8_t  key[ASCON_AEAD128a_KEY_LEN],
+                      const uint8_t  nonce[ASCON_AEAD_NONCE_LEN],
+                      const uint8_t *assoc_data,
+                      const uint8_t *ciphertext,
+                      const uint8_t *expected_tag,
+                      size_t         assoc_data_len,
+                      size_t         ciphertext_len,
+                      size_t         expected_tag_len);
 #endif
 
 /**
@@ -115,24 +114,31 @@ bool libascon_decrypt(uint8_t* plaintext,
  *
  * For the source code behind this function, visit:
  * https://github.com/ascon/ascon-c
-*/
-int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
-                        const unsigned char* m, unsigned long long mlen,
-                        const unsigned char* ad, unsigned long long adlen,
-                        const unsigned char* nsec, const unsigned char* npub,
-                        const unsigned char* k);
-
+ */
+int crypto_aead_encrypt(unsigned char       *c,
+                        unsigned long long  *clen,
+                        const unsigned char *m,
+                        unsigned long long   mlen,
+                        const unsigned char *ad,
+                        unsigned long long   adlen,
+                        const unsigned char *nsec,
+                        const unsigned char *npub,
+                        const unsigned char *k);
 
 /**
  * The decryption function prototype for the ASCON C reference implementations.
  *
  * For the source code behind this function, visit:
  * https://github.com/ascon/ascon-c
-*/
-int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
-                        unsigned char* nsec, const unsigned char* c,
-                        unsigned long long clen, const unsigned char* ad,
-                        unsigned long long adlen, const unsigned char* npub,
-                        const unsigned char* k);
+ */
+int crypto_aead_decrypt(unsigned char       *m,
+                        unsigned long long  *mlen,
+                        unsigned char       *nsec,
+                        const unsigned char *c,
+                        unsigned long long   clen,
+                        const unsigned char *ad,
+                        unsigned long long   adlen,
+                        const unsigned char *npub,
+                        const unsigned char *k);
 
 #endif // THREAD_ASCON_HPP_
