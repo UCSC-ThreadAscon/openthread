@@ -1196,8 +1196,17 @@ Error Mle::SendChildUpdateRequestToParent(ChildUpdateRequestMode aMode)
     case kAppendZeroTimeout:
         break;
     case kAppendChallengeTlv:
-    case kToRestoreChildRole:
         mPrevRoleRestorer.GenerateRandomChallenge();
+        OT_FALL_THROUGH;
+
+    case kToRestoreChildRole:
+        // The challenge used for child role restoration is generated
+        // only once, specifically when the `mPrevRoleRestorer` state
+        // changes and the process starts. We reuse this single challenge
+        // for all "Child Update Request" retries. This prevents a new
+        // challenge from invalidating a potentially delayed, yet correct,
+        // response from the parent.
+
         SuccessOrExit(error = message->AppendChallengeTlv(mPrevRoleRestorer.GetChallenge()));
         break;
     }
@@ -1257,6 +1266,25 @@ exit:
     return error;
 }
 
+Error Mle::SendChildUpdateRejectResponse(const RxChallenge &aChallenge, const Ip6::Address &aDestination)
+{
+    // Send a reject response which only includes a Source Address TLV,
+    // a Status TLV, and a Response TLV when request contained a
+    // Challenge TLV.
+
+    TlvList tlvList;
+
+    tlvList.Add(Tlv::kSourceAddress);
+    tlvList.Add(Tlv::kStatus);
+
+    if (!aChallenge.IsEmpty())
+    {
+        tlvList.Add(Tlv::kResponse);
+    }
+
+    return SendChildUpdateResponse(tlvList, aChallenge, aDestination);
+}
+
 Error Mle::SendChildUpdateResponse(const TlvList      &aTlvList,
                                    const RxChallenge  &aChallenge,
                                    const Ip6::Address &aDestination)
@@ -1284,7 +1312,7 @@ Error Mle::SendChildUpdateResponse(const TlvList      &aTlvList,
             break;
 
         case Tlv::kStatus:
-            SuccessOrExit(error = message->AppendStatusTlv(StatusTlv::kError));
+            SuccessOrExit(error = message->AppendStatusTlv(kStatusError));
             break;
 
         case Tlv::kAddressRegistration:
@@ -2270,7 +2298,7 @@ void Mle::HandleChildUpdateRequestOnChild(RxInfo &aRxInfo)
         switch (Tlv::Find<StatusTlv>(aRxInfo.mMessage, status))
         {
         case kErrorNone:
-            VerifyOrExit(status != StatusTlv::kError, IgnoreError(BecomeDetached()));
+            VerifyOrExit(status != kStatusError, IgnoreError(BecomeDetached()));
             break;
         case kErrorNotFound:
             break;
@@ -2327,19 +2355,8 @@ void Mle::HandleChildUpdateRequestOnChild(RxInfo &aRxInfo)
     else
     {
         // This device is not a child of the Child Update Request source.
-        //
-        // Send a reject response which only includes a Source Address TLV,
-        // a Status TLV, and a Response TLV when request contained a
-        // Challenge TLV.
-
-        tlvList.Clear();
-        tlvList.Add(Tlv::kSourceAddress);
-        tlvList.Add(Tlv::kStatus);
-
-        if (!challenge.IsEmpty())
-        {
-            tlvList.Add(Tlv::kResponse);
-        }
+        error = SendChildUpdateRejectResponse(challenge, aRxInfo.mMessageInfo.GetPeerAddr());
+        ExitNow();
     }
 
     aRxInfo.mClass = RxInfo::kPeerMessage;
@@ -2352,9 +2369,7 @@ void Mle::HandleChildUpdateRequestOnChild(RxInfo &aRxInfo)
     }
 #endif
 
-    // Send the response to the requester, regardless if it's this
-    // device's parent or not.
-    SuccessOrExit(error = SendChildUpdateResponse(tlvList, challenge, aRxInfo.mMessageInfo.GetPeerAddr()));
+    error = SendChildUpdateResponse(tlvList, challenge, aRxInfo.mMessageInfo.GetPeerAddr());
 
 exit:
     LogProcessError(kTypeChildUpdateRequestAsChild, error);
@@ -3560,7 +3575,7 @@ Error Mle::TxMessage::AppendSourceAddressTlv(void)
     return Tlv::Append<SourceAddressTlv>(*this, Get<Mle>().GetRloc16());
 }
 
-Error Mle::TxMessage::AppendStatusTlv(StatusTlv::Status aStatus) { return Tlv::Append<StatusTlv>(*this, aStatus); }
+Error Mle::TxMessage::AppendStatusTlv(Status aStatus) { return Tlv::Append<StatusTlv>(*this, aStatus); }
 
 Error Mle::TxMessage::AppendModeTlv(DeviceMode aMode) { return Tlv::Append<ModeTlv>(*this, aMode.Get()); }
 
@@ -4311,6 +4326,7 @@ Error Mle::PrevRoleRestorer::Start(void)
     VerifyOrExit(Get<Mle>().mLastSavedRole == kRoleChild);
     VerifyOrExit(Get<Mle>().mParent.IsStateValidOrRestoring());
     SetState(kRestoringChildRole);
+    GenerateRandomChallenge();
     mAttempts = kMaxChildUpdatesToRestoreRole;
     mTimer.Start(Get<Mle>().GenerateRandomDelay(kMaxStartDelay));
     error = kErrorNone;
