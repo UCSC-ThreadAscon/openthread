@@ -131,6 +131,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
   hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+  hexDump((void *) GetPayload(), plaintextLength, "Plaintext Bytes");
 #endif
 
   crypto_aead_encrypt(ciphertext, &ciphertextLength,
@@ -138,14 +139,13 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
                       assocData, ASSOC_DATA_BYTES,
                       NULL, nonce, key);
 
-#if ASCON_MAC_ENCRYPT_HEX_DUMP
-  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
-  hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
-  hexDump((void *) GetFooter(), CRYPTO_ABYTES, "Tag (Footer) Bytes");
-#endif
-
   OT_ASSERT(expectedCipherLen == ciphertextLength);
   memcpy(GetPayload(), ciphertext, ciphertextLength);
+
+#if ASCON_MAC_ENCRYPT_HEX_DUMP
+  hexDump((void *) GetPayload(), ciphertextLength, "Ciphertext Bytes (with tag)");
+  hexDump((void *) GetFooter(), CRYPTO_ABYTES, "Tag (Footer) Bytes");
+#endif
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
@@ -203,27 +203,38 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   uint8_t footerCopy[footerLength];
   memcpy(footerCopy, GetFooter(), footerLength);
 
-  uint16_t ciphertextLength = GetPayloadLength();
-  unsigned long long plaintextLength;
-  uint8_t plaintextBuffer[ciphertextLength - CRYPTO_ABYTES];
+  uint16_t ciphertextTagLength = GetPayloadLength() + footerLength;
+  uint8_t ciphertextTag[ciphertextTagLength];
+  EmptyMemory(ciphertextTag, ciphertextTagLength);
+  
+  memcpy(ciphertextTag, GetPayload(), GetPayloadLength());
+  memcpy(ciphertextTag, footerCopy, footerLength);
+
+  uint16_t expectedPlaintextLength = ciphertextTagLength - footerLength;
+  uint8_t plaintext[expectedPlaintextLength];
 
 #if ASCON_MAC_DECRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
   hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 
-  // Ciphertext before it gets decrypted to plaintext in place.
-  hexDump((void *) GetPayload(), GetPayloadLength(), "Ciphertext Bytes (no tag)");
+  hexDump((void *) GetPayload(), ciphertextTagLength, "Ciphertext Bytes (with tag)");
 #endif
 
-  int status = crypto_aead_decrypt(plaintextBuffer, &plaintextLength, NULL,
-                                   GetPayload(), ciphertextLength,
+  unsigned long long plaintextLength;
+  int status = crypto_aead_decrypt(plaintext, &plaintextLength, NULL,
+                                   ciphertextTag, ciphertextTagLength,
                                    assocData, ASSOC_DATA_BYTES,
                                    nonce, key);
 
+  memcpy(GetPayload(), plaintext, plaintextLength);
+  SetPayloadLength(plaintextLength);
+
+  void* end = GetPayload() + GetPayloadLength();
+  memcpy(end, footerCopy, footerLength);
+
 #if ASCON_MAC_DECRYPT_HEX_DUMP
-  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
-  hexDump((void *) GetPayload(), ciphertextLength, "Plaintext Bytes (no tag)");
+  hexDump((void *) GetPayload(), plaintextLength, "Plaintext Bytes (no tag)");
   hexDump((void *) GetFooter(), CRYPTO_ABYTES, "Tag (Footer) Bytes");
 #endif
 
@@ -231,12 +242,6 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
     otLogWarnPlat("Invalid ASCON ciphertext (MAC).");
     return OT_ERROR_SECURITY;
   }
-
-  memcpy(GetPayload(), plaintextBuffer, plaintextLength);
-  SetPayloadLength(plaintextLength);
-
-  void* end = GetPayload() + GetPayloadLength();
-  memcpy(end, footerCopy, footerLength);
 
   return OT_ERROR_NONE;
 #else // LIBASCON
