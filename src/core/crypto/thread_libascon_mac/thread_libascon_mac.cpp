@@ -114,15 +114,14 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
   unsigned char nonce[CRYPTO_NPUBBYTES];
   CreateAsconNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
-  uint8_t footerLength = GetFooterLength();
-  uint8_t footerCopy[footerLength];
-  memcpy(footerCopy, GetFooter(), footerLength);
+  uint8_t tagLength = GetFooterLength() - GetFcsSize();
+  uint8_t tagCopy[tagLength];
+  memcpy(tagCopy, GetFooter(), tagLength);
 
   uint16_t plaintextLength = GetPayloadLength();
   unsigned long long ciphertextLength;
 
-  void* end = GetPayload() + GetPayloadLength();
-  memcpy(end, footerCopy, footerLength);
+  memcpy(GetFooter(), tagCopy, tagLength);
 
   unsigned long long expectedCipherLen = plaintextLength + CRYPTO_ABYTES;
   uint8_t ciphertext[expectedCipherLen];
@@ -131,7 +130,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
   hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
-  hexDump((void *) GetPayload(), plaintextLength, "Plaintext Bytes");
+  hexDump((void *) GetPayload(), GetPayloadLength(), "Plaintext Bytes");
 #endif
 
   crypto_aead_encrypt(ciphertext, &ciphertextLength,
@@ -143,8 +142,8 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
   memcpy(GetPayload(), ciphertext, ciphertextLength);
 
 #if ASCON_MAC_ENCRYPT_HEX_DUMP
-  hexDump((void *) GetPayload(), ciphertextLength, "Ciphertext Bytes (with tag)");
-  hexDump((void *) GetFooter(), CRYPTO_ABYTES, "Tag (Footer) Bytes");
+  hexDump((void *) GetPayload(), GetPayloadLength(), "Ciphertext Bytes (with tag)");
+  hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
 
   SetIsSecurityProcessed(true);
@@ -199,43 +198,35 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   unsigned char nonce[CRYPTO_NPUBBYTES];
   CreateAsconNonce(aExtAddress, frameCounter, securityLevel, nonce);
 
-  uint8_t footerLength = GetFooterLength();
-  uint8_t footerCopy[footerLength];
-  memcpy(footerCopy, GetFooter(), footerLength);
+  uint8_t tagLength = GetFooterLength() - GetFcsSize();
+  uint8_t tagCopy[tagLength];
+  memcpy(tagCopy, GetFooter(), tagLength);
 
-  uint16_t ciphertextTagLength = GetPayloadLength() + footerLength;
-  uint8_t ciphertextTag[ciphertextTagLength];
-  EmptyMemory(ciphertextTag, ciphertextTagLength);
-  
-  memcpy(ciphertextTag, GetPayload(), GetPayloadLength());
-  memcpy(ciphertextTag, footerCopy, footerLength);
-
-  uint16_t expectedPlaintextLength = ciphertextTagLength - footerLength;
-  uint8_t plaintext[expectedPlaintextLength];
+  uint16_t ciphertextLength = GetPayloadLength();
+  unsigned long long plaintextLength;
+  uint8_t plaintextBuffer[ciphertextLength - CRYPTO_ABYTES];
 
 #if ASCON_MAC_DECRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
   hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 
-  hexDump((void *) GetPayload(), ciphertextTagLength, "Ciphertext Bytes (with tag)");
+  hexDump((void *) GetPayload(), GetPayloadLength(), "Ciphertext Bytes");
 #endif
 
-  unsigned long long plaintextLength;
-  int status = crypto_aead_decrypt(plaintext, &plaintextLength, NULL,
-                                   ciphertextTag, ciphertextTagLength,
+  int status = crypto_aead_decrypt(plaintextBuffer, &plaintextLength, NULL,
+                                   GetPayload(), ciphertextLength,
                                    assocData, ASSOC_DATA_BYTES,
                                    nonce, key);
 
-  memcpy(GetPayload(), plaintext, plaintextLength);
+  memcpy(GetPayload(), plaintextBuffer, plaintextLength);
   SetPayloadLength(plaintextLength);
 
-  void* end = GetPayload() + GetPayloadLength();
-  memcpy(end, footerCopy, footerLength);
+  memcpy(GetFooter(), tagCopy, tagLength);
 
 #if ASCON_MAC_DECRYPT_HEX_DUMP
-  hexDump((void *) GetPayload(), plaintextLength, "Plaintext Bytes (no tag)");
-  hexDump((void *) GetFooter(), CRYPTO_ABYTES, "Tag (Footer) Bytes");
+  hexDump((void *) GetPayload(), GetPayloadLength(), "Plaintext Bytes (no tag)");
+  hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
 #endif
 
   if (status != 0) {
