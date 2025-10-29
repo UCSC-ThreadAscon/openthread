@@ -18,8 +18,22 @@
 #define ASSOC_DATA_BYTES 16
 #endif
 
+#if ASCON_AEAD_128
 #include "crypto/asconaead128_esp32/crypto_aead.hpp"
 #include "crypto/asconaead128_esp32/api.hpp"
+
+/**
+ * These macros define the return value of the ASCON-C decryption function
+ * `crypto_aead_decrypt()`:
+ * https://github.com/ascon/ascon-c/blob/main/tests/genkat_aead.c#L52C1-L55C30
+ */
+#define KAT_SUCCESS 0
+#define KAT_FILE_OPEN_ERROR -1
+#define KAT_DATA_ERROR -3
+#define KAT_CRYPTO_FAILURE -4
+
+#define ASCON_AEAD_VALID(status) status == KAT_SUCCESS ? true : false
+#endif
 
 #include "crypto/aes_ccm.hpp"
 #include <openthread/error.h>
