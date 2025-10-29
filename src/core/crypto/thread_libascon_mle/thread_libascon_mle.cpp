@@ -95,7 +95,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   unsigned char key[OT_NETWORK_KEY_SIZE];
   GetAsconKey(aHeader.GetKeyId(), key);
 
-  unsigned char assocData[ASCON_TAG_LENGTH];
+  unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
 
@@ -118,7 +118,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 
   crypto_aead_encrypt(ciphertext, &actualCipherLen,
                       payload, payloadLen,
-                      assocData, ASCON_TAG_LENGTH,
+                      assocData, ASSOC_DATA_BYTES,
                       NULL, nonce, key);
 
   OT_ASSERT(expectedCipherLen == actualCipherLen);
