@@ -202,7 +202,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   unsigned char key[OT_NETWORK_KEY_SIZE];
   GetAsconKey(aHeader.GetKeyId(), key);
 
-  unsigned char assocData[CRYPTO_ABYTES];
+  unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetSockAddr(),
                   assocData);
 
@@ -226,7 +226,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 
   status = crypto_aead_decrypt(payload, &actualPayloadLen, NULL,
                                ciphertext, cipherLen,
-                               assocData, CRYPTO_ABYTES, nonce, key);
+                               assocData, ASSOC_DATA_BYTES, nonce, key);
   if (status != 0) {
     otLogWarnPlat("Invalid ASCON ciphertext (MLE).");
     return OT_ERROR_SECURITY;
@@ -237,8 +237,8 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   // Replace ciphertext with plaintext.
   aMessage.WriteBytes(aCmdOffset, payload, actualPayloadLen);
 
-  // The `CRYPTO_ABYTES` of memory for the tag is not needed for plaintext.
-  aMessage.SetLength(aMessage.GetLength() - CRYPTO_ABYTES);
+  // The `ASCON_TAG_LENGTH` of memory for the tag is not needed for plaintext.
+  aMessage.SetLength(aMessage.GetLength() - ASCON_TAG_LENGTH);
 
   return OT_ERROR_NONE;
 #else // LIBASCON
