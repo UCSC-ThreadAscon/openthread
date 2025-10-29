@@ -104,6 +104,34 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
                                 uint32_t frameCounter,
                                 uint8_t securityLevel)
 {
+#if ASCON_AEAD_128
+  unsigned char key[OT_NETWORK_KEY_SIZE];
+  ConvertToAsconKey(GetAesKey(), key);
+
+  unsigned char assocData[ASSOC_DATA_BYTES];
+  CreateAssocData(assocData);
+
+  unsigned char nonce[CRYPTO_NPUBBYTES];
+  CreateAsconNonce(aExtAddress, frameCounter, securityLevel, nonce);
+
+  uint8_t footerLength = GetFooterLength();
+  uint8_t footerCopy[footerLength];
+  memcpy(footerCopy, GetFooter(), footerLength);
+
+  uint16_t plaintextLength = GetPayloadLength();
+  unsigned long long ciphertextLength;
+
+  void* end = GetPayload() + GetPayloadLength();
+  memcpy(end, footerCopy, footerLength);
+
+  crypto_aead_encrypt(GetPayload(), &ciphertextLength,
+                      GetPayload(), plaintextLength,
+                      assocData, ASSOC_DATA_BYTES,
+                      NULL, nonce, key);
+
+  SetIsSecurityProcessed(true);
+  return OT_ERROR_NONE;
+#else
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(GetAesKey(), key);
 
@@ -135,6 +163,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
+#endif // ASCON_AEAD_128
 }
 
 Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
@@ -142,6 +171,41 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
                                 uint32_t frameCounter,
                                 uint8_t securityLevel)
 {
+#if ASCON_AEAD_128
+  unsigned char key[OT_NETWORK_KEY_SIZE];
+  ConvertToAsconKey(aMacKey, key);
+
+  unsigned char assocData[CRYPTO_ABYTES];
+  CreateAssocData(assocData);
+
+  unsigned char nonce[CRYPTO_NPUBBYTES];
+  CreateAsconNonce(aExtAddress, frameCounter, securityLevel, nonce);
+
+  uint8_t footerLength = GetFooterLength();
+  uint8_t footerCopy[footerLength];
+  memcpy(footerCopy, GetFooter(), footerLength);
+
+  uint16_t ciphertextLength = GetPayloadLength();
+  unsigned long long plaintextLength;
+  uint8_t plaintextBuffer[ciphertextLength - CRYPTO_ABYTES];
+
+  int status = crypto_aead_decrypt(plaintextBuffer, &plaintextLength, NULL,
+                                   GetPayload(), ciphertextLength,
+                                   assocData, CRYPTO_ABYTES,
+                                   nonce, key);
+  if (status != 0) {
+    otLogWarnPlat("Invalid ASCON ciphertext (MAC).");
+    return OT_ERROR_SECURITY;
+  }
+
+  memcpy(GetPayload(), plaintextBuffer, plaintextLength);
+  SetPayloadLength(plaintextLength);
+
+  void* end = GetPayload() + GetPayloadLength();
+  memcpy(end, footerCopy, footerLength);
+
+  return OT_ERROR_NONE;
+#else
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(aMacKey, key);
 
@@ -180,6 +244,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   }
 
   return OT_ERROR_NONE;
+#endif // ASCON_AEAD_128
 }
 
 } // namespace Mac
