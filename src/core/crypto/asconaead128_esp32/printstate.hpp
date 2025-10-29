@@ -3,7 +3,7 @@
 
 #ifdef ASCON_PRINT_STATE
 
-#include "ascon.h"
+#include "ascon.hpp"
 
 void print(const char* text);
 void printbytes(const char* text, const uint8_t* b, uint64_t len);

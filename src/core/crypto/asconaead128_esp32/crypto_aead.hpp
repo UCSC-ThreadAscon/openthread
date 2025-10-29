@@ -1,0 +1,23 @@
+/**
+ * The encryption function prototype for the ASCON C reference implementations.
+ *
+ * For the source code behind this function, visit:
+ * https://github.com/ascon/ascon-c
+*/
+int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
+                        const unsigned char* m, unsigned long long mlen,
+                        const unsigned char* ad, unsigned long long adlen,
+                        const unsigned char* nsec, const unsigned char* npub,
+                        const unsigned char* k);
+
+/**
+ * The decryption function prototype for the ASCON C reference implementations.
+ *
+ * For the source code behind this function, visit:
+ * https://github.com/ascon/ascon-c
+*/
+int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
+                        unsigned char* nsec, const unsigned char* c,
+                        unsigned long long clen, const unsigned char* ad,
+                        unsigned long long adlen, const unsigned char* npub,
+                        const unsigned char* k);

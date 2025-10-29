@@ -16,6 +16,12 @@ void libascon_encrypt(uint8_t* ciphertext,
 #elif LIBASCON_128
   ascon_aead128_encrypt(ciphertext, tag, key, nonce, assoc_data, plaintext,
                         assoc_data_len, plaintext_len, tag_len);
+#elif ASCON_AEAD_128
+  unsigned long long ciphertext_len = plaintext_len + CRYPTO_ABYTES;
+
+  crypto_aead_encrypt(ciphertext, &ciphertext_len, plaintext, plaintext_len, 
+                      assoc_data, assoc_data_len, NULL, nonce, key);
+
 #endif
   return;
 }

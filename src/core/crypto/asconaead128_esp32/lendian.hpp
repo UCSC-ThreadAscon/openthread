@@ -33,7 +33,7 @@
 #define U16LE(x) (((0x00FF & (x)) << 8) | ((0xFF00 & (x)) >> 8))
 
 #else
-#error "Ascon byte order macros not defined in lendian.h"
+#error "Ascon byte order macros not defined in lendian.hpp"
 #endif
 
 #endif /* ENDIAN_H_ */

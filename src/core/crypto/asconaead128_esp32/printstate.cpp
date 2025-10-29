@@ -1,6 +1,6 @@
 #ifdef ASCON_PRINT_STATE
 
-#include "printstate.h"
+#include "printstate.hpp"
 
 #include <inttypes.h>
 #include <stdio.h>

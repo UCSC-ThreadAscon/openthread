@@ -1,9 +1,9 @@
-#include "core.h"
+#include "core.hpp"
 
 #include <string.h>
 
-#include "constants.h"
-#include "printstate.h"
+#include "constants.hpp"
+#include "printstate.hpp"
 
 #define PA_START_ROUND 0xf0
 
@@ -195,7 +195,7 @@ void ascon_core(ascon_state_t* s, unsigned char* out, const unsigned char* in,
 
   // process associated data
   if (adlen) {
-    ascon_duplex(s, (void*)0, ad, adlen, ASCON_AD);
+    ascon_duplex(s, NULL, ad, adlen, ASCON_AD);
     P(s, PB_START_ROUND);
   }
   s->x[4] ^= 0x8000000000000000;

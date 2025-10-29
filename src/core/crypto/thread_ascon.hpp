@@ -18,6 +18,9 @@
 #define ASSOC_DATA_BYTES 16
 #endif
 
+#include "crypto/asconaead128_esp32/crypto_aead.hpp"
+#include "crypto/asconaead128_esp32/api.hpp"
+
 #include "crypto/aes_ccm.hpp"
 #include <openthread/error.h>
 
@@ -102,30 +105,5 @@ bool libascon_decrypt(uint8_t* plaintext,
                       size_t ciphertext_len,
                       size_t expected_tag_len);
 #endif
-
-/**
- * The encryption function prototype for the ASCON C reference implementations.
- *
- * For the source code behind this function, visit:
- * https://github.com/ascon/ascon-c
-*/
-int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
-                        const unsigned char* m, unsigned long long mlen,
-                        const unsigned char* ad, unsigned long long adlen,
-                        const unsigned char* nsec, const unsigned char* npub,
-                        const unsigned char* k);
-
-
-/**
- * The decryption function prototype for the ASCON C reference implementations.
- *
- * For the source code behind this function, visit:
- * https://github.com/ascon/ascon-c
-*/
-int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
-                        unsigned char* nsec, const unsigned char* c,
-                        unsigned long long clen, const unsigned char* ad,
-                        unsigned long long adlen, const unsigned char* npub,
-                        const unsigned char* k);
 
 #endif // THREAD_ASCON_HPP_

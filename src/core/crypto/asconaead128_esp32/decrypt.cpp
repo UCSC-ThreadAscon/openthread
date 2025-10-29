@@ -1,5 +1,5 @@
-#include "core.h"
-#include "printstate.h"
+#include "core.hpp"
+#include "printstate.hpp"
 
 int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
                         unsigned char* nsec, const unsigned char* c,

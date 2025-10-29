@@ -1,7 +1,7 @@
-#include "permutations.h"
+#include "permutations.hpp"
 
-#include "lendian.h"
-#include "printstate.h"
+#include "lendian.hpp"
+#include "printstate.hpp"
 
 #define START_ROUND(x) (12 - (x))
 #define LAST_ROUND 0x4b
