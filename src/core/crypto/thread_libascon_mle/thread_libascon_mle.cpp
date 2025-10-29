@@ -89,6 +89,55 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
                            const SecurityHeader   &aHeader,
                            uint16_t               aCmdOffset)
 {
+#if ASCON_AEAD_128
+  otError error = OT_ERROR_NONE;
+
+  unsigned char key[OT_NETWORK_KEY_SIZE];
+  GetAsconKey(aHeader.GetKeyId(), key);
+
+  unsigned char assocData[ASCON_TAG_LENGTH];
+  createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
+                  assocData);
+
+  unsigned char nonce[CRYPTO_NPUBBYTES];
+  createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
+              aHeader.GetKeyId(), nonce);
+
+  uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
+
+  // Read payload data from the Message.
+  uint8_t payload[payloadLen];
+  EmptyMemory(payload, payloadLen);
+  aMessage.ReadBytes(aCmdOffset, payload, payloadLen);
+
+  unsigned long long expectedCipherLen = payloadLen + ASCON_TAG_LENGTH;
+  uint8_t ciphertext[expectedCipherLen];
+  EmptyMemory(ciphertext, expectedCipherLen);
+
+  unsigned long long actualCipherLen;
+
+  crypto_aead_encrypt(ciphertext, &actualCipherLen,
+                      payload, payloadLen,
+                      assocData, ASCON_TAG_LENGTH,
+                      NULL, nonce, key);
+
+  OT_ASSERT(expectedCipherLen == actualCipherLen);
+
+  // Replace plaintext with ciphertext.
+  aMessage.WriteBytes(aCmdOffset, ciphertext, payloadLen);
+
+  uint8_t tag[ASCON_TAG_LENGTH];
+  uint8_t *tagOffset = ciphertext + payloadLen;
+  memcpy(&tag, tagOffset, ASCON_TAG_LENGTH);
+
+  // Add the ASCON tag at the end of the ciphertext.
+  error = aMessage.Append(tag);
+  if (error == kErrorNoBufs) {
+    otLogCritPlat("Cannot grow message to add tag in MLE packet.");
+  }
+
+  return error;
+#else
   otError error = OT_ERROR_NONE;
 
   unsigned char key[OT_NETWORK_KEY_SIZE];
@@ -140,8 +189,8 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   hexDump((void *) ciphertext, plaintextLen, "Ciphertext Bytes (no tag)");
   hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
 #endif
-
   return error;
+#endif // ASCON_AEAD_128
 }
 
 Error Mle::AsconMleDecrypt(Message                &aMessage,
@@ -149,6 +198,50 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
                            const SecurityHeader   &aHeader,
                            uint16_t                aCmdOffset)
 {
+#if ASCON_AEAD_128
+  unsigned char key[OT_NETWORK_KEY_SIZE];
+  GetAsconKey(aHeader.GetKeyId(), key);
+
+  unsigned char assocData[CRYPTO_ABYTES];
+  createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetSockAddr(),
+                  assocData);
+
+  unsigned char nonce[CRYPTO_NPUBBYTES];
+  createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
+              aHeader.GetKeyId(), nonce);
+
+  uint16_t cipherLen = aMessage.GetLength() - aCmdOffset;
+
+  // Read the ciphertext payload.
+  uint8_t ciphertext[cipherLen];
+  EmptyMemory(ciphertext, cipherLen);
+  aMessage.ReadBytes(aCmdOffset, ciphertext, cipherLen);
+
+  unsigned long long expectedPayloadLen = cipherLen - ASCON_TAG_LENGTH;
+  uint8_t payload[expectedPayloadLen];
+  EmptyMemory(payload, expectedPayloadLen);
+
+  unsigned long long actualPayloadLen;
+  int status;
+
+  status = crypto_aead_decrypt(payload, &actualPayloadLen, NULL,
+                               ciphertext, cipherLen,
+                               assocData, CRYPTO_ABYTES, nonce, key);
+  if (status != 0) {
+    otLogWarnPlat("Invalid ASCON ciphertext (MLE).");
+    return OT_ERROR_SECURITY;
+  }
+
+  OT_ASSERT(actualPayloadLen == expectedPayloadLen);
+
+  // Replace ciphertext with plaintext.
+  aMessage.WriteBytes(aCmdOffset, payload, actualPayloadLen);
+
+  // The `CRYPTO_ABYTES` of memory for the tag is not needed for plaintext.
+  aMessage.SetLength(aMessage.GetLength() - CRYPTO_ABYTES);
+
+  return OT_ERROR_NONE;
+#else
   unsigned char key[OT_NETWORK_KEY_SIZE];
   GetAsconKey(aHeader.GetKeyId(), key);
 
@@ -206,6 +299,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   aMessage.SetLength(aMessage.GetLength() - ASCON_TAG_LENGTH);
 
   return OT_ERROR_NONE;
+#endif // ASCON_AEAD_128
 }
 
 } // namespace Mle

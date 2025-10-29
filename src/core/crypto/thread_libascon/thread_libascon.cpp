@@ -17,12 +17,6 @@ void libascon_encrypt(uint8_t* ciphertext,
 #elif LIBASCON_128
   ascon_aead128_encrypt(ciphertext, tag, key, nonce, assoc_data, plaintext,
                         assoc_data_len, plaintext_len, tag_len);
-#elif ASCON_AEAD_128
-  unsigned long long ciphertext_len = plaintext_len + CRYPTO_ABYTES;
-
-  crypto_aead_encrypt(ciphertext, &ciphertext_len, plaintext, plaintext_len, 
-                      assoc_data, assoc_data_len, NULL, nonce, key);
-
 #endif
   return;
 }
@@ -45,18 +39,6 @@ bool libascon_decrypt(uint8_t* plaintext,
   return ascon_aead128_decrypt(plaintext, key, nonce, assoc_data, ciphertext,
                                 expected_tag, assoc_data_len, ciphertext_len,
                                 expected_tag_len);
-#elif ASCON_AEAD_128
-  unsigned long long plaintext_len = 0;
-  int status = crypto_aead_decrypt(plaintext, &plaintext_len, NULL,
-                                   ciphertext, ciphertext_len, assoc_data, assoc_data_len,
-                                   nonce, key);
-  
-  unsigned long long expected_plaintext_len = ciphertext_len - CRYPTO_ABYTES;
-  if (plaintext_len != expected_plaintext_len) {
-    status = KAT_CRYPTO_FAILURE;
-  }
-
-  return ASCON_AEAD_VALID(status);
 #else
   otLogCritPlat("Failed to do LibAscon Decrypt: Unreachable Code.");
   return false;
