@@ -18,11 +18,9 @@ void libascon_encrypt(uint8_t* ciphertext,
   ascon_aead128_encrypt(ciphertext, tag, key, nonce, assoc_data, plaintext,
                         assoc_data_len, plaintext_len, tag_len);
 #elif ASCON_AEAD_128
-  unsigned long long ciphertext_len = plaintext_len + CRYPTO_ABYTES;
-
+  unsigned long long ciphertext_len = 0;
   crypto_aead_encrypt(ciphertext, &ciphertext_len, plaintext, plaintext_len, 
                       assoc_data, assoc_data_len, NULL, nonce, key);
-
 #endif
   return;
 }
@@ -48,13 +46,13 @@ bool libascon_decrypt(uint8_t* plaintext,
 #elif ASCON_AEAD_128
   unsigned long long plaintext_len = 0;
   int status = crypto_aead_decrypt(plaintext, &plaintext_len, NULL,
-                                   ciphertext, ciphertext_len, assoc_data, assoc_data_len,
-                                   nonce, key);
+                                   ciphertext, ciphertext_len + CRYPTO_ABYTES, 
+                                   assoc_data, assoc_data_len, nonce, key);
   
-  unsigned long long expected_plaintext_len = ciphertext_len - CRYPTO_ABYTES;
-  if (plaintext_len != expected_plaintext_len) {
-    status = KAT_CRYPTO_FAILURE;
-  }
+  // unsigned long long expected_plaintext_len = ciphertext_len - CRYPTO_ABYTES;
+  // if (plaintext_len != expected_plaintext_len) {
+  //   status = KAT_CRYPTO_FAILURE;
+  // }
 
   return ASCON_AEAD_VALID(status);
 #else

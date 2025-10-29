@@ -129,6 +129,12 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   // Replace plaintext with ciphertext.
   aMessage.WriteBytes(aCmdOffset, ciphertext, plaintextLen);
 
+#if ASCON_AEAD_128
+  uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
+  uint8_t *tagOffset = ciphertext + payloadLen;
+  memcpy(&tag, tagOffset, ASCON_TAG_LENGTH);
+#endif
+
   // Add the ASCON tag at the end of the ciphertext.
   error = aMessage.Append(tag);
   if (error == kErrorNoBufs) {

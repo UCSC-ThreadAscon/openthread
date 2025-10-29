@@ -2,6 +2,8 @@
 #include "printstate.hpp"
 
 #include "crypto/asconaead128_esp32/crypto_aead.hpp"
+#include "openthread/logging.h"
+#include "crypto/thread_libascon/hexdump.hpp"
 
 int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
                         unsigned char* nsec, const unsigned char* c,
@@ -25,6 +27,11 @@ int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
   printbytes("c", c, *mlen);
   printbytes("t", c + *mlen, CRYPTO_ABYTES);
 
+  hexDump((void *) k, CRYPTO_KEYBYTES, "Thread Network Key Bytes");
+  hexDump((void *) npub, CRYPTO_NPUBBYTES, "Nonce Bytes");
+  hexDump((void *) ad, 16, "Associated Data Bytes");
+  hexDump((void *) c + *mlen, CRYPTO_ABYTES, "MLE Tag Bytes");
+
   ascon_core(&s, m, c, *mlen, ad, adlen, npub, k, ASCON_DEC);
 
   // verify should be constant time, check compiler output
@@ -32,6 +39,7 @@ int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
   int result = 0;
   for (i = 0; i < CRYPTO_ABYTES; ++i) result |= c[*mlen + i] ^ *(s.b[3] + i);
   result = (((result - 1) >> 8) & 1) - 1;
+  otLogNotePlat("The result is %d.", result);
 
   printbytes("m", m, *mlen);
   print("\n");
