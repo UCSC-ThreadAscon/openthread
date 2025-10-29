@@ -48,7 +48,7 @@ uint8_t* Frame::AddAddrToAd(Address addr, uint8_t* offset) {
 }
 
 void Frame::CreateAssocData(void *aAssocData) {
-  EmptyMemory(aAssocData, CRYPTO_ABYTES);
+  EmptyMemory(aAssocData, ASSOC_DATA_BYTES);
 
   Address dst; EmptyMemory(&dst, sizeof(Address));
   if (GetDstAddr(dst) != OT_ERROR_NONE) {
@@ -107,7 +107,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(GetAesKey(), key);
 
-  unsigned char assocData[CRYPTO_ABYTES];
+  unsigned char assocData[ASSOC_DATA_BYTES];
   CreateAssocData(assocData);
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
@@ -116,12 +116,12 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 #if ASCON_MAC_ENCRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
-  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 #endif
 
   uint8_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t plaintextLength = GetPayloadLength();
-  size_t assocDataLen = CRYPTO_ABYTES;
+  size_t assocDataLen = ASSOC_DATA_BYTES;
 
   libascon_encrypt(GetPayload(), GetFooter(), key, nonce, assocData,
                    GetPayload(), assocDataLen, plaintextLength,
@@ -145,7 +145,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(aMacKey, key);
 
-  unsigned char assocData[CRYPTO_ABYTES];
+  unsigned char assocData[ASSOC_DATA_BYTES];
   CreateAssocData(assocData);
 
   unsigned char nonce[ASCON_AEAD_NONCE_LEN];
@@ -154,7 +154,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
 #if ASCON_MAC_DECRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
-  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 
   // Ciphertext before it gets decrypted to plaintext in place.
   hexDump((void *) GetPayload(), GetPayloadLength(), "Ciphertext Bytes (no tag)");
@@ -162,7 +162,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
 
   uint16_t tagLength = GetFooterLength() - GetFcsSize();
   uint16_t ciphertextLength = GetPayloadLength();
-  size_t assocDataLen = CRYPTO_ABYTES;
+  size_t assocDataLen = ASSOC_DATA_BYTES;
 
   bool status = libascon_decrypt(GetPayload(), key, nonce, assocData,
                                  GetPayload(), GetFooter(), assocDataLen,

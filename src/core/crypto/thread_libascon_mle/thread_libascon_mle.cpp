@@ -62,7 +62,7 @@ void createAssocData(ot::Ip6::Address sender,
                      ot::Ip6::Address receiver,
                      void* aAssocData)
 {
-  EmptyMemory(aAssocData, CRYPTO_ABYTES);
+  EmptyMemory(aAssocData, ASSOC_DATA_BYTES);
 
   ot::Mac::ExtAddress senderExt, receiverExt;
   senderExt.SetFromIid(sender.GetIid()); // 8 bytes
@@ -94,7 +94,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   unsigned char key[OT_NETWORK_KEY_SIZE];
   GetAsconKey(aHeader.GetKeyId(), key);
 
-  unsigned char assocData[CRYPTO_ABYTES];
+  unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
 
@@ -105,10 +105,10 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 #if ASCON_MLE_ENCRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
-  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 #endif
 
-  size_t assocDataLen = CRYPTO_ABYTES;
+  size_t assocDataLen = ASSOC_DATA_BYTES;
   uint16_t plaintextLen = aMessage.GetLength() - aCmdOffset;
 
   // Read plaintext data from the Message.
@@ -152,7 +152,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   unsigned char key[OT_NETWORK_KEY_SIZE];
   GetAsconKey(aHeader.GetKeyId(), key);
 
-  unsigned char assocData[CRYPTO_ABYTES];
+  unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetSockAddr(),
                   assocData);
 
@@ -163,12 +163,12 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 #if ASCON_MLE_DECRYPT_HEX_DUMP
   hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
   hexDump((void *) nonce, ASCON_AEAD_NONCE_LEN, "Nonce Bytes");
-  hexDump((void *) assocData, CRYPTO_ABYTES, "Associated Data Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 #endif
 
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
   uint16_t cipherLenNoTag = cipherLenTotal - ASCON_TAG_LENGTH;
-  size_t assocDataLen = CRYPTO_ABYTES;
+  size_t assocDataLen = ASSOC_DATA_BYTES;
 
   // Read the ciphertext payload.
   uint8_t cipherNoTag[cipherLenNoTag];
