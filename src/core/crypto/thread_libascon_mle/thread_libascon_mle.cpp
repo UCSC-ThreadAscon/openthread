@@ -137,7 +137,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   }
 
   return error;
-#else
+#else // LIBASCON
   otError error = OT_ERROR_NONE;
 
   unsigned char key[OT_NETWORK_KEY_SIZE];
@@ -241,7 +241,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   aMessage.SetLength(aMessage.GetLength() - CRYPTO_ABYTES);
 
   return OT_ERROR_NONE;
-#else
+#else // LIBASCON
   unsigned char key[OT_NETWORK_KEY_SIZE];
   GetAsconKey(aHeader.GetKeyId(), key);
 
