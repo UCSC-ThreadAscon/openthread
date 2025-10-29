@@ -25,6 +25,10 @@
 #define CRYPTO_ABYTES 16
 #endif
 
+#if ASCON_AEAD_128
+  #include "crypto/asconaead128_esp32"
+#endif
+
 #include "crypto/aes_ccm.hpp"
 #include <openthread/error.h>
 
