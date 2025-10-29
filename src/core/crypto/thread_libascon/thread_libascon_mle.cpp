@@ -30,7 +30,7 @@ void createNonce(ot::Ip6::Address sender,
   EmptyMemory(aNonce, ASCON_AEAD_NONCE_LEN);
 
   ot::Mac::ExtAddress senderExt;
-  sender.GetIid().ConvertToExtAddress(senderExt);
+  senderExt.SetFromIid(sender.GetIid());
 
   uint8_t *offset = (uint8_t *) aNonce;
 
@@ -65,8 +65,8 @@ void createAssocData(ot::Ip6::Address sender,
   EmptyMemory(aAssocData, CRYPTO_ABYTES);
 
   ot::Mac::ExtAddress senderExt, receiverExt;
-  sender.GetIid().ConvertToExtAddress(senderExt); // 8 bytes
-  receiver.GetIid().ConvertToExtAddress(receiverExt); // 8 bytes
+  senderExt.SetFromIid(sender.GetIid()); // 8 bytes
+  receiverExt.SetFromIid(receiver.GetIid()); // 8 bytes
 
   uint8_t *offset = reinterpret_cast<uint8_t *>(aAssocData);
   memcpy(offset, senderExt.m8, OT_EXT_ADDRESS_SIZE);
