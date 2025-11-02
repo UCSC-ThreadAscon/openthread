@@ -36,9 +36,6 @@
  * @param[in] pointer: the pointer of the stack memory
  * @param[in] size:    the size of the memory that `pointer` points to
  *
- * I got the idea to use `memset()` to clear stack memory from
- * the Google Search AI:
- * https://docs.google.com/document/d/1o-NaEOA-vzWPCv7VX1dONUfwos2epveDk4H_Y2Y5g1Y/edit?usp=sharing
 */
 #define EmptyMemory(pointer, size) memset((void *) pointer, 0, size)
 
