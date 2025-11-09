@@ -153,6 +153,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   
   // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
   unsigned char nonce[CHACHAPOLY_NONCE_LEN];
+  EmptyMemory(nonce, sizeof(nonce));
   memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
 #if ASCON_MLE_ENCRYPT_HEX_DUMP
@@ -316,6 +317,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   
   // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
   unsigned char nonce[CHACHAPOLY_NONCE_LEN];
+  EmptyMemory(nonce, sizeof(nonce));
   memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
 #if ASCON_MLE_DECRYPT_HEX_DUMP
