@@ -137,6 +137,41 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   }
 
   return error;
+#elif CHA_CHA_POLY
+  otError error = OT_ERROR_NONE;
+
+  /**
+   * Daniel J. Bernstein repeats a 128 bit key twice to create a 256 bit key
+   * for Salsa20:
+   * https://cr.yp.to/snuffle/keysizes.pdf
+   * 
+   * We utilize his strategy to by repeating the 128 bit network key twice to create
+   * the 256 bit network key.
+   * 
+   * We learned about Daniel J. Bernstein's key expansion strategy from the following
+   * Crypto Stack Exchange discussion:
+   * https://crypto.stackexchange.com/questions/113585/using-shortened-key-for-chacha20
+   */
+  unsigned char key[OT_NETWORK_KEY_SIZE * 2];
+  GetAsconKey(aHeader.GetKeyId(), key);
+
+  unsigned char assocData[ASSOC_DATA_BYTES];
+  createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
+                  assocData);
+
+  unsigned char nonce[CRYPTO_NPUBBYTES];
+  createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
+              aHeader.GetKeyId(), nonce);
+
+  uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
+
+  // Read payload data from the Message.
+  uint8_t payload[payloadLen];
+  EmptyMemory(payload, payloadLen);
+  aMessage.ReadBytes(aCmdOffset, payload, payloadLen);
+
+  return error;
+#endif
 #else // LIBASCON
   otError error = OT_ERROR_NONE;
 
