@@ -152,16 +152,21 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
    * Crypto Stack Exchange discussion:
    * https://crypto.stackexchange.com/questions/113585/using-shortened-key-for-chacha20
    */
-  unsigned char key[OT_NETWORK_KEY_SIZE * 2];
+  unsigned char key[CHACHAPOLY_KEY_LEN];
   GetAsconKey(aHeader.GetKeyId(), key);
+  GetAsconKey(aHeader.GetKeyId(), key + OT_NETWORK_KEY_SIZE);
 
   unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
 
-  unsigned char nonce[CRYPTO_NPUBBYTES];
+  unsigned char asconNonce[CRYPTO_NPUBBYTES];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
-              aHeader.GetKeyId(), nonce);
+              aHeader.GetKeyId(), asconNonce);
+  
+  // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
+  unsigned char nonce[CHACHAPOLY_NONCE_LEN];
+  memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
   uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
 

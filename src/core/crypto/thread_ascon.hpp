@@ -37,6 +37,10 @@
 
 #if CHA_CHA_POLY
 #include <mbedtls/chachapoly.h>
+
+#define CHACHAPOLY_NONCE_LEN 12
+#define CHACHAPOLY_KEY_LEN 32
+
 #endif
 
 #include "crypto/aes_ccm.hpp"
