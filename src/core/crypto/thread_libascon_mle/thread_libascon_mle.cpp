@@ -155,6 +155,12 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   unsigned char nonce[CHACHAPOLY_NONCE_LEN];
   memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
+#if ASCON_MLE_ENCRYPT_HEX_DUMP
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
+  hexDump((void *) nonce, CHACHAPOLY_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+#endif
+
   uint16_t plaintextLen = aMessage.GetLength() - aCmdOffset;
 
   // Read plaintext data from the Message.
@@ -186,6 +192,11 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
     otLogCritPlat("Cannot grow message to add tag in MLE packet.");
   }
 
+#if ASCON_MLE_ENCRYPT_HEX_DUMP
+  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
+  hexDump((void *) ciphertext, plaintextLen, "Ciphertext Bytes (no tag)");
+  hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "MLE Tag Bytes");
+#endif
   return error;
 #else // LIBASCON
   otError error = OT_ERROR_NONE;
@@ -307,6 +318,12 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   unsigned char nonce[CHACHAPOLY_NONCE_LEN];
   memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
+#if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
+  hexDump((void *) nonce, CHACHAPOLY_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+#endif
+
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
   uint16_t cipherLenNoTag = cipherLenTotal - CHACHAPOLY_TAG_LEN;
 
@@ -333,6 +350,12 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   int status = mbedtls_chachapoly_auth_decrypt(&context, cipherLenNoTag, nonce, assocData,
                                                ASSOC_DATA_BYTES, tag, cipherNoTag,
                                                plaintext);
+
+#if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) cipherNoTag, cipherLenNoTag, "Ciphertext Bytes (no tag)");
+  hexDump((void *) plaintext, plaintextLen, "Plaintext Bytes (no tag)");
+  hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "MLE Tag Bytes");
+#endif
 
   if (!CHACHAPOLY_VALID(status)) {
     otLogWarnPlat("Invalid ChaChaPoly ciphertext.");
