@@ -35,6 +35,10 @@
 #define ASCON_AEAD_VALID(status) status == KAT_SUCCESS ? true : false
 #endif
 
+#if CHA_CHA_POLY
+#include <mbedtls/chachapoly.h>
+#endif
+
 #include "crypto/aes_ccm.hpp"
 #include <openthread/error.h>
 
