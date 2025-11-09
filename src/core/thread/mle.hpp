@@ -2346,6 +2346,8 @@ private:
     */
     void GetAsconKey(uint32_t keyId, void *asconKey);
 
+    void createChaChaPolyKey(unsigned char *key, const SecurityHeader &aHeader);
+
     /** --- End Thread ASCON Functions --- */
 
 #if OPENTHREAD_CONFIG_MLE_INFORM_PREVIOUS_PARENT_ON_REATTACH

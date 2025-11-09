@@ -1568,6 +1568,27 @@ void Mle::GetAsconKey(uint32_t keyId, void* asconKey) {
   return;
 }
 
+/**
+ * We got the idea to repeat the 128 bit network key twice to create a 256 bit key from:
+ * 
+ * - Daniel J. Bernstein, who does the same to obtain a 256 bit key from a 128 bit key
+ *   for Salsa20: https://cr.yp.to/snuffle/keysizes.pdf
+ * 
+ *   We initially learned about Bernstein's stratey from the following Stack Exchange user
+ *   DerekKnowles's Crypto Stack Exchange post:
+ *   https://crypto.stackexchange.com/a/113638
+ * 
+ * - Stack Exchange user DannyNiu also suggested this idea as well in their
+ *   Crypto Stack Exchange post:
+ *   https://crypto.stackexchange.com/a/113588
+ */
+void Mle::createChaChaPolyKey(unsigned char *key, const SecurityHeader &aHeader)
+{
+  GetAsconKey(aHeader.GetKeyId(), key);
+  GetAsconKey(aHeader.GetKeyId(), key + OT_NETWORK_KEY_SIZE);
+  return;
+}
+
 void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
 {
     Error           error = kErrorNone;

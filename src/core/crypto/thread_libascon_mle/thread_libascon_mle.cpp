@@ -140,28 +140,13 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 #elif CHA_CHA_POLY
   otError error = OT_ERROR_NONE;
 
-  /**
-   * We got the idea to repeat the 128 bit network key twice to create a 256 bit key from:
-   * 
-   * - Daniel J. Bernstein, who does the same to obtain a 256 bit key from a 128 bit key
-   *   for Salsa20: https://cr.yp.to/snuffle/keysizes.pdf
-   * 
-   *   We initially learned about Bernstein's stratey from the following Stack Exchange user
-   *   DerekKnowles's Crypto Stack Exchange post:
-   *   https://crypto.stackexchange.com/a/113638
-   * 
-   * - Stack Exchange user DannyNiu also suggested this idea as well in their
-   *   Crypto Stack Exchange post:
-   *   https://crypto.stackexchange.com/a/113588
-   */
   unsigned char key[CHACHAPOLY_KEY_LEN];
-  GetAsconKey(aHeader.GetKeyId(), key);
-  GetAsconKey(aHeader.GetKeyId(), key + OT_NETWORK_KEY_SIZE);
+  createChaChaPolyKey(key, aHeader);
 
   unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
-
+  
   unsigned char asconNonce[ASCON_NONCE_SIZE];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), asconNonce);
