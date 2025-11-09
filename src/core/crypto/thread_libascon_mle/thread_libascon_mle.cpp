@@ -141,15 +141,18 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   otError error = OT_ERROR_NONE;
 
   /**
-   * Daniel J. Bernstein repeats a 128 bit key twice to create a 256 bit key for Salsa20:
-   * https://cr.yp.to/snuffle/keysizes.pdf
+   * We got the idea to repeat the 128 bit network key twice to create a 256 bit key from:
    * 
-   * We utilize his strategy to by repeating the 128 bit network key twice to create
-   * the 256 bit network key.
+   * - Daniel J. Bernstein, who does the same to obtain a 256 bit key from a 128 bit key
+   *   for Salsa20: https://cr.yp.to/snuffle/keysizes.pdf
    * 
-   * We learned about Daniel J. Bernstein's key expansion strategy from the following
-   * Crypto Stack Exchange discussion:
-   * https://crypto.stackexchange.com/questions/113585/using-shortened-key-for-chacha20
+   *   We initially learned about Bernstein's stratey from the following Stack Exchange user
+   *   DerekKnowles's Crypto Stack Exchange post:
+   *   https://crypto.stackexchange.com/a/113638
+   * 
+   * - Stack Exchange user DannyNiu also suggested this idea as well in their
+   *   Crypto Stack Exchange post:
+   *   https://crypto.stackexchange.com/a/113588
    */
   unsigned char key[CHACHAPOLY_KEY_LEN];
   GetAsconKey(aHeader.GetKeyId(), key);
