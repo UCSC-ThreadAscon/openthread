@@ -44,6 +44,8 @@
 
 #define ASCON_NONCE_SIZE 16
 
+#define CHACHAPOLY_VALID(status) status == 0 ? true : false
+
 #endif
 
 #include "crypto/aes_ccm.hpp"

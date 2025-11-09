@@ -291,6 +291,61 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   aMessage.SetLength(aMessage.GetLength() - ASCON_TAG_LENGTH);
 
   return OT_ERROR_NONE;
+#elif CHA_CHA_POLY
+  unsigned char key[CHACHAPOLY_KEY_LEN];
+  createChaChaPolyKey(key, aHeader);
+
+  unsigned char assocData[ASSOC_DATA_BYTES];
+  createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
+                  assocData);
+  
+  unsigned char asconNonce[ASCON_NONCE_SIZE];
+  createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
+              aHeader.GetKeyId(), asconNonce);
+  
+  // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
+  unsigned char nonce[CHACHAPOLY_NONCE_LEN];
+  memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
+
+  uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
+  uint16_t cipherLenNoTag = cipherLenTotal - CHACHAPOLY_TAG_LEN;
+
+  // Read the ciphertext payload.
+  uint8_t cipherNoTag[cipherLenNoTag];
+  EmptyMemory(cipherNoTag, cipherLenNoTag);
+  aMessage.ReadBytes(aCmdOffset, cipherNoTag, cipherLenNoTag);
+
+  // Read the tag.
+  uint8_t tag[CHACHAPOLY_TAG_LEN];
+  EmptyMemory(tag, CHACHAPOLY_TAG_LEN);
+  aMessage.ReadBytes(aCmdOffset + cipherLenNoTag, tag, CHACHAPOLY_TAG_LEN);
+
+  unsigned long long plaintextLen = cipherLenNoTag;
+  uint8_t plaintext[plaintextLen];
+  EmptyMemory(plaintext, plaintextLen);
+
+  mbedtls_chachapoly_context context;
+  EmptyMemory(&context, sizeof(mbedtls_chachapoly_context));
+
+  mbedtls_chachapoly_init(&context);
+  mbedtls_chachapoly_setkey(&context, key);
+
+  int status = mbedtls_chachapoly_auth_decrypt(&context, cipherLenNoTag, nonce, assocData,
+                                               ASSOC_DATA_BYTES, tag, cipherNoTag,
+                                               plaintext);
+
+  if (!CHACHAPOLY_VALID(status)) {
+    otLogWarnPlat("Invalid ChaChaPoly ciphertext.");
+    return OT_ERROR_SECURITY;
+  }
+
+  // Replace ciphertext with plaintext.
+  aMessage.WriteBytes(aCmdOffset, plaintext, plaintextLen);
+
+  // The tag is not needed in the plaintext payload.
+  aMessage.SetLength(aMessage.GetLength() - CHACHAPOLY_TAG_LEN);
+
+  return OT_ERROR_NONE;
 #else // LIBASCON
   unsigned char key[OT_NETWORK_KEY_SIZE];
   GetAsconKey(aHeader.GetKeyId(), key);
