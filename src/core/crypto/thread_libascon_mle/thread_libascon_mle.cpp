@@ -141,8 +141,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   otError error = OT_ERROR_NONE;
 
   /**
-   * Daniel J. Bernstein repeats a 128 bit key twice to create a 256 bit key
-   * for Salsa20:
+   * Daniel J. Bernstein repeats a 128 bit key twice to create a 256 bit key for Salsa20:
    * https://cr.yp.to/snuffle/keysizes.pdf
    * 
    * We utilize his strategy to by repeating the 128 bit network key twice to create
@@ -160,7 +159,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
 
-  unsigned char asconNonce[CRYPTO_NPUBBYTES];
+  unsigned char asconNonce[ASCON_NONCE_SIZE];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), asconNonce);
   
@@ -168,15 +167,38 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   unsigned char nonce[CHACHAPOLY_NONCE_LEN];
   memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
-  uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
+  uint16_t plaintextLen = aMessage.GetLength() - aCmdOffset;
 
-  // Read payload data from the Message.
-  uint8_t payload[payloadLen];
-  EmptyMemory(payload, payloadLen);
-  aMessage.ReadBytes(aCmdOffset, payload, payloadLen);
+  // Read plaintext data from the Message.
+  uint8_t plaintext[plaintextLen];
+  EmptyMemory(plaintext, plaintextLen);
+  aMessage.ReadBytes(aCmdOffset, plaintext, plaintextLen);
+
+  uint8_t ciphertext[plaintextLen];
+  EmptyMemory(ciphertext, plaintextLen);
+
+  uint8_t tag[CHACHAPOLY_TAG_LEN];
+  EmptyMemory(tag, CHACHAPOLY_TAG_LEN);
+
+  mbedtls_chachapoly_context context;
+  EmptyMemory(&context, sizeof(mbedtls_chachapoly_context));
+
+  mbedtls_chachapoly_init(&context);
+  mbedtls_chachapoly_setkey(&context, key);
+
+  mbedtls_chachapoly_encrypt_and_tag(&context, plaintextLen, nonce, assocData,
+                                     ASSOC_DATA_BYTES, plaintext, ciphertext, tag);
+
+  // Replace plaintext with ciphertext.
+  aMessage.WriteBytes(aCmdOffset, ciphertext, plaintextLen);
+
+  // Add the ASCON tag at the end of the ciphertext.
+  error = aMessage.Append(tag);
+  if (error == kErrorNoBufs) {
+    otLogCritPlat("Cannot grow message to add tag in MLE packet.");
+  }
 
   return error;
-#endif
 #else // LIBASCON
   otError error = OT_ERROR_NONE;
 

@@ -40,6 +40,9 @@
 
 #define CHACHAPOLY_NONCE_LEN 12
 #define CHACHAPOLY_KEY_LEN 32
+#define CHACHAPOLY_TAG_LEN 16
+
+#define ASCON_NONCE_SIZE 16
 
 #endif
 
