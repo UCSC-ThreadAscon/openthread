@@ -358,7 +358,18 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 #endif
 
   if (!CHACHAPOLY_VALID(status)) {
-    otLogWarnPlat("Invalid ChaChaPoly ciphertext.");
+    if (status == MBEDTLS_ERR_CHACHAPOLY_AUTH_FAILED)
+    {
+      otLogWarnPlat("Invalid ChaChaPoly ciphertext: Auth Failed.");
+    }
+    else if (status == MBEDTLS_ERR_CHACHAPOLY_BAD_STATE)
+    {
+      otLogWarnPlat("Invalid ChaChaPoly ciphertext: Bad State.");
+    }
+    else
+    {
+      otLogWarnPlat("Invalid ChaChaPoly ciphertext.");
+    }
     return OT_ERROR_SECURITY;
   }
 
