@@ -171,6 +171,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 #elif CHA_CHA_POLY
   unsigned char key[CHACHAPOLY_KEY_LEN];
   createChaChaPolyKey(GetAesKey(), key);
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "MAC Network Key");
 
   unsigned char assocData[ASSOC_DATA_BYTES];
   CreateAssocData(assocData);
@@ -317,6 +318,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
 #elif CHA_CHA_POLY
   unsigned char key[CHACHAPOLY_KEY_LEN];
   createChaChaPolyKey(aMacKey, key);
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "MAC Network Key");
 
   unsigned char assocData[ASSOC_DATA_BYTES];
   CreateAssocData(assocData);
