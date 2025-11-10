@@ -216,7 +216,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 
 #if ASCON_MAC_ENCRYPT_HEX_DUMP
   hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
-  hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
+  hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "Tag (Footer) Bytes");
 #endif
 
   SetIsSecurityProcessed(true);
