@@ -346,6 +346,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
 
   uint8_t ciphertextBuffer[ciphertextLength];
   EmptyMemory(ciphertextBuffer, ciphertextLength);
+  memcpy(ciphertextBuffer, GetPayload(), ciphertextLength);
 
   uint8_t tag[CHACHAPOLY_TAG_LEN];
   EmptyMemory(tag, CHACHAPOLY_TAG_LEN);
