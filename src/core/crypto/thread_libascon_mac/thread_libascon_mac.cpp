@@ -190,6 +190,11 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 #endif
 
   uint16_t plaintextLength = GetPayloadLength();
+
+  uint8_t* plaintextBuffer[plaintextLength];
+  EmptyMemory(plaintextBuffer, plaintextLength);
+  memcpy(plaintextBuffer, GetPayload(), plaintextLength);
+
   SetPayloadLength(GetPayloadLength() + CHACHAPOLY_TAG_LEN);
 
   uint8_t footerLength = GetFooterLength();
@@ -209,7 +214,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
   mbedtls_chachapoly_setkey(&context, key);
 
   mbedtls_chachapoly_encrypt_and_tag(&context, plaintextLength, nonce, assocData,
-                                     ASSOC_DATA_BYTES, GetPayload(), GetPayload(), tag);
+                                     ASSOC_DATA_BYTES, plaintextBuffer, GetPayload(), tag);
 
   end = GetPayload() + plaintextLength;
   memcpy(end, tag, CHACHAPOLY_TAG_LEN);
