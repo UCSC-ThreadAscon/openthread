@@ -309,7 +309,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   createChaChaPolyKey(key, aHeader);
 
   unsigned char assocData[ASSOC_DATA_BYTES];
-  createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetPeerAddr(),
+  createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetSockAddr(),
                   assocData);
   
   unsigned char asconNonce[ASCON_AEAD_NONCE_LEN];
