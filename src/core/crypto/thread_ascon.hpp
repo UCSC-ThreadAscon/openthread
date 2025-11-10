@@ -35,7 +35,6 @@
 #define ASCON_AEAD_VALID(status) status == KAT_SUCCESS ? true : false
 #endif
 
-#if CHA_CHA_POLY
 #include <mbedtls/chachapoly.h>
 
 #define CHACHAPOLY_NONCE_LEN 12
@@ -43,8 +42,6 @@
 #define CHACHAPOLY_TAG_LEN 16
 
 #define CHACHAPOLY_VALID(status) status == 0 ? true : false
-
-#endif
 
 #include "crypto/aes_ccm.hpp"
 #include <openthread/error.h>

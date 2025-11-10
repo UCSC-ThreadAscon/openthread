@@ -103,6 +103,12 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
+#if ASCON_MLE_ENCRYPT_HEX_DUMP
+  hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
+  hexDump((void *) nonce, CRYPTO_NPUBBYTES, "Nonce Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+#endif
+
   uint16_t payloadLen = aMessage.GetLength() - aCmdOffset;
 
   // Read payload data from the Message.
@@ -129,6 +135,12 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   uint8_t tag[ASCON_TAG_LENGTH];
   uint8_t *tagOffset = ciphertext + payloadLen;
   memcpy(&tag, tagOffset, ASCON_TAG_LENGTH);
+
+#if ASCON_MLE_ENCRYPT_HEX_DUMP
+  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
+  hexDump((void *) ciphertext, actualCipherLen, "Ciphertext Bytes (no tag)");
+  hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
+#endif
 
   // Add the ASCON tag at the end of the ciphertext.
   error = aMessage.Append(tag);
@@ -271,6 +283,12 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), nonce);
 
+#if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) key, OT_NETWORK_KEY_SIZE, "Thread Network Key Bytes");
+  hexDump((void *) nonce, CRYPTO_NPUBBYTES, "Nonce Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+#endif
+
   uint16_t cipherLen = aMessage.GetLength() - aCmdOffset;
 
   // Read the ciphertext payload.
@@ -288,6 +306,12 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   status = crypto_aead_decrypt(payload, &actualPayloadLen, NULL,
                                ciphertext, cipherLen,
                                assocData, ASSOC_DATA_BYTES, nonce, key);
+
+#if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) payload, actualPayloadLen, "Plaintext Bytes (no tag)");
+  hexDump((ciphertext + cipherLen) - ASCON_TAG_LENGTH, ASCON_TAG_LENGTH, "MLE Tag Bytes");
+#endif
+
   if (status != 0) {
     otLogWarnPlat("Invalid ASCON ciphertext (MLE).");
     return OT_ERROR_SECURITY;
