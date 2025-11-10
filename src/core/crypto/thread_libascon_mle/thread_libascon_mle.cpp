@@ -252,7 +252,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   hexDump((void *) tag, ASCON_TAG_LENGTH, "MLE Tag Bytes");
 #endif
   return error;
-#endif // ASCON_AEAD_128
+#endif
 }
 
 Error Mle::AsconMleDecrypt(Message                &aMessage,
@@ -440,7 +440,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   aMessage.SetLength(aMessage.GetLength() - ASCON_TAG_LENGTH);
 
   return OT_ERROR_NONE;
-#endif // ASCON_AEAD_128
+#endif
 }
 
 } // namespace Mle
