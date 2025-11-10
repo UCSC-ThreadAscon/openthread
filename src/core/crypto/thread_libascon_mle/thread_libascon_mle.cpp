@@ -35,15 +35,12 @@ void createNonce(ot::Ip6::Address sender,
   uint8_t *offset = (uint8_t *) aNonce;
 
   memcpy((void *) offset, senderExt.m8, sizeof(ot::Mac::ExtAddress));
-  hexDump(offset, sizeof(ot::Mac::ExtAddress), "Sender Ext");
   offset += sizeof(ot::Mac::ExtAddress);
 
   memcpy(offset, &frameCounter, sizeof(uint32_t));
-  hexDump((void *) offset, sizeof(uint32_t), "Frame Counter");
   offset += sizeof(uint32_t);
 
   memcpy(offset, &securityLevel, sizeof(uint8_t));
-  hexDump((void *) offset, sizeof(uint8_t), "Security Level");
   return;
 }
 
@@ -197,8 +194,8 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   }
 
 #if ASCON_MLE_ENCRYPT_HEX_DUMP
-  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
-  // hexDump((void *) ciphertext, plaintextLen, "Ciphertext Bytes (no tag)");
+  Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
+  hexDump((void *) ciphertext, plaintextLen, "Ciphertext Bytes (no tag)");
   hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "MLE Tag Bytes");
 #endif
   return error;
@@ -324,9 +321,9 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
 #if ASCON_MLE_DECRYPT_HEX_DUMP
-  // hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
   hexDump((void *) nonce, CHACHAPOLY_NONCE_LEN, "Nonce Bytes");
-  // hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 #endif
 
   uint16_t cipherLenTotal = aMessage.GetLength() - aCmdOffset;
@@ -357,8 +354,8 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
                                                plaintext);
 
 #if ASCON_MLE_DECRYPT_HEX_DUMP
-  // hexDump((void *) cipherNoTag, cipherLenNoTag, "Ciphertext Bytes (no tag)");
-  // hexDump((void *) plaintext, plaintextLen, "Plaintext Bytes (no tag)");
+  hexDump((void *) cipherNoTag, cipherLenNoTag, "Ciphertext Bytes (no tag)");
+  hexDump((void *) plaintext, plaintextLen, "Plaintext Bytes (no tag)");
   hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "MLE Tag Bytes");
 #endif
 
