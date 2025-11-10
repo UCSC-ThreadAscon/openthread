@@ -309,6 +309,74 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   }
 
   return OT_ERROR_NONE;
+#elif CHA_CHA_POLY
+  unsigned char key[CHACHAPOLY_KEY_LEN];
+  createChaChaPolyKey(aMacKey, key);
+
+  unsigned char assocData[ASSOC_DATA_BYTES];
+  CreateAssocData(assocData);
+
+  unsigned char asconNonce[ASCON_AEAD_NONCE_LEN];
+  CreateAsconNonce(aExtAddress, frameCounter, securityLevel, asconNonce);
+
+  // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
+  unsigned char nonce[CHACHAPOLY_NONCE_LEN];
+  EmptyMemory(nonce, CHACHAPOLY_NONCE_LEN);
+  memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
+
+#if ASCON_MAC_DECRYPT_HEX_DUMP
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
+  hexDump((void *) nonce, CHACHAPOLY_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+
+  // Ciphertext before it gets decrypted to plaintext in place.
+  hexDump((void *) GetPayload(), GetPayloadLength(), "Ciphertext Bytes (with tag)");
+#endif
+
+  uint8_t footerLength = GetFooterLength();
+  uint8_t footerCopy[footerLength];
+  memcpy(footerCopy, GetFooter(), footerLength);
+
+  uint16_t plaintextLength = GetPayloadLength();
+  uint8_t* tag = GetPayload() + plaintextLength;
+
+  mbedtls_chachapoly_context context;
+  EmptyMemory(&context, sizeof(mbedtls_chachapoly_context));
+
+  mbedtls_chachapoly_init(&context);
+  mbedtls_chachapoly_setkey(&context, key);
+
+  int status = mbedtls_chachapoly_auth_decrypt(&context, plaintextLength, nonce, assocData,
+                                               ASSOC_DATA_BYTES, tag, GetPayload(),
+                                               GetPayload());
+
+#if ASCON_MLE_DECRYPT_HEX_DUMP
+  hexDump((void *) GetPayload(), plaintextLen, "Plaintext Bytes (no tag)");
+  hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "MAC Tag Bytes");
+#endif
+
+  if (!CHACHAPOLY_VALID(status)) {
+    if (status == MBEDTLS_ERR_CHACHAPOLY_AUTH_FAILED)
+    {
+      otLogWarnPlat("Invalid ChaChaPoly Ciphertext (MAC): Auth Failed.");
+    }
+    else if (status == MBEDTLS_ERR_CHACHAPOLY_BAD_STATE)
+    {
+      otLogWarnPlat("Invalid ChaChaPoly Ciphertext (MAC): Bad State.");
+    }
+    else
+    {
+      otLogWarnPlat("Invalid ChaChaPoly Ciphertext (MAC).");
+    }
+    return OT_ERROR_SECURITY;
+  }
+
+  SetPayloadLength(plaintextLength);
+
+  void* end = GetPayload() + GetPayloadLength();
+  memcpy(end, footerCopy, footerLength);
+
+  return OT_ERROR_NONE;
 #else // LIBASCON
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(aMacKey, key);
