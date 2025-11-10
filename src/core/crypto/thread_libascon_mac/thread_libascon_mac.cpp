@@ -191,7 +191,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 
   uint16_t plaintextLength = GetPayloadLength();
 
-  uint8_t* plaintextBuffer[plaintextLength];
+  uint8_t plaintextBuffer[plaintextLength];
   EmptyMemory(plaintextBuffer, plaintextLength);
   memcpy(plaintextBuffer, GetPayload(), plaintextLength);
 
