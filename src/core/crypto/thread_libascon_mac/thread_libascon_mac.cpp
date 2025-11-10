@@ -361,7 +361,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
                                                ASSOC_DATA_BYTES, tag, ciphertextBuffer,
                                                GetPayload());
 
-#if ASCON_MLE_DECRYPT_HEX_DUMP
+#if ASCON_MAC_DECRYPT_HEX_DUMP
   hexDump((void *) GetPayload(), plaintextLen, "Plaintext Bytes (no tag)");
   hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "MAC Tag Bytes");
 #endif
