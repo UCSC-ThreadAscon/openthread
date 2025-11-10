@@ -150,6 +150,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   unsigned char asconNonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), asconNonce);
+  hexDump((void *) asconNonce, ASCON_AEAD_NONCE_LEN, "16 Byte Nonce");
   
   // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
   unsigned char nonce[CHACHAPOLY_NONCE_LEN];
@@ -308,12 +309,13 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   createChaChaPolyKey(key, aHeader);
 
   unsigned char assocData[ASSOC_DATA_BYTES];
-  createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
+  createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
   
   unsigned char asconNonce[ASCON_AEAD_NONCE_LEN];
-  createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
+  createNonce(aMessageInfo.GetPeerAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), asconNonce);
+  hexDump((void *) asconNonce, ASCON_AEAD_NONCE_LEN, "16 Byte Nonce");
   
   // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
   unsigned char nonce[CHACHAPOLY_NONCE_LEN];
