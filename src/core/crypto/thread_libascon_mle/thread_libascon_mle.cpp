@@ -194,7 +194,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   }
 
 #if ASCON_MLE_ENCRYPT_HEX_DUMP
-  Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
+  // Length of plaintext and ciphertext (without tag) are the same under ASCON AEAD.
   hexDump((void *) ciphertext, plaintextLen, "Ciphertext Bytes (no tag)");
   hexDump((void *) tag, CHACHAPOLY_TAG_LEN, "MLE Tag Bytes");
 #endif
