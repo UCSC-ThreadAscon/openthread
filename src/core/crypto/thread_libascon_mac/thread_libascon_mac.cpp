@@ -100,6 +100,27 @@ void CreateAsconNonce(const ExtAddress &aExtAddress,
   return;
 }
 
+/**
+ * We got the idea to repeat the 128 bit network key twice to create a 256 bit key from:
+ * 
+ * - Daniel J. Bernstein, who does the same to obtain a 256 bit key from a 128 bit key
+ *   for Salsa20: https://cr.yp.to/snuffle/keysizes.pdf
+ * 
+ *   We initially learned about Bernstein's stratey from the following Stack Exchange user
+ *   DerekKnowles's Crypto Stack Exchange post:
+ *   https://crypto.stackexchange.com/a/113638
+ * 
+ * - Stack Exchange user DannyNiu also suggested this idea as well in their
+ *   Crypto Stack Exchange post:
+ *   https://crypto.stackexchange.com/a/113588
+ */
+void createChaChaPolyKey(const ot::Mac::KeyMaterial &aMacKey, unsigned char *key)
+{
+  EmptyMemory(key, CHACHAPOLY_KEY_LEN);
+  ConvertToAsconKey(aMacKey, key);
+  return;
+}
+
 Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
                                 uint32_t frameCounter,
                                 uint8_t securityLevel)
@@ -147,6 +168,59 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
+#elif CHA_CHA_POLY
+  unsigned char key[CHACHAPOLY_KEY_LEN];
+  createChaChaPolyKey(GetAesKey(), key);
+
+  unsigned char assocData[ASSOC_DATA_BYTES];
+  CreateAssocData(assocData);
+
+  unsigned char asconNonce[ASCON_AEAD_NONCE_LEN];
+  CreateAsconNonce(aExtAddress, frameCounter, securityLevel, asconNonce);
+
+  // ChaChaPoly nonce is first 12 bytes of ASCON Nonce.
+  unsigned char nonce[CHACHAPOLY_NONCE_LEN];
+  EmptyMemory(nonce, CHACHAPOLY_NONCE_LEN);
+  memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
+
+#if ASCON_MAC_ENCRYPT_HEX_DUMP
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
+  hexDump((void *) nonce, CHACHAPOLY_NONCE_LEN, "Nonce Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+#endif
+
+  uint16_t plaintextLength = GetPayloadLength();
+  SetPayloadLength(GetPayloadLength() + CHACHAPOLY_TAG_LEN);
+
+  uint8_t footerLength = GetFooterLength();
+  uint8_t footerCopy[footerLength];
+  memcpy(footerCopy, GetFooter(), footerLength);
+
+  void* end = GetPayload() + GetPayloadLength();
+  memcpy(end, footerCopy, footerLength);
+
+  uint8_t tag[CHACHAPOLY_TAG_LEN];
+  EmptyMemory(tag, CHACHAPOLY_TAG_LEN);
+
+  mbedtls_chachapoly_context context;
+  EmptyMemory(&context, sizeof(mbedtls_chachapoly_context));
+
+  mbedtls_chachapoly_init(&context);
+  mbedtls_chachapoly_setkey(&context, key);
+
+  mbedtls_chachapoly_encrypt_and_tag(&context, plaintextLength, nonce, assocData,
+                                     ASSOC_DATA_BYTES, GetPayload(), GetPayload(), tag);
+
+  end = GetPayload() + plaintextLength;
+  memcpy(end, tag, CHACHAPOLY_TAG_LEN);
+
+#if ASCON_MAC_ENCRYPT_HEX_DUMP
+  hexDump((void *) GetPayload(), plaintextLength, "Ciphertext Bytes (no tag)");
+  hexDump((void *) GetFooter(), tagLength, "Tag (Footer) Bytes");
+#endif
+
+  SetIsSecurityProcessed(true);
+  return OT_ERROR_NONE;
 #else // LIBASCON
   unsigned char key[OT_NETWORK_KEY_SIZE];
   ConvertToAsconKey(GetAesKey(), key);
@@ -179,7 +253,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 
   SetIsSecurityProcessed(true);
   return OT_ERROR_NONE;
-#endif // ASCON_AEAD_128
+#endif
 }
 
 Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
@@ -274,7 +348,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   }
 
   return OT_ERROR_NONE;
-#endif // ASCON_AEAD_128
+#endif
 }
 
 } // namespace Mac
