@@ -172,7 +172,7 @@ Error TxFrame::AsconDataEncrypt(const ExtAddress &aExtAddress,
 #elif CHA_CHA_POLY
   /**
    * Our source code for using the mbedTLS implementation of ChaChaPoly is based on
-   * the source code given the following tutorial:
+   * the source code given in the following tutorial:
    * https://www.luisllamas.es/en/how-to-use-chachapoly-on-esp32/
    */
   unsigned char key[CHACHAPOLY_KEY_LEN];
@@ -323,7 +323,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
 #elif CHA_CHA_POLY
   /**
    * Our source code for using the mbedTLS implementation of ChaChaPoly is based on
-   * the source code given the following tutorial:
+   * the source code given in the following tutorial:
    * https://www.luisllamas.es/en/how-to-use-chachapoly-on-esp32/
    */
   unsigned char key[CHACHAPOLY_KEY_LEN];
