@@ -342,8 +342,14 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   uint8_t footerCopy[footerLength];
   memcpy(footerCopy, GetFooter(), footerLength);
 
-  uint16_t plaintextLength = GetPayloadLength();
-  uint8_t* tag = GetPayload() + plaintextLength;
+  uint16_t ciphertextLength = GetPayloadLength() - CHACHAPOLY_TAG_LEN;
+
+  uint8_t ciphertextBuffer[ciphertextLength];
+  EmptyMemory(ciphertextBuffer, ciphertextLength);
+
+  uint8_t tag[CHACHAPOLY_TAG_LEN];
+  EmptyMemory(tag, CHACHAPOLY_TAG_LEN);
+  memcpy(tag, GetPayload() + ciphertextLength, CHACHAPOLY_TAG_LEN);
 
   mbedtls_chachapoly_context context;
   EmptyMemory(&context, sizeof(mbedtls_chachapoly_context));
@@ -351,8 +357,8 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
   mbedtls_chachapoly_init(&context);
   mbedtls_chachapoly_setkey(&context, key);
 
-  int status = mbedtls_chachapoly_auth_decrypt(&context, plaintextLength, nonce, assocData,
-                                               ASSOC_DATA_BYTES, tag, GetPayload(),
+  int status = mbedtls_chachapoly_auth_decrypt(&context, ciphertextLength, nonce, assocData,
+                                               ASSOC_DATA_BYTES, tag, ciphertextBuffer,
                                                GetPayload());
 
 #if ASCON_MLE_DECRYPT_HEX_DUMP
@@ -376,7 +382,7 @@ Error RxFrame::AsconDataDecrypt(const KeyMaterial &aMacKey,
     return OT_ERROR_SECURITY;
   }
 
-  SetPayloadLength(plaintextLength);
+  SetPayloadLength(ciphertextLength);
 
   void* end = GetPayload() + GetPayloadLength();
   memcpy(end, footerCopy, footerLength);
