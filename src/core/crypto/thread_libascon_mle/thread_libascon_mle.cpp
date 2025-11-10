@@ -142,7 +142,6 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 
   unsigned char key[CHACHAPOLY_KEY_LEN];
   createChaChaPolyKey(key, aHeader);
-  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "MLE Network Key");
 
   unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
@@ -306,7 +305,6 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 #elif CHA_CHA_POLY
   unsigned char key[CHACHAPOLY_KEY_LEN];
   createChaChaPolyKey(key, aHeader);
-  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "MLE Network Key");
 
   unsigned char assocData[ASSOC_DATA_BYTES];
   createAssocData(aMessageInfo.GetPeerAddr(), aMessageInfo.GetSockAddr(),
