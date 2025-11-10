@@ -157,9 +157,9 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   memcpy(nonce, asconNonce, CHACHAPOLY_NONCE_LEN);
 
 #if ASCON_MLE_ENCRYPT_HEX_DUMP
-  // hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
+  hexDump((void *) key, CHACHAPOLY_KEY_LEN, "Thread Network Key Bytes");
   hexDump((void *) nonce, CHACHAPOLY_NONCE_LEN, "Nonce Bytes");
-  // hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
+  hexDump((void *) assocData, ASSOC_DATA_BYTES, "Associated Data Bytes");
 #endif
 
   uint16_t plaintextLen = aMessage.GetLength() - aCmdOffset;
