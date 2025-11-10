@@ -150,6 +150,11 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
 
   return error;
 #elif CHA_CHA_POLY
+  /**
+   * Our source code for using the mbedTLS implementation of ChaChaPoly is based on
+   * the source code given the following tutorial:
+   * https://www.luisllamas.es/en/how-to-use-chachapoly-on-esp32/
+   */
   otError error = OT_ERROR_NONE;
 
   unsigned char key[CHACHAPOLY_KEY_LEN];
@@ -327,6 +332,11 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
 
   return OT_ERROR_NONE;
 #elif CHA_CHA_POLY
+  /**
+   * Our source code for using the mbedTLS implementation of ChaChaPoly is based on
+   * the source code given the following tutorial:
+   * https://www.luisllamas.es/en/how-to-use-chachapoly-on-esp32/
+   */
   unsigned char key[CHACHAPOLY_KEY_LEN];
   createChaChaPolyKey(key, aHeader);
 
