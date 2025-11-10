@@ -118,6 +118,7 @@ void createChaChaPolyKey(const ot::Mac::KeyMaterial &aMacKey, unsigned char *key
 {
   EmptyMemory(key, CHACHAPOLY_KEY_LEN);
   ConvertToAsconKey(aMacKey, key);
+  ConvertToAsconKey(aMacKey, key + OT_NETWORK_KEY_SIZE);
   return;
 }
 

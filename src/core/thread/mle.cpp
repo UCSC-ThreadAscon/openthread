@@ -1586,6 +1586,7 @@ void Mle::createChaChaPolyKey(unsigned char *key, const SecurityHeader &aHeader)
 {
   EmptyMemory(key, CHACHAPOLY_KEY_LEN);
   GetAsconKey(aHeader.GetKeyId(), key);
+  GetAsconKey(aHeader.GetKeyId(), key + OT_NETWORK_KEY_SIZE);
   return;
 }
 
