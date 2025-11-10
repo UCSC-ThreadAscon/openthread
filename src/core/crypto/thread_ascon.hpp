@@ -42,8 +42,6 @@
 #define CHACHAPOLY_KEY_LEN 32
 #define CHACHAPOLY_TAG_LEN 16
 
-#define ASCON_NONCE_SIZE 16
-
 #define CHACHAPOLY_VALID(status) status == 0 ? true : false
 
 #endif

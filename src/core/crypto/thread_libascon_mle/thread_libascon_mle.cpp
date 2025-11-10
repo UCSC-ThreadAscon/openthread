@@ -147,7 +147,7 @@ Error Mle::AsconMleEncrypt(Message                &aMessage,
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
   
-  unsigned char asconNonce[ASCON_NONCE_SIZE];
+  unsigned char asconNonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), asconNonce);
   
@@ -311,7 +311,7 @@ Error Mle::AsconMleDecrypt(Message                &aMessage,
   createAssocData(aMessageInfo.GetSockAddr(), aMessageInfo.GetPeerAddr(),
                   assocData);
   
-  unsigned char asconNonce[ASCON_NONCE_SIZE];
+  unsigned char asconNonce[ASCON_AEAD_NONCE_LEN];
   createNonce(aMessageInfo.GetSockAddr(), aHeader.GetFrameCounter(),
               aHeader.GetKeyId(), asconNonce);
   
