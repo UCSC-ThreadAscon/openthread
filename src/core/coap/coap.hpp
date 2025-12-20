@@ -41,6 +41,7 @@
 #include "common/locator.hpp"
 #include "common/message.hpp"
 #include "common/non_copyable.hpp"
+#include "common/owned_ptr.hpp"
 #include "common/timer.hpp"
 #include "net/ip6.hpp"
 #include "net/netif.hpp"
@@ -90,7 +91,7 @@ typedef otCoapResponseFallback ResponseFallback;
 class TxParameters : public otCoapTxParameters
 {
     friend class CoapBase;
-    friend class ResponsesQueue;
+    friend class ResponseCache;
 
 public:
     /**
@@ -128,6 +129,8 @@ private:
     static constexpr uint8_t  kDefaultAckRandomFactorDenominator = 2;
     static constexpr uint8_t  kDefaultMaxRetransmit              = 4;
     static constexpr uint32_t kDefaultMaxLatency                 = 100000; // in msec
+    static constexpr uint8_t  kMaxRetransmit                     = OT_COAP_MAX_RETRANSMIT;
+    static constexpr uint32_t kMinAckTimeout                     = OT_COAP_MIN_ACK_TIMEOUT;
 
     uint32_t CalculateInitialRetransmissionTimeout(void) const;
     uint32_t CalculateExchangeLifetime(void) const;
@@ -268,84 +271,10 @@ protected:
 #endif
 
 /**
- * Caches CoAP responses to implement message deduplication.
- */
-class ResponsesQueue
-{
-public:
-    /**
-     * Default class constructor.
-     *
-     * @param[in]  aInstance  A reference to the OpenThread instance.
-     */
-    explicit ResponsesQueue(Instance &aInstance);
-
-    /**
-     * Adds a given response to the cache.
-     *
-     * If matching response (the same Message ID, source endpoint address and port) exists in the cache given
-     * response is not added.
-     *
-     * The CoAP response is copied before it is added to the cache.
-     *
-     * @param[in]  aMessage      The CoAP response to add to the cache.
-     * @param[in]  aMessageInfo  The message info corresponding to @p aMessage.
-     * @param[in]  aTxParameters Transmission parameters.
-     */
-    void EnqueueResponse(Message &aMessage, const Ip6::MessageInfo &aMessageInfo, const TxParameters &aTxParameters);
-
-    /**
-     * Removes all responses from the cache.
-     */
-    void DequeueAllResponses(void);
-
-    /**
-     * Gets a copy of CoAP response from the cache that matches a given Message ID and source endpoint.
-     *
-     * @param[in]  aRequest      The CoAP message containing Message ID.
-     * @param[in]  aMessageInfo  The message info containing source endpoint address and port.
-     * @param[out] aResponse     A pointer to return a copy of a cached CoAP response matching given arguments.
-     *
-     * @retval kErrorNone      Matching response found and successfully created a copy.
-     * @retval kErrorNoBufs    Matching response found but there is not sufficient buffer to create a copy.
-     * @retval kErrorNotFound  Matching response not found.
-     */
-    Error GetMatchedResponseCopy(const Message &aRequest, const Ip6::MessageInfo &aMessageInfo, Message **aResponse);
-
-    /**
-     * Gets a reference to the cached CoAP responses queue.
-     *
-     * @returns  A reference to the cached CoAP responses queue.
-     */
-    const MessageQueue &GetResponses(void) const { return mQueue; }
-
-private:
-    static constexpr uint16_t kMaxCachedResponses = OPENTHREAD_CONFIG_COAP_SERVER_MAX_CACHED_RESPONSES;
-
-    struct ResponseMetadata : public Message::FooterData<ResponseMetadata>
-    {
-        TimeMilli        mDequeueTime;
-        Ip6::MessageInfo mMessageInfo;
-    };
-
-    const Message *FindMatchedResponse(const Message &aRequest, const Ip6::MessageInfo &aMessageInfo) const;
-    void           DequeueResponse(Message &aMessage);
-    void           UpdateQueue(void);
-
-    static void HandleTimer(Timer &aTimer);
-    void        HandleTimer(void);
-
-    MessageQueue      mQueue;
-    TimerMilliContext mTimer;
-};
-
-/**
  * Implements the CoAP client and server.
  */
 class CoapBase : public InstanceLocator, private NonCopyable
 {
-    friend class ResponsesQueue;
-
 public:
 #if OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE
     static constexpr uint16_t kMaxBlockLength = OPENTHREAD_CONFIG_COAP_MAX_BLOCK_LENGTH;
@@ -594,6 +523,7 @@ public:
      * @retval kErrorNoBufs  Insufficient buffers available to send the CoAP message.
      */
     Error SendMessage(Message &aMessage, const Ip6::MessageInfo &aMessageInfo, const TxParameters &aTxParameters);
+
     /**
      * Sends a CoAP message with default transmission parameters.
      *
@@ -617,6 +547,27 @@ public:
      *
      * If Message ID was not set in the header (equal to 0), this method will assign unique Message ID to the message.
      *
+     * This flavor of `SendMessage()` accepts an `OwnedPtr<Message>` and therefore takes ownership of the passed-in
+     * message.
+     *
+     * @param[in]  aMessage      An `OwnedPtr` to the message to send.
+     * @param[in]  aMessageInfo  A reference to the message info associated with @p aMessage.
+     * @param[in]  aHandler      A function pointer that shall be called on response reception or time-out.
+     * @param[in]  aContext      A pointer to arbitrary context information.
+     *
+     * @retval kErrorNone    Successfully sent CoAP message.
+     * @retval kErrorNoBufs  Insufficient buffers available to send the CoAP response.
+     */
+    Error SendMessage(OwnedPtr<Message>       aMessage,
+                      const Ip6::MessageInfo &aMessageInfo,
+                      ResponseHandler         aHandler,
+                      void                   *aContext);
+
+    /**
+     * Sends a CoAP message with default transmission parameters.
+     *
+     * If Message ID was not set in the header (equal to 0), this method will assign unique Message ID to the message.
+     *
      * @param[in]  aMessage      A reference to the message to send.
      * @param[in]  aMessageInfo  A reference to the message info associated with @p aMessage.
      *
@@ -624,6 +575,22 @@ public:
      * @retval kErrorNoBufs  Insufficient buffers available to send the CoAP response.
      */
     Error SendMessage(Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+
+    /**
+     * Sends a CoAP message with default transmission parameters.
+     *
+     * If Message ID was not set in the header (equal to 0), this method will assign unique Message ID to the message.
+     *
+     * This flavor of `SendMessage()` accepts an `OwnedPtr<Message>` and therefore takes ownership of the passed-in
+     * message.
+     *
+     * @param[in]  aMessage      An `OwnedPtr` to the message to send.
+     * @param[in]  aMessageInfo  A reference to the message info associated with @p aMessage.
+     *
+     * @retval kErrorNone    Successfully sent CoAP message.
+     * @retval kErrorNoBufs  Insufficient buffers available to send the CoAP response.
+     */
+    Error SendMessage(OwnedPtr<Message> aMessage, const Ip6::MessageInfo &aMessageInfo);
 
     /**
      * Sends a CoAP reset message.
@@ -831,6 +798,36 @@ private:
 #endif
     };
 
+    class ResponseCache
+    {
+    public:
+        explicit ResponseCache(Instance &aInstance);
+
+        void  Add(const Message &aResponse, const Ip6::MessageInfo &aMessageInfo, uint32_t aExchangeLifetime);
+        void  RemoveAll(void);
+        Error SendCachedResponse(const Message &aRequest, const Ip6::MessageInfo &aMessageInfo, CoapBase &aCoapBase);
+        void  GetInfo(MessageQueue::Info &aInfo) const { return mResponses.GetInfo(aInfo); }
+
+    private:
+        static constexpr uint16_t kMaxCacheSize = OPENTHREAD_CONFIG_COAP_SERVER_MAX_CACHED_RESPONSES;
+
+        static_assert(kMaxCacheSize != 0, "kMaxCacheSize MUST be non-zero");
+
+        struct ResponseMetadata : public Message::FooterData<ResponseMetadata>
+        {
+            TimeMilli        mExpireTime;
+            Ip6::MessageInfo mMessageInfo;
+        };
+
+        const Message *FindMatching(uint16_t aMessageId, const Ip6::MessageInfo &aMessageInfo) const;
+        void           MaintainCacheSize(void);
+        static void    HandleTimer(Timer &aTimer);
+        void           HandleTimer(void);
+
+        MessageQueue      mResponses;
+        TimerMilliContext mTimer;
+    };
+
     Message *InitMessage(Message *aMessage, Type aType, Uri aUri);
     Message *InitResponse(Message *aMessage, const Message &aRequest);
 
@@ -847,15 +844,7 @@ private:
                                      Message                *aResponse,
                                      const Ip6::MessageInfo *aMessageInfo,
                                      Error                   aResult);
-
-    inline bool InvokeResponseFallback(Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
-    {
-        if (mResponseFallback.IsSet())
-        {
-            return mResponseFallback.Invoke(&aMessage, &aMessageInfo);
-        }
-        return false;
-    }
+    bool     InvokeResponseFallback(Message &aMessage, const Ip6::MessageInfo &aMessageInfo) const;
 
 #if OPENTHREAD_CONFIG_COAP_BLOCKWISE_TRANSFER_ENABLE
     void  FreeLastBlockResponse(void);
@@ -901,7 +890,7 @@ private:
     LinkedList<Resource> mResources;
 
     Callback<Interceptor> mInterceptor;
-    ResponsesQueue        mResponsesQueue;
+    ResponseCache         mResponseCache;
 
     Callback<RequestHandler>   mDefaultHandler;
     Callback<ResponseFallback> mResponseFallback;

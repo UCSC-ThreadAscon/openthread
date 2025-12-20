@@ -165,6 +165,7 @@ openthread_core_files = [
   "api/backbone_router_ftd_api.cpp",
   "api/ble_secure_api.cpp",
   "api/border_agent_api.cpp",
+  "api/border_agent_ephemeral_key_api.cpp",
   "api/border_agent_tracker_api.cpp",
   "api/border_agent_txt_data_api.cpp",
   "api/border_router_api.cpp",
@@ -783,12 +784,18 @@ group("libopenthread_platform") {
 
 static_library("libopenthread-ftd") {
   sources = openthread_core_sources
+  if (openthread_config_tcp_enable) {
+    deps = [ "../../third_party/tcplp" ]
+  }
   public_deps = [ ":libopenthread_platform" ]
   public_configs = [ "../..:openthread_ftd_config" ]
 }
 
 static_library("libopenthread-mtd") {
   sources = openthread_core_sources
+  if (openthread_config_tcp_enable) {
+    deps = [ "../../third_party/tcplp" ]
+  }
   public_deps = [ ":libopenthread_platform" ]
   public_configs = [ "../..:openthread_mtd_config" ]
 }
