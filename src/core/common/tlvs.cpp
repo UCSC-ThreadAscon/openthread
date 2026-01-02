@@ -257,6 +257,19 @@ Error Tlv::AppendStringTlv(Message &aMessage, uint8_t aType, uint8_t aMaxStringL
     return AppendTlv(aMessage, aType, aValue, static_cast<uint8_t>(length));
 }
 
+Error Tlv::ValidateStringTlvValue(uint8_t aMaxStringLength, const char *aStringValue)
+{
+    Error error = kErrorNone;
+
+    VerifyOrExit(aStringValue != nullptr);
+
+    VerifyOrExit(StringLength(aStringValue, aMaxStringLength + 1) <= aMaxStringLength, error = kErrorInvalidArgs);
+    VerifyOrExit(IsValidUtf8String(aStringValue), error = kErrorInvalidArgs);
+
+exit:
+    return error;
+}
+
 template <typename UintType> Error Tlv::AppendUintTlv(Message &aMessage, uint8_t aType, UintType aValue)
 {
     UintType value = BigEndian::HostSwap<UintType>(aValue);
@@ -268,6 +281,8 @@ template <typename UintType> Error Tlv::AppendUintTlv(Message &aMessage, uint8_t
 template Error Tlv::AppendUintTlv<uint8_t>(Message &aMessage, uint8_t aType, uint8_t aValue);
 template Error Tlv::AppendUintTlv<uint16_t>(Message &aMessage, uint8_t aType, uint16_t aValue);
 template Error Tlv::AppendUintTlv<uint32_t>(Message &aMessage, uint8_t aType, uint32_t aValue);
+
+Error Tlv::AppendEmptyTlv(Message &aMessage, uint8_t aType) { return AppendTlv(aMessage, aType, nullptr, 0); }
 
 Error Tlv::AppendTlv(Message &aMessage, uint8_t aType, const void *aValue, uint16_t aLength)
 {
@@ -290,6 +305,82 @@ Error Tlv::AppendTlv(Message &aMessage, uint8_t aType, const void *aValue, uint1
 
     VerifyOrExit(aLength > 0);
     error = aMessage.AppendBytes(aValue, aLength);
+
+exit:
+    return error;
+}
+
+Error Tlv::StartTlv(Message &aMessage, uint8_t aType, Bookmark &aBookmark)
+{
+    Tlv tlv;
+
+    tlv.SetType(aType);
+    tlv.SetLength(0);
+
+    aBookmark = aMessage.GetLength();
+
+    return aMessage.Append(tlv);
+}
+
+Error Tlv::AdjustTlv(Message &aMessage, Bookmark aBookmark)
+{
+    return UpdateTlv(aMessage, aBookmark, /* aShouldWriteLength */ false);
+}
+
+Error Tlv::EndTlv(Message &aMessage, Bookmark aBookmark)
+{
+    return UpdateTlv(aMessage, aBookmark, /* aShouldWriteLength */ true);
+}
+
+Error Tlv::UpdateTlv(Message &aMessage, Bookmark aBookmark, bool aShouldWriteLength)
+{
+    Error       error;
+    uint16_t    startOffset = aBookmark;
+    uint16_t    length;
+    Tlv         tlv;
+    ExtendedTlv extTlv;
+
+    SuccessOrExit(error = aMessage.Read(startOffset, tlv));
+
+    length = aMessage.GetLength() - startOffset;
+
+    if (tlv.IsExtended())
+    {
+        length -= sizeof(ExtendedTlv);
+    }
+    else
+    {
+        length -= sizeof(Tlv);
+
+        if (length > kBaseTlvMaxLength)
+        {
+            // If the TLV is not already an Extended TLV, change it. We
+            // need to move the written value bytes forward to make
+            // room for the Extended TLV header.
+
+            SuccessOrExit(error = aMessage.SetLength(aMessage.GetLength() + sizeof(ExtendedTlv) - sizeof(Tlv)));
+
+            aMessage.WriteBytesFromMessage(/* aWriteOffset */ startOffset + sizeof(ExtendedTlv), aMessage,
+                                           /* aReadOffset */ startOffset + sizeof(Tlv), length);
+
+            tlv.SetLength(kExtendedLength);
+            aMessage.Write(startOffset, tlv);
+        }
+    }
+
+    VerifyOrExit(aShouldWriteLength);
+
+    if (!tlv.IsExtended())
+    {
+        tlv.SetLength(static_cast<uint8_t>(length));
+        aMessage.Write(startOffset, tlv);
+    }
+    else
+    {
+        extTlv.SetType(tlv.GetType());
+        extTlv.SetLength(length);
+        aMessage.Write(startOffset, extTlv);
+    }
 
 exit:
     return error;

@@ -42,6 +42,7 @@
 #include "common/const_cast.hpp"
 #include "common/encoding.hpp"
 #include "common/error.hpp"
+#include "common/numeric_limits.hpp"
 #include "common/offset_range.hpp"
 #include "common/type_traits.hpp"
 
@@ -537,6 +538,36 @@ public:
     }
 
     /**
+     * Appends an empty TLV (no value) with a given type to a message.
+     *
+     * On success this method grows the message by the size of the TLV.
+     *
+     * @param[in]  aMessage      The message to append to.
+     * @param[in]  aType         The TLV type to append.
+     *
+     * @retval kErrorNone     Successfully appended the TLV to the message.
+     * @retval kErrorNoBufs   Insufficient available buffers to grow the message.
+     */
+    static Error AppendEmptyTlv(Message &aMessage, uint8_t aType);
+
+    /**
+     * Appends an empty TLV (no value) with a given type to a message.
+     *
+     * On success this method grows the message by the size of the TLV.
+     *
+     * @tparam     TlvType       The TLV type to append.
+     *
+     * @param[in]  aMessage      The message to append to.
+     *
+     * @retval kErrorNone     Successfully appended the TLV to the message.
+     * @retval kErrorNoBufs   Insufficient available buffers to grow the message.
+     */
+    template <typename TlvType> static Error AppendEmpty(Message &aMessage)
+    {
+        return AppendEmptyTlv(aMessage, TlvType::kType);
+    }
+
+    /**
      * Appends a TLV with a given type and value to a message.
      *
      * If the TLV length is longer than maximum base TLV size defined by `kBaseTlvMaxLength` then
@@ -633,6 +664,84 @@ public:
         return AppendStringTlv(aMessage, StringTlvType::kType, StringTlvType::kMaxStringLength, aValue);
     }
 
+    /**
+     * Validates a given string value for a simple TLV with a UTF-8 string value.
+     *
+     * The @p aValue can be `nullptr` in which case it is treated as an empty string.
+     *
+     * @tparam     StringTlvType  The simple TLV type for which to validate the value (must be a sub-class of
+     *                            `StringTlvInfo`).
+     *
+     * @param[in]  aValue         A pointer to a C string to validate.
+     *
+     * @retval kErrorNone         The string value is valid for the given `StringTlvType`.
+     * @retval kErrorInvalidArgs  The string is not a valid UTF-8 string or its length is longer than the max allowed
+     *                            length specified by `StringTlvType::kMaxStringLength`.
+     */
+    template <typename StringTlvType> static Error ValidateStringValue(const char *aValue)
+    {
+        static_assert(StringTlvType::kMaxStringLength < NumericLimits<uint8_t>::kMax, "String TLV length is invalid");
+
+        return ValidateStringTlvValue(StringTlvType::kMaxStringLength, aValue);
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Static methods for writing variable length TLVs in a `Message`.
+
+    /**
+     * Represents the opaque type for a bookmark used by `StartTlv()`, `AdjustTlv()`, and `EndTlv()`.
+     */
+    typedef uint16_t Bookmark;
+
+    /**
+     * Starts appending a new TLV to a message.
+     *
+     * This method is used in conjunction with `AdjustTlv()` and `EndTlv()` to append a TLV where the length is not
+     * known in advance. `StartTlv()` writes a placeholder TLV header and records its position in @p aBookmark.
+     * The caller can then append the value of the TLV to the message and finalize the TLV by calling `EndTlv()`.
+     *
+     * @param[in]  aMessage    The message to append the TLV to.
+     * @param[in]  aType       The type of the TLV.
+     * @param[out] aBookmark   A reference to a `Bookmark` to store the position of the new TLV.
+     *
+     * @retval kErrorNone     Successfully started the TLV by appending a placeholder header.
+     * @retval kErrorNoBufs   Insufficient space to append the placeholder header.
+     */
+    static Error StartTlv(Message &aMessage, uint8_t aType, Bookmark &aBookmark);
+
+    /**
+     * Adjusts a TLV header during a staged append, promoting it to an extended TLV if needed.
+     *
+     * This method can be called periodically while appending a large TLV value (after a `StartTlv()` call). It checks
+     * if the current length of the TLV has exceeded the capacity of a standard TLV. If so, it "promotes" the header to
+     * an extended TLV by shifting the already-written value data to make room for the larger header. This avoids a
+     * potentially large memory copy operation in the final `EndTlv()` call.
+     *
+     * This method is optional and intended as a performance optimization for large TLVs.
+     *
+     * @param[in] aMessage    The message containing the TLV.
+     * @param[in] aBookmark   The bookmark from the `StartTlv()` call.
+     *
+     * @retval kErrorNone     The TLV header was either successfully promoted or did not require promotion.
+     * @retval kErrorNoBufs   Insufficient space to promote the header.
+     */
+    static Error AdjustTlv(Message &aMessage, Bookmark aBookmark);
+
+    /**
+     * Finalizes a TLV that was started by `StartTlv()`.
+     *
+     * This method calculates the final length of the TLV value appended after the `StartTlv()` call and writes the
+     * correct length into the TLV header. If the final length requires an extended TLV and the header has not
+     * already been promoted by `AdjustTlv()`, this method will handle the promotion.
+     *
+     * @param[in] aMessage    The message containing the TLV.
+     * @param[in] aBookmark   The bookmark from the `StartTlv()` call.
+     *
+     * @retval kErrorNone     Successfully finalized the TLV.
+     * @retval kErrorNoBufs   Insufficient space if header promotion is required.
+     */
+    static Error EndTlv(Message &aMessage, Bookmark aBookmark);
+
     //------------------------------------------------------------------------------------------------------------------
     // Static methods for finding TLVs within a sequence of TLVs.
 
@@ -699,6 +808,8 @@ private:
     static Error ReadStringTlv(const Message &aMessage, uint16_t aOffset, uint8_t aMaxStringLength, char *aValue);
     static Error FindStringTlv(const Message &aMessage, uint8_t aType, uint8_t aMaxStringLength, char *aValue);
     static Error AppendStringTlv(Message &aMessage, uint8_t aType, uint8_t aMaxStringLength, const char *aValue);
+    static Error ValidateStringTlvValue(uint8_t aMaxStringLength, const char *aStringValue);
+    static Error UpdateTlv(Message &aMessage, Bookmark aBookmark, bool aShouldWriteLength);
     template <typename UintType> static Error ReadUintTlv(const Message &aMessage, uint16_t aOffset, UintType &aValue);
     template <typename UintType> static Error FindUintTlv(const Message &aMessage, uint8_t aType, UintType &aValue);
     template <typename UintType> static Error AppendUintTlv(Message &aMessage, uint8_t aType, UintType aValue);

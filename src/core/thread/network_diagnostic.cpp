@@ -111,36 +111,18 @@ void Server::PrepareMessageInfoForDest(const Ip6::Address &aDestination, Tmf::Me
 
 Error Server::AppendIp6AddressList(Message &aMessage)
 {
-    Error    error = kErrorNone;
-    uint16_t count = 0;
+    Error         error;
+    Tlv::Bookmark tlvBookmark;
 
-    for (const Ip6::Netif::UnicastAddress &addr : Get<ThreadNetif>().GetUnicastAddresses())
-    {
-        OT_UNUSED_VARIABLE(addr);
-        count++;
-    }
-
-    if (count * Ip6::Address::kSize <= Tlv::kBaseTlvMaxLength)
-    {
-        Tlv tlv;
-
-        tlv.SetType(Tlv::kIp6AddressList);
-        tlv.SetLength(static_cast<uint8_t>(count * Ip6::Address::kSize));
-        SuccessOrExit(error = aMessage.Append(tlv));
-    }
-    else
-    {
-        ExtendedTlv extTlv;
-
-        extTlv.SetType(Tlv::kIp6AddressList);
-        extTlv.SetLength(count * Ip6::Address::kSize);
-        SuccessOrExit(error = aMessage.Append(extTlv));
-    }
+    SuccessOrExit(error = Tlv::StartTlv(aMessage, Tlv::kIp6AddressList, tlvBookmark));
 
     for (const Ip6::Netif::UnicastAddress &addr : Get<ThreadNetif>().GetUnicastAddresses())
     {
         SuccessOrExit(error = aMessage.Append(addr.GetAddress()));
+        SuccessOrExit(error = Tlv::AdjustTlv(aMessage, tlvBookmark));
     }
+
+    error = Tlv::EndTlv(aMessage, tlvBookmark);
 
 exit:
     return error;
@@ -149,36 +131,23 @@ exit:
 #if OPENTHREAD_FTD
 Error Server::AppendChildTable(Message &aMessage)
 {
-    Error    error = kErrorNone;
-    uint16_t count;
+    Error         error = kErrorNone;
+    uint16_t      count = 0;
+    Tlv::Bookmark tlvBookmark;
 
     VerifyOrExit(Get<Mle::Mle>().IsRouterOrLeader());
 
-    count = Min(Get<ChildTable>().GetNumChildren(Child::kInStateValid), kMaxChildEntries);
-
-    if (count * sizeof(ChildTableEntry) <= Tlv::kBaseTlvMaxLength)
-    {
-        Tlv tlv;
-
-        tlv.SetType(Tlv::kChildTable);
-        tlv.SetLength(static_cast<uint8_t>(count * sizeof(ChildTableEntry)));
-        SuccessOrExit(error = aMessage.Append(tlv));
-    }
-    else
-    {
-        ExtendedTlv extTlv;
-
-        extTlv.SetType(Tlv::kChildTable);
-        extTlv.SetLength(count * sizeof(ChildTableEntry));
-        SuccessOrExit(error = aMessage.Append(extTlv));
-    }
+    SuccessOrExit(error = Tlv::StartTlv(aMessage, Tlv::kChildTable, tlvBookmark));
 
     for (Child &child : Get<ChildTable>().Iterate(Child::kInStateValid))
     {
         uint8_t         timeout = 0;
         ChildTableEntry entry;
 
-        VerifyOrExit(count--);
+        if (++count > kMaxChildEntries)
+        {
+            break;
+        }
 
         while (static_cast<uint32_t>(1 << timeout) < child.GetTimeout())
         {
@@ -192,7 +161,10 @@ Error Server::AppendChildTable(Message &aMessage)
         entry.SetMode(child.GetDeviceMode());
 
         SuccessOrExit(error = aMessage.Append(entry));
+        SuccessOrExit(error = Tlv::AdjustTlv(aMessage, tlvBookmark));
     }
+
+    error = Tlv::EndTlv(aMessage, tlvBookmark);
 
 exit:
     return error;
@@ -201,7 +173,7 @@ exit:
 Error Server::AppendEnhancedRoute(Message &aMessage)
 {
     Error                 error = kErrorNone;
-    Tlv                   tlv;
+    Tlv::Bookmark         tlvBookmark;
     Mle::RouterIdSet      routerIdSet;
     EnhancedRouteTlvEntry entry;
 
@@ -209,10 +181,8 @@ Error Server::AppendEnhancedRoute(Message &aMessage)
 
     Get<RouterTable>().GetRouterIdSet(routerIdSet);
 
-    tlv.SetType(Tlv::kEnhancedRoute);
-    tlv.SetLength(sizeof(Mle::RouterIdSet) + routerIdSet.GetNumberOfAllocatedIds() * sizeof(entry));
+    SuccessOrExit(error = Tlv::StartTlv(aMessage, Tlv::kEnhancedRoute, tlvBookmark));
 
-    SuccessOrExit(error = aMessage.Append(tlv));
     SuccessOrExit(error = aMessage.Append(routerIdSet));
 
     for (uint8_t routerId = 0; routerId <= Mle::kMaxRouterId; routerId++)
@@ -234,6 +204,8 @@ Error Server::AppendEnhancedRoute(Message &aMessage)
         SuccessOrExit(error = aMessage.Append(entry));
     }
 
+    error = Tlv::EndTlv(aMessage, tlvBookmark);
+
 exit:
     return error;
 }
@@ -251,10 +223,7 @@ Error Server::AppendChildTableAsChildTlvs(Message &aMessage)
         SuccessOrExit(error = childTlv.AppendTo(aMessage));
     }
 
-    // Add empty TLV to indicate end of the list
-
-    childTlv.InitAsEmpty();
-    SuccessOrExit(error = childTlv.AppendTo(aMessage));
+    error = Tlv::AppendEmpty<ChildTlv>(aMessage);
 
 exit:
     return error;
@@ -274,10 +243,7 @@ Error Server::AppendRouterNeighborTlvs(Message &aMessage)
         }
     }
 
-    // Add empty TLV to indicate end of the list
-
-    neighborTlv.InitAsEmpty();
-    SuccessOrExit(error = neighborTlv.AppendTo(aMessage));
+    error = Tlv::AppendEmpty<RouterNeighborTlv>(aMessage);
 
 exit:
     return error;
@@ -286,18 +252,13 @@ exit:
 Error Server::AppendChildTableIp6AddressList(Message &aMessage)
 {
     Error error = kErrorNone;
-    Tlv   tlv;
 
     for (const Child &child : Get<ChildTable>().Iterate(Child::kInStateValid))
     {
         SuccessOrExit(error = AppendChildIp6AddressListTlv(aMessage, child));
     }
 
-    // Add empty TLV to indicate end of the list
-
-    tlv.SetType(Tlv::kChildIp6AddressList);
-    tlv.SetLength(0);
-    SuccessOrExit(error = aMessage.Append(tlv));
+    error = Tlv::AppendEmpty<ChildIp6AddressListTlv>(aMessage);
 
 exit:
     return error;
@@ -332,32 +293,21 @@ Error Server::AppendMacCounters(Message &aMessage)
 Error Server::AppendBorderRouterIfAddrs(Message &aMessage)
 {
     Error                             error;
-    Tlv                               tlv;
-    uint16_t                          offset;
-    uint16_t                          length = 0;
+    Tlv::Bookmark                     tlvBookmark;
     BorderRouter::PrefixTableIterator iterator;
     BorderRouter::IfAddrEntry         ifAddr;
 
-    tlv.SetType(Tlv::kBrIfAddrs);
-
-    offset = aMessage.GetLength();
-    SuccessOrExit(error = aMessage.Append(tlv));
+    SuccessOrExit(error = Tlv::StartTlv(aMessage, Tlv::kBrIfAddrs, tlvBookmark));
 
     Get<BorderRouter::RxRaTracker>().InitIterator(iterator);
 
     while (Get<BorderRouter::RxRaTracker>().GetNextIfAddrEntry(iterator, ifAddr) == kErrorNone)
     {
-        if (length + sizeof(Ip6::Address) > Tlv::kBaseTlvMaxLength)
-        {
-            break;
-        }
-
         SuccessOrExit(error = aMessage.Append(ifAddr.mAddress));
-        length += sizeof(Ip6::Address);
+        SuccessOrExit(error = Tlv::AdjustTlv(aMessage, tlvBookmark));
     }
 
-    tlv.SetLength(ClampToUint8(length));
-    aMessage.Write(offset, tlv);
+    error = Tlv::EndTlv(aMessage, tlvBookmark);
 
 exit:
     return error;
@@ -952,10 +902,7 @@ Error Server::AppendChildTableAsChildTlvs(Coap::Message *&aAnswer, AnswerInfo &a
         SuccessOrExit(error = CheckAnswerLength(aAnswer, aInfo));
     }
 
-    // Add empty TLV to indicate end of the list
-
-    childTlv.InitAsEmpty();
-    SuccessOrExit(error = childTlv.AppendTo(*aAnswer));
+    error = Tlv::AppendEmpty<ChildTlv>(*aAnswer);
 
 exit:
     return error;
@@ -979,10 +926,7 @@ Error Server::AppendRouterNeighborTlvs(Coap::Message *&aAnswer, AnswerInfo &aInf
         SuccessOrExit(error = CheckAnswerLength(aAnswer, aInfo));
     }
 
-    // Add empty TLV to indicate end of the list
-
-    neighborTlv.InitAsEmpty();
-    SuccessOrExit(error = neighborTlv.AppendTo(*aAnswer));
+    error = Tlv::AppendEmpty<RouterNeighborTlv>(*aAnswer);
 
 exit:
     return error;
@@ -991,7 +935,6 @@ exit:
 Error Server::AppendChildTableIp6AddressList(Coap::Message *&aAnswer, AnswerInfo &aInfo)
 {
     Error error = kErrorNone;
-    Tlv   tlv;
 
     for (const Child &child : Get<ChildTable>().Iterate(Child::kInStateValid))
     {
@@ -999,11 +942,7 @@ Error Server::AppendChildTableIp6AddressList(Coap::Message *&aAnswer, AnswerInfo
         SuccessOrExit(error = CheckAnswerLength(aAnswer, aInfo));
     }
 
-    // Add empty TLV to indicate end of the list
-
-    tlv.SetType(Tlv::kChildIp6AddressList);
-    tlv.SetLength(0);
-    SuccessOrExit(error = aAnswer->Append(tlv));
+    error = Tlv::AppendEmpty<ChildIp6AddressListTlv>(*aAnswer);
 
 exit:
     return error;
@@ -1011,38 +950,18 @@ exit:
 
 Error Server::AppendChildIp6AddressListTlv(Message &aAnswer, const Child &aChild)
 {
-    Error                       error      = kErrorNone;
-    uint16_t                    numIp6Addr = aChild.GetIp6Addresses().GetLength();
+    Error                       error = kErrorNone;
+    Tlv::Bookmark               tlvBookmark;
     ChildIp6AddressListTlvValue tlvValue;
     Ip6::Address                mlEid;
 
-    if (aChild.GetMeshLocalIp6Address(mlEid) == kErrorNone)
-    {
-        numIp6Addr++;
-    }
-    else
+    if (aChild.GetMeshLocalIp6Address(mlEid) != kErrorNone)
     {
         mlEid.Clear();
+        VerifyOrExit(!aChild.GetIp6Addresses().IsEmpty());
     }
 
-    VerifyOrExit(numIp6Addr > 0);
-
-    if ((numIp6Addr * sizeof(Ip6::Address) + sizeof(ChildIp6AddressListTlvValue)) <= Tlv::kBaseTlvMaxLength)
-    {
-        Tlv tlv;
-
-        tlv.SetType(Tlv::kChildIp6AddressList);
-        tlv.SetLength(static_cast<uint8_t>(numIp6Addr * sizeof(Ip6::Address) + sizeof(ChildIp6AddressListTlvValue)));
-        SuccessOrExit(error = aAnswer.Append(tlv));
-    }
-    else
-    {
-        ExtendedTlv extTlv;
-
-        extTlv.SetType(Tlv::kChildIp6AddressList);
-        extTlv.SetLength(numIp6Addr * sizeof(Ip6::Address) + sizeof(ChildIp6AddressListTlvValue));
-        SuccessOrExit(error = aAnswer.Append(extTlv));
-    }
+    SuccessOrExit(error = Tlv::StartTlv(aAnswer, Tlv::kChildIp6AddressList, tlvBookmark));
 
     tlvValue.SetRloc16(aChild.GetRloc16());
 
@@ -1056,7 +975,10 @@ Error Server::AppendChildIp6AddressListTlv(Message &aAnswer, const Child &aChild
     for (const Ip6::Address &address : aChild.GetIp6Addresses())
     {
         SuccessOrExit(error = aAnswer.Append(address));
+        SuccessOrExit(error = Tlv::AdjustTlv(aAnswer, tlvBookmark));
     }
+
+    error = Tlv::EndTlv(aAnswer, tlvBookmark);
 
 exit:
     return error;
