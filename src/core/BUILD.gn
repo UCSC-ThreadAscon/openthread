@@ -276,6 +276,7 @@ openthread_core_files = [
   "common/data.hpp",
   "common/debug.hpp",
   "common/encoding.hpp",
+  "common/enum_to_string.hpp",
   "common/equatable.hpp",
   "common/error.cpp",
   "common/error.hpp",
@@ -423,6 +424,8 @@ openthread_core_files = [
   "meshcop/panid_query_client.hpp",
   "meshcop/secure_transport.cpp",
   "meshcop/secure_transport.hpp",
+  "meshcop/steering_data.cpp",
+  "meshcop/steering_data.hpp",
   "meshcop/tcat_agent.cpp",
   "meshcop/tcat_agent.hpp",
   "meshcop/timestamp.cpp",
@@ -784,7 +787,7 @@ group("libopenthread_platform") {
 
 static_library("libopenthread-ftd") {
   sources = openthread_core_sources
-  if (openthread_config_tcp_enable) {
+  if (openthread_enable_core_config_args && openthread_config_tcp_enable) {
     deps = [ "../../third_party/tcplp" ]
   }
   public_deps = [ ":libopenthread_platform" ]
@@ -793,7 +796,7 @@ static_library("libopenthread-ftd") {
 
 static_library("libopenthread-mtd") {
   sources = openthread_core_sources
-  if (openthread_config_tcp_enable) {
+  if (openthread_enable_core_config_args && openthread_config_tcp_enable) {
     deps = [ "../../third_party/tcplp" ]
   }
   public_deps = [ ":libopenthread_platform" ]
