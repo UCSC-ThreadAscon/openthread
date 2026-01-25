@@ -41,18 +41,6 @@ RegisterLogModule("NetDiag");
 
 namespace NetworkDiagnostic {
 
-const char Server::kVendorName[]      = OPENTHREAD_CONFIG_NET_DIAG_VENDOR_NAME;
-const char Server::kVendorModel[]     = OPENTHREAD_CONFIG_NET_DIAG_VENDOR_MODEL;
-const char Server::kVendorSwVersion[] = OPENTHREAD_CONFIG_NET_DIAG_VENDOR_SW_VERSION;
-const char Server::kVendorAppUrl[]    = OPENTHREAD_CONFIG_NET_DIAG_VENDOR_APP_URL;
-
-#if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
-static constexpr char kVendorNamePrefix[] = "RD:";
-
-static_assert(CheckConstStringPrefix(OPENTHREAD_CONFIG_NET_DIAG_VENDOR_NAME, kVendorNamePrefix),
-              "VENDOR_NAME MUST start with 'RD:' prefix for a reference device.");
-#endif
-
 //---------------------------------------------------------------------------------------------------------------------
 // Server
 
@@ -60,51 +48,7 @@ Server::Server(Instance &aInstance)
     : InstanceLocator(aInstance)
     , mNonPreferredChannels(0)
 {
-    static_assert(sizeof(kVendorName) <= sizeof(VendorNameTlv::StringType), "VENDOR_NAME is too long");
-    static_assert(sizeof(kVendorModel) <= sizeof(VendorModelTlv::StringType), "VENDOR_MODEL is too long");
-    static_assert(sizeof(kVendorSwVersion) <= sizeof(VendorSwVersionTlv::StringType), "VENDOR_SW_VERSION is too long");
-    static_assert(sizeof(kVendorAppUrl) <= sizeof(VendorAppUrlTlv::StringType), "VENDOR_APP_URL is too long");
-
-#if OPENTHREAD_CONFIG_NET_DIAG_VENDOR_INFO_SET_API_ENABLE
-    memcpy(mVendorName, kVendorName, sizeof(kVendorName));
-    memcpy(mVendorModel, kVendorModel, sizeof(kVendorModel));
-    memcpy(mVendorSwVersion, kVendorSwVersion, sizeof(kVendorSwVersion));
-    memcpy(mVendorAppUrl, kVendorAppUrl, sizeof(kVendorAppUrl));
-#endif
 }
-
-#if OPENTHREAD_CONFIG_NET_DIAG_VENDOR_INFO_SET_API_ENABLE
-
-Error Server::SetVendorName(const char *aVendorName)
-{
-    Error error;
-
-#if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
-    VerifyOrExit(aVendorName != nullptr && StringStartsWith(aVendorName, kVendorNamePrefix), error = kErrorInvalidArgs);
-#endif
-
-    SuccessOrExit(error = StringCopy(mVendorName, aVendorName, kStringCheckUtf8Encoding));
-
-exit:
-    return error;
-}
-
-Error Server::SetVendorModel(const char *aVendorModel)
-{
-    return StringCopy(mVendorModel, aVendorModel, kStringCheckUtf8Encoding);
-}
-
-Error Server::SetVendorSwVersion(const char *aVendorSwVersion)
-{
-    return StringCopy(mVendorSwVersion, aVendorSwVersion, kStringCheckUtf8Encoding);
-}
-
-Error Server::SetVendorAppUrl(const char *aVendorAppUrl)
-{
-    return StringCopy(mVendorAppUrl, aVendorAppUrl, kStringCheckUtf8Encoding);
-}
-
-#endif
 
 void Server::PrepareMessageInfoForDest(const Ip6::Address &aDestination, Tmf::MessageInfo &aMessageInfo) const
 {
@@ -515,19 +459,19 @@ Error Server::AppendDiagTlv(uint8_t aTlvType, Message &aMessage)
     }
 
     case Tlv::kVendorName:
-        error = Tlv::Append<VendorNameTlv>(aMessage, GetVendorName());
+        error = Tlv::Append<VendorNameTlv>(aMessage, Get<VendorInfo>().GetName());
         break;
 
     case Tlv::kVendorModel:
-        error = Tlv::Append<VendorModelTlv>(aMessage, GetVendorModel());
+        error = Tlv::Append<VendorModelTlv>(aMessage, Get<VendorInfo>().GetModel());
         break;
 
     case Tlv::kVendorSwVersion:
-        error = Tlv::Append<VendorSwVersionTlv>(aMessage, GetVendorSwVersion());
+        error = Tlv::Append<VendorSwVersionTlv>(aMessage, Get<VendorInfo>().GetSwVersion());
         break;
 
     case Tlv::kVendorAppUrl:
-        error = Tlv::Append<VendorAppUrlTlv>(aMessage, GetVendorAppUrl());
+        error = Tlv::Append<VendorAppUrlTlv>(aMessage, Get<VendorInfo>().GetAppUrl());
         break;
 
     case Tlv::kThreadStackVersion:
@@ -630,13 +574,13 @@ exit:
 
 template <> void Server::HandleTmf<kUriDiagnosticGetQuery>(Coap::Msg &aMsg)
 {
-    VerifyOrExit(aMsg.mMessage.IsPostRequest());
+    VerifyOrExit(aMsg.IsPostRequest());
 
     LogInfo("Received %s from %s", UriToString<kUriDiagnosticGetQuery>(),
             aMsg.mMessageInfo.GetPeerAddr().ToString().AsCString());
 
     // DIAG_GET.qry may be sent as a confirmable request.
-    if (aMsg.mMessage.IsConfirmable())
+    if (aMsg.IsConfirmable())
     {
         IgnoreError(Get<Tmf::Agent>().SendEmptyAck(aMsg));
     }
@@ -886,7 +830,7 @@ void Server::HandleAnswerResponse(Coap::Message          &aNextAnswer,
 
     SuccessOrExit(error);
     VerifyOrExit(aResponse != nullptr && aMessageInfo != nullptr, error = kErrorDrop);
-    VerifyOrExit(aResponse->GetCode() == Coap::kCodeChanged, error = kErrorDrop);
+    VerifyOrExit(aResponse->ReadCode() == Coap::kCodeChanged, error = kErrorDrop);
 
     SendNextAnswer(aNextAnswer, aMessageInfo->GetPeerAddr());
 
@@ -999,7 +943,7 @@ template <> void Server::HandleTmf<kUriDiagnosticGetRequest>(Coap::Msg &aMsg)
     Error          error    = kErrorNone;
     Coap::Message *response = nullptr;
 
-    VerifyOrExit(aMsg.mMessage.IsConfirmablePostRequest(), error = kErrorDrop);
+    VerifyOrExit(aMsg.IsConfirmablePostRequest(), error = kErrorDrop);
 
     LogInfo("Received %s from %s", UriToString<kUriDiagnosticGetRequest>(),
             aMsg.mMessageInfo.GetPeerAddr().ToString().AsCString());
@@ -1021,7 +965,7 @@ template <> void Server::HandleTmf<kUriDiagnosticReset>(Coap::Msg &aMsg)
     uint8_t  type;
     Tlv      tlv;
 
-    VerifyOrExit(aMsg.mMessage.IsConfirmablePostRequest());
+    VerifyOrExit(aMsg.IsConfirmablePostRequest());
 
     LogInfo("Received %s from %s", UriToString<kUriDiagnosticReset>(),
             aMsg.mMessageInfo.GetPeerAddr().ToString().AsCString());
@@ -1152,7 +1096,7 @@ exit:
 void Client::HandleGetResponse(Coap::Message *aMessage, const Ip6::MessageInfo *aMessageInfo, Error aResult)
 {
     SuccessOrExit(aResult);
-    VerifyOrExit(aMessage->GetCode() == Coap::kCodeChanged, aResult = kErrorFailed);
+    VerifyOrExit(aMessage->ReadCode() == Coap::kCodeChanged, aResult = kErrorFailed);
 
 exit:
     mGetCallback.InvokeIfSet(aResult, aMessage, aMessageInfo);
@@ -1160,7 +1104,7 @@ exit:
 
 template <> void Client::HandleTmf<kUriDiagnosticGetAnswer>(Coap::Msg &aMsg)
 {
-    VerifyOrExit(aMsg.mMessage.IsConfirmablePostRequest());
+    VerifyOrExit(aMsg.IsConfirmablePostRequest());
 
     LogInfo("Received %s from %s", ot::UriToString<kUriDiagnosticGetAnswer>(),
             aMsg.mMessageInfo.GetPeerAddr().ToString().AsCString());
