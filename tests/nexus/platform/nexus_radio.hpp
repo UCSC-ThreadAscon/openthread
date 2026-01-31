@@ -50,10 +50,15 @@ struct Radio
     static constexpr State kStateReceive  = OT_RADIO_STATE_RECEIVE;
     static constexpr State kStateTransmit = OT_RADIO_STATE_TRANSMIT;
 
-    struct Frame : public Mac::Frame
+    struct Frame : public Mac::TxFrame
     {
         Frame(void);
         explicit Frame(const Frame &aFrame);
+
+        /**
+         * Updates the frame with the proper IEEE 802.15.4 FCS.
+         */
+        void UpdateFcs(void);
 
         uint8_t mPsduBuffer[kMaxFrameSize];
     };
