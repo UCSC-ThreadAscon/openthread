@@ -30,6 +30,7 @@ set(COMMON_INCLUDES
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/src/core
+    ${PROJECT_SOURCE_DIR}/tests/nexus
     ${PROJECT_SOURCE_DIR}/tests/nexus/platform
 )
 
@@ -112,8 +113,12 @@ endmacro()
 
 #----------------------------------------------------------------------------------------------------------------------
 
+ot_nexus_test(5_1_1)
+ot_nexus_test(5_1_2)
+ot_nexus_test(5_1_3)
 ot_nexus_test(border_agent)
 ot_nexus_test(border_agent_tracker)
+ot_nexus_test(discover_scan)
 ot_nexus_test(dtls)
 ot_nexus_test(form_join)
 ot_nexus_test(full_network_reset)

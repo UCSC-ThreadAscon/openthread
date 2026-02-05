@@ -1,5 +1,4 @@
-#
-#  Copyright (c) 2021, The OpenThread Authors.
+#  Copyright (c) 2026, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,48 +25,11 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-name: Makefile Check
-
-on:
-  push:
-    branches-ignore:
-      - 'dependabot/**'
-  pull_request:
-    branches:
-      - 'main'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.repository == 'openthread/openthread' && github.run_id) || github.ref }}
-  cancel-in-progress: true
-
-permissions:  # added using https://github.com/step-security/secure-workflows
-  contents: read
-
-jobs:
-  makefile-check:
-    runs-on: ubuntu-24.04
-    steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
-      with:
-        egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
-
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      with:
-        submodules: recursive
-    - name: Check
-      run: |
-        script/check-core-makefiles
-
-  header-guard-check:
-    runs-on: ubuntu-24.04
-    steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
-      with:
-        egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
-
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-    - name: Check
-      run: |
-        script/check-header-guards
+static_library("cli_uart") {
+  sources = [ "cli_uart.cpp" ]
+  include_dirs = [ "../../platforms" ]
+  deps = [
+    "../../../src/cli:cli_config",
+    "../../../src/core:libopenthread_core_headers",
+  ]
+}

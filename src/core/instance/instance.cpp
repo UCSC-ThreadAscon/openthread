@@ -187,6 +187,9 @@ Instance::Instance(void)
 #if OPENTHREAD_CONFIG_SECURE_TRANSPORT_ENABLE
     , mTmfSecureAgent(*this)
 #endif
+#if OPENTHREAD_CONFIG_SEEKER_ENABLE || OPENTHREAD_CONFIG_JOINER_ENABLE
+    , mSeeker(*this)
+#endif
 #if OPENTHREAD_CONFIG_JOINER_ENABLE
     , mJoiner(*this)
 #endif

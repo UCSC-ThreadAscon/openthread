@@ -80,6 +80,7 @@ set(COMMON_SOURCES
     api/radio_stats_api.cpp
     api/random_crypto_api.cpp
     api/random_noncrypto_api.cpp
+    api/seeker_api.cpp
     api/server_api.cpp
     api/sntp_api.cpp
     api/srp_client_api.cpp
@@ -182,6 +183,7 @@ set(COMMON_SOURCES
     meshcop/network_name.cpp
     meshcop/panid_query_client.cpp
     meshcop/secure_transport.cpp
+    meshcop/seeker.cpp
     meshcop/steering_data.cpp
     meshcop/tcat_agent.cpp
     meshcop/timestamp.cpp

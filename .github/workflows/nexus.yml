@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2020, The OpenThread Authors.
+#  Copyright (c) 2026, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,9 +26,12 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-name: CIFuzz
+name: Nexus
 
 on:
+  push:
+    branches-ignore:
+      - 'dependabot/**'
   pull_request:
     branches:
       - 'main'
@@ -37,53 +40,34 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.repository == 'openthread/openthread' && github.run_id) || github.ref }}
   cancel-in-progress: true
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
-  Fuzzing:
+
+  nexus-tests:
     runs-on: ubuntu-24.04
-
-    permissions:
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        sanitizer: [address, undefined]
-
     steps:
     - name: Harden Runner
       uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
       with:
-        egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
-    
-    - name: Build Fuzzers (${{ matrix.sanitizer }})
-      id: build
-      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
-      with:
-        oss-fuzz-project-name: 'openthread'
-        language: 'c++'
-        sanitizer: ${{ matrix.sanitizer }}
+        egress-policy: audit
 
-    - name: Run Fuzzers (${{ matrix.sanitizer }})
-      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
-        oss-fuzz-project-name: 'openthread'
-        language: 'c++'
-        fuzz-seconds: 1800
-        sanitizer: ${{ matrix.sanitizer }}
-        output-sarif: true
+        submodules: recursive
 
-    - name: Upload Crash
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-      if: failure() && steps.build.outcome == 'success'
-      with:
-        name: ${{ matrix.sanitizer }}-artifacts
-        path: ./out/artifacts
+    - name: Bootstrap
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends install -y ninja-build tshark
+        python3 -m pip install -r tests/scripts/thread-cert/requirements.txt
 
-    - name: Upload Sarif
-      if: always() && steps.build.outcome == 'success'
-      uses: github/codeql-action/upload-sarif@cdefb33c0f6224e58673d9004f47f7cb3e328b89 # v4.31.10
-      with:
-        sarif_file: cifuzz-sarif/results.sarif
-        checkout_path: cifuzz-sarif
+    - name: Build Nexus
+      run: |
+        mkdir -p build/nexus
+        top_builddir=build/nexus ./tests/nexus/build.sh
+
+    - name: Run Nexus Tests
+      run: |
+        top_builddir=build/nexus ./tests/nexus/run_nexus_tests.sh
