@@ -128,6 +128,11 @@ Error Joiner::Start(const char      *aPskd,
 
     SuccessOrExit(error = Get<Tmf::SecureAgent>().Open(Ip6::NetifIdentifier::kNetifThreadInternal));
 
+    if (mDiscerner.IsEmpty())
+    {
+        SetIdFromIeeeEui64();
+    }
+
     // After this, if any of the steps fails, we need to cleanup
     // (free allocated message, stop seeker, close agent, etc).
     shouldCleanup = true;
@@ -358,17 +363,12 @@ Error Joiner::PrepareJoinerFinalizeMessage(const char *aProvisioningUrl,
     }
 
 exit:
-    if (error != kErrorNone)
-    {
-        FreeJoinerFinalizeMessage();
-    }
-
     return error;
 }
 
 void Joiner::FreeJoinerFinalizeMessage(void)
 {
-    VerifyOrExit(mState == kStateIdle && mFinalizeMessage != nullptr);
+    VerifyOrExit(mFinalizeMessage != nullptr);
 
     mFinalizeMessage->Free();
     mFinalizeMessage = nullptr;
