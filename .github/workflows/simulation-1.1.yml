@@ -52,11 +52,12 @@ jobs:
       REFERENCE_DEVICE: 1
       THREAD_VERSION: 1.1
       VIRTUAL_TIME: 1
+      TEST_TIMEOUT: 300
       OT_VT_USE_UNIX_SOCKET: 1
       MULTIPLY: 3
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -107,10 +108,11 @@ jobs:
       REFERENCE_DEVICE: 1
       THREAD_VERSION: 1.1
       VIRTUAL_TIME: 1
+      TEST_TIMEOUT: 300
       OT_VT_USE_UNIX_SOCKET: 1
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -162,11 +164,12 @@ jobs:
       THREAD_VERSION: 1.1
       USE_MTD: 1
       VIRTUAL_TIME: 1
+      TEST_TIMEOUT: 300
       OT_VT_USE_UNIX_SOCKET: 1
       MESSAGE_USE_HEAP: ${{ matrix.message_use_heap }}
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -212,10 +215,11 @@ jobs:
       REFERENCE_DEVICE: 1
       THREAD_VERSION: 1.1
       VIRTUAL_TIME: 1
+      TEST_TIMEOUT: 300
       OT_VT_USE_UNIX_SOCKET: 1
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -259,7 +263,7 @@ jobs:
       THREAD_VERSION: 1.1
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -307,7 +311,7 @@ jobs:
       THREAD_VERSION: 1.1
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -361,11 +365,12 @@ jobs:
       COVERAGE: 1
       THREAD_VERSION: 1.1
       VIRTUAL_TIME: 1
+      TEST_TIMEOUT: 300
       OT_VT_USE_UNIX_SOCKET: 1
       CXXFLAGS: "-DOPENTHREAD_CONFIG_LOG_PREPEND_UPTIME=0"
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -406,7 +411,7 @@ jobs:
       COVERAGE: 1
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -440,7 +445,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
