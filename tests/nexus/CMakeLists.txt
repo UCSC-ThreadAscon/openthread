@@ -61,6 +61,7 @@ target_include_directories(ot-nexus-platform
 target_compile_options(ot-nexus-platform
     PRIVATE
         ${COMMON_COMPILE_OPTIONS}
+        ${OT_CFLAGS}
 )
 
 target_link_libraries(ot-nexus-platform
@@ -105,6 +106,7 @@ macro(ot_nexus_test name labels)
     target_compile_options(nexus_${name}
     PRIVATE
         ${COMMON_COMPILE_OPTIONS}
+        ${OT_CFLAGS}
     )
 
     add_test(NAME nexus_${name} COMMAND nexus_${name})
@@ -135,6 +137,9 @@ ot_nexus_test(5_2_4 "cert;nexus")
 ot_nexus_test(5_2_5 "cert;nexus")
 ot_nexus_test(5_2_6 "cert;nexus")
 ot_nexus_test(5_2_7 "cert;nexus")
+ot_nexus_test(5_3_1 "cert;nexus")
+ot_nexus_test(5_3_2 "cert;nexus")
+ot_nexus_test(5_3_3 "cert;nexus")
 
 # Misc tests
 ot_nexus_test(border_admitter "core;nexus")

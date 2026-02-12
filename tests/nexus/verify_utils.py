@@ -45,6 +45,7 @@ from pktverify.packet_verifier import PacketVerifier
 from pktverify import utils as pvutils
 from pktverify.coap import CoapTlvParser
 from pktverify.addrs import Ipv6Addr
+from pktverify.bytes import Bytes
 
 
 # Monkey-patch CoapTlvParser to parse Thread TLVs in CoAP payload
@@ -54,6 +55,8 @@ def thread_coap_tlv_parse(t, v):
         kvs.append(('target_eid', str(Ipv6Addr(v))))
     elif t == consts.NL_MAC_EXTENDED_ADDRESS_TLV:
         kvs.append(('mac_addr', v.hex()))
+    elif t == consts.NL_ML_EID_TLV:
+        kvs.append(('ml_eid', Bytes(v).format_hextets()))
     elif t == consts.NL_RLOC16_TLV:
         kvs.append(('rloc16', hex(struct.unpack('>H', v)[0])))
     elif t == consts.NL_STATUS_TLV:
@@ -103,6 +106,12 @@ def run_main(verify_func):
         if mesh_local_prefix:
             prefix_addr = mesh_local_prefix.split('/')[0]
             wireshark_prefs['6lowpan.context0'] = f'{prefix_addr}/64'
+            # Update the Link-Local All Thread Nodes multicast address constant
+            # FF32:40:<MeshLocalPrefix>::1
+            prefix = Ipv6Addr(prefix_addr)
+            all_thread_nodes_mcast_addr = bytearray(Ipv6Addr('ff32:40::1'))
+            all_thread_nodes_mcast_addr[4:12] = prefix[0:8]
+            consts.LINK_LOCAL_All_THREAD_NODES_MULTICAST_ADDRESS = Ipv6Addr(all_thread_nodes_mcast_addr)
 
         pv = PacketVerifier(json_file, wireshark_prefs=wireshark_prefs)
         pv.add_common_vars()
