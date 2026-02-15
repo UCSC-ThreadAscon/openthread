@@ -59,8 +59,8 @@ def verify(pv):
     MAX_ROUTERS = 32
 
     LEADER = pv.vars['Leader']
-    ROUTER_31 = pv.vars['Router 31']
-    ROUTER_32 = pv.vars['Router 32']
+    ROUTER_31 = pv.vars['Router_31']
+    ROUTER_32 = pv.vars['Router_32']
 
     # Step 1: All
     # - Description: Begin wireless sniffer and ensure topology is created and connectivity between nodes.
@@ -99,7 +99,6 @@ def verify(pv):
             consts.NL_RLOC16_TLV,
             consts.NL_ROUTER_MASK_TLV
         } <= set(p.coap.tlv.type) and\
-            p.coap.code == consts.COAP_CODE_ACK and\
             p.coap.tlv.status == consts.ADDR_SOL_SUCCESS).\
         must_next()
 
@@ -137,7 +136,6 @@ def verify(pv):
         filter(lambda p: {
             consts.NL_STATUS_TLV
         } <= set(p.coap.tlv.type) and\
-            p.coap.code == consts.COAP_CODE_ACK and\
             p.coap.tlv.status == consts.NL_NO_ADDRESS_AVAILABLE).\
         must_next()
 

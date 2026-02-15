@@ -125,7 +125,7 @@ void Node::SendEchoRequest(const Ip6::Address &aDestination,
     SuccessOrQuit(Get<Ip6::Icmp>().SendEchoRequest(*message, messageInfo, aIdentifier));
 }
 
-void Node::SetName(const char *aPrefix, uint16_t aIndex) { mName.Clear().Append("%s %u", aPrefix, aIndex); }
+void Node::SetName(const char *aPrefix, uint16_t aIndex) { mName.Clear().Append("%s_%u", aPrefix, aIndex); }
 
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
 void Node::GetTrelSockAddr(Ip6::SockAddr &aSockAddr) const
@@ -134,6 +134,27 @@ void Node::GetTrelSockAddr(Ip6::SockAddr &aSockAddr) const
     aSockAddr.SetPort(mTrel.mUdpPort);
 }
 #endif
+
+const Ip6::Address &Node::FindMatchingAddress(const char *aPrefix)
+{
+    Ip6::Prefix         prefix;
+    const Ip6::Address *matchedAddress = nullptr;
+
+    SuccessOrQuit(prefix.FromString(aPrefix));
+
+    for (const Ip6::Netif::UnicastAddress &unicastAddress : Get<ThreadNetif>().GetUnicastAddresses())
+    {
+        if (unicastAddress.GetAddress().MatchesPrefix(prefix))
+        {
+            matchedAddress = &unicastAddress.GetAddress();
+            break;
+        }
+    }
+
+    VerifyOrQuit(matchedAddress != nullptr, "no matching address found");
+
+    return *matchedAddress;
+}
 
 } // namespace Nexus
 } // namespace ot

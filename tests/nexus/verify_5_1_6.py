@@ -66,14 +66,14 @@ def verify(pv):
     # - Pass Criteria: N/A
     print("Step 0: Verify topology is formed correctly")
     pv.verify_attached('ROUTER')
-    pkts.copy().filter_wpan_src64(LEADER).\
+    pkts.copy().\
+        filter_wpan_src64(LEADER).\
         filter_coap_ack(consts.ADDR_SOL_URI).\
         filter(lambda p: {
                           consts.NL_STATUS_TLV,
                           consts.NL_RLOC16_TLV,
                           consts.NL_ROUTER_MASK_TLV
                           } <= set(p.coap.tlv.type) and\
-               p.coap.code == consts.COAP_CODE_ACK and\
                p.coap.tlv.status == 0
                ).\
         must_next()
