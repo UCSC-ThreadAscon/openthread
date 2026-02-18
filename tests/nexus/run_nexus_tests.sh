@@ -84,6 +84,17 @@ DEFAULT_TESTS=(
     "5_5_4_1"
     "5_5_4_2"
     "5_5_5"
+    "5_5_7"
+    "5_7_1"
+    "5_7_2"
+    "5_8_2"
+    "5_8_3"
+    "6_1_1_A"
+    "6_1_1_B"
+    "6_1_2_A"
+    "6_1_2_B"
+    "6_2_1_A"
+    "6_2_1_B"
 )
 
 # Use provided arguments or the default test list
@@ -97,18 +108,24 @@ failed_tests=()
 
 run_test()
 {
-    local test_base="$1"
+    local test_full="$1"
     # Strip 'nexus_' prefix if present
-    test_base="${test_base#nexus_}"
+    test_full="${test_full#nexus_}"
+
+    local test_base="${test_full%_[AB]}"
+    local topology=""
+    if [[ $test_full != "$test_base" ]]; then
+        topology="${test_full##*_}"
+    fi
 
     local test_name="nexus_${test_base}"
-    local json_file="test_${test_base}.json"
-    local pcap_file="test_${test_base}.pcap"
+    local json_file="test_${test_full}.json"
+    local pcap_file="test_${test_full}.pcap"
     local verify_script="${REPO_ROOT}/tests/nexus/verify_${test_base}.py"
     local nexus_bin="${NEXUS_BIN_DIR}/${test_name}"
 
     printf "========================================================================================\n"
-    printf "Running %s...\n" "$test_name"
+    printf "Running %s...\n" "$test_full"
     printf "========================================================================================\n"
 
     if [[ ! -x $nexus_bin ]]; then
@@ -118,7 +135,7 @@ run_test()
 
     # Create a temporary directory for test artifacts
     local work_dir
-    work_dir=$(mktemp -d "${TEMP_DIR}/nexus_test_${test_base}.XXXXXX")
+    work_dir=$(mktemp -d "${TEMP_DIR}/nexus_test_${test_full}.XXXXXX")
 
     # Run the Nexus C++ test and verification in a subshell to isolate the working directory
     (
@@ -126,8 +143,8 @@ run_test()
 
         # 1. Run the Nexus C++ test
         export OT_NEXUS_PCAP_FILE="$pcap_file"
-        if ! "$nexus_bin"; then
-            printf "C++ test %s FAILED\n" "$test_name" >&2
+        if ! "$nexus_bin" "$topology" "$json_file"; then
+            printf "C++ test %s FAILED\n" "$test_full" >&2
             exit 1
         fi
 
@@ -141,12 +158,12 @@ run_test()
             fi
 
             if ! python3 "$verify_script" "$json_file"; then
-                printf "Verification for %s FAILED\n" "$test_name" >&2
+                printf "Verification for %s FAILED\n" "$test_full" >&2
                 exit 1
             fi
         else
             printf "\n"
-            printf "No verification script found for %s (%s), skipping verification.\n" "$test_name" "$verify_script"
+            printf "No verification script found for %s (%s), skipping verification.\n" "$test_full" "$verify_script"
         fi
     )
 
@@ -154,19 +171,32 @@ run_test()
 
     if [[ $exit_code -eq 0 ]]; then
         printf "\n"
-        printf "%s PASSED\n" "$test_name"
+        printf "%s PASSED\n" "$test_full"
         if [[ -d $work_dir && $work_dir == "${TEMP_DIR}/"* ]]; then
             rm -rf "$work_dir"
         fi
         return 0
     else
         printf "\n"
-        printf "%s FAILED. Artifacts preserved in: %s\n" "$test_name" "$work_dir" >&2
+        printf "%s FAILED. Artifacts preserved in: %s\n" "$test_full" "$work_dir" >&2
         return 1
     fi
 }
 
+expanded_tests=()
 for t in "${TESTS_TO_RUN[@]}"; do
+    if [[ $t == "6_1_1" ]]; then
+        expanded_tests+=("6_1_1_A" "6_1_1_B")
+    elif [[ $t == "6_1_2" ]]; then
+        expanded_tests+=("6_1_2_A" "6_1_2_B")
+    elif [[ $t == "6_2_1" ]]; then
+        expanded_tests+=("6_2_1_A" "6_2_1_B")
+    else
+        expanded_tests+=("$t")
+    fi
+done
+
+for t in "${expanded_tests[@]}"; do
     if ! run_test "$t"; then
         failed_tests+=("$t")
     fi
