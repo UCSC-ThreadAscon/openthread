@@ -565,7 +565,7 @@ Error Ip6::FragmentDatagram(Message &aMessage, uint8_t aIpProto)
 
     uint16_t maxPayloadFragment =
         FragmentHeader::MakeDivisibleByEight(kMinimalMtu - aMessage.GetOffset() - sizeof(fragmentHeader));
-    uint16_t payloadLeft = aMessage.GetLength() - aMessage.GetOffset();
+    uint16_t payloadLeft = aMessage.DetermineLengthAfterOffset();
 
     SuccessOrExit(error = aMessage.Read(0, header));
     header.SetNextHeader(kProtoFragment);
@@ -800,14 +800,12 @@ Error Ip6::FragmentDatagram(Message &aMessage, uint8_t aIpProto)
 
 Error Ip6::HandleFragment(Message &aMessage)
 {
-    Error          error = kErrorNone;
+    Error          error;
     FragmentHeader fragmentHeader;
 
-    SuccessOrExit(error = aMessage.Read(aMessage.GetOffset(), fragmentHeader));
+    SuccessOrExit(error = aMessage.ReadAtAndAdvanceOffset(fragmentHeader));
 
     VerifyOrExit(fragmentHeader.GetOffset() == 0 && !fragmentHeader.IsMoreFlagSet(), error = kErrorDrop);
-
-    aMessage.MoveOffset(sizeof(fragmentHeader));
 
 exit:
     return error;

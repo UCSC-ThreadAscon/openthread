@@ -1579,13 +1579,11 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
 
     VerifyOrExit(aMessageInfo.GetHopLimit() == kMleHopLimit, error = kErrorParse);
 
-    SuccessOrExit(error = aMessage.Read(aMessage.GetOffset(), securitySuite));
-    aMessage.MoveOffset(sizeof(securitySuite));
+    SuccessOrExit(error = aMessage.ReadAtAndAdvanceOffset(securitySuite));
 
     if (securitySuite == kNoSecurity)
     {
-        SuccessOrExit(error = aMessage.Read(aMessage.GetOffset(), command));
-        aMessage.MoveOffset(sizeof(command));
+        SuccessOrExit(error = aMessage.ReadAtAndAdvanceOffset(command));
 
         switch (command)
         {
@@ -1608,8 +1606,7 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     VerifyOrExit(!IsDisabled(), error = kErrorInvalidState);
     VerifyOrExit(securitySuite == k154Security, error = kErrorParse);
 
-    SuccessOrExit(error = aMessage.Read(aMessage.GetOffset(), header));
-    aMessage.MoveOffset(sizeof(header));
+    SuccessOrExit(error = aMessage.ReadAtAndAdvanceOffset(header));
 
     VerifyOrExit(header.IsSecurityControlValid(), error = kErrorParse);
 
@@ -1625,8 +1622,7 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     SuccessOrExit(error = AsconMleDecrypt(aMessage, aMessageInfo, header, aMessage.GetOffset()));
 #endif // ASCON_MLE_DECRYPT
 
-    IgnoreError(aMessage.Read(aMessage.GetOffset(), command));
-    aMessage.MoveOffset(sizeof(command));
+    IgnoreError(aMessage.ReadAtAndAdvanceOffset(command));
 
     extAddr.SetFromIid(aMessageInfo.GetPeerAddr().GetIid());
     neighbor = (command == kCommandChildIdResponse) ? mNeighborTable.FindParent(extAddr)
@@ -2881,13 +2877,13 @@ void Mle::LogError(MessageAction aAction, MessageType aType, Error aError)
     {
         if (aAction == kMessageReceive && (aError == kErrorDrop || aError == kErrorNoRoute))
         {
-            LogInfo("Failed to %s %s%s: %s", "process", MessageTypeToString(aType),
-                    MessageTypeActionToSuffixString(aType, aAction), ErrorToString(aError));
+            LogInfoOnError(aError, "%s %s%s", "process", MessageTypeToString(aType),
+                           MessageTypeActionToSuffixString(aType, aAction));
         }
         else
         {
-            LogWarn("Failed to %s %s%s: %s", aAction == kMessageSend ? "send" : "process", MessageTypeToString(aType),
-                    MessageTypeActionToSuffixString(aType, aAction), ErrorToString(aError));
+            LogWarnOnError(aError, "%s %s%s", aAction == kMessageSend ? "send" : "process", MessageTypeToString(aType),
+                           MessageTypeActionToSuffixString(aType, aAction));
         }
     }
 }

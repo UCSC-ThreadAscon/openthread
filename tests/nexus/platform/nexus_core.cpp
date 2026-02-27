@@ -61,7 +61,7 @@ Core::Core(void)
     }
 }
 
-void Core::SaveTestInfo(const char *aFilename)
+void Core::SaveTestInfo(const char *aFilename, Node *aLeaderNode)
 {
     FILE       *file = fopen(aFilename, "w");
     Node       *tail = mNodes.GetTail();
@@ -70,6 +70,7 @@ void Core::SaveTestInfo(const char *aFilename)
     const char *dot;
     const char *version;
     int         testcaseLen;
+    Node       *leaderNode = aLeaderNode;
 
     VerifyOrExit(file != nullptr);
 
@@ -107,25 +108,46 @@ void Core::SaveTestInfo(const char *aFilename)
     fprintf(file, "  \"testcase\": \"%.*s\",\n", testcaseLen, testcase);
     fprintf(file, "  \"pcap\": \"%s\",\n", getenv("OT_NEXUS_PCAP_FILE") ? getenv("OT_NEXUS_PCAP_FILE") : "");
 
-    if (!mNodes.IsEmpty())
+    if (leaderNode == nullptr)
+    {
+        for (Node &node : mNodes)
+        {
+            if (node.Get<Mle::Mle>().IsLeader())
+            {
+                leaderNode = &node;
+                break;
+            }
+        }
+    }
+
+    if (leaderNode == nullptr)
+    {
+        leaderNode = mNodes.GetTail();
+    }
+
+    if (leaderNode != nullptr)
     {
         NetworkKey                          networkKey;
-        Node                               &node = *mNodes.GetHead();
         String<OT_NETWORK_KEY_SIZE * 2 + 1> keyString;
 
-        node.Get<KeyManager>().GetNetworkKey(networkKey);
+        leaderNode->Get<KeyManager>().GetNetworkKey(networkKey);
         keyString.AppendHexBytes(networkKey.m8, OT_NETWORK_KEY_SIZE);
         fprintf(file, "  \"network_key\": \"%s\",\n", keyString.AsCString());
 
-        for (Node &leaderNode : mNodes)
+        fprintf(file, "  \"network_keys\": [\n");
+        for (const NetworkKey &key : mNetworkKeys)
         {
-            if (leaderNode.Get<Mle::Mle>().IsLeader())
-            {
-                Ip6::Address aloc;
-                leaderNode.Get<Mle::Mle>().GetLeaderAloc(aloc);
-                fprintf(file, "  \"leader_aloc\": \"%s\",\n", aloc.ToString().AsCString());
-                break;
-            }
+            String<OT_NETWORK_KEY_SIZE * 2 + 1> keyStr;
+            keyStr.AppendHexBytes(key.m8, OT_NETWORK_KEY_SIZE);
+            fprintf(file, "    \"%s\"%s\n", keyStr.AsCString(), (&key == mNetworkKeys.Back()) ? "" : ",");
+        }
+        fprintf(file, "  ],\n");
+
+        if (leaderNode->Get<Mle::Mle>().IsLeader())
+        {
+            Ip6::Address aloc;
+            leaderNode->Get<Mle::Mle>().GetLeaderAloc(aloc);
+            fprintf(file, "  \"leader_aloc\": \"%s\",\n", aloc.ToString().AsCString());
         }
     }
 
@@ -189,12 +211,10 @@ void Core::SaveTestInfo(const char *aFilename)
     fprintf(file, "  },\n");
 
     fprintf(file, "  \"extra_vars\": {\n");
-    if (!mNodes.IsEmpty())
+    if (leaderNode != nullptr)
     {
-        Node       &node = *mNodes.GetHead();
         Ip6::Prefix prefix;
-
-        prefix.Set(node.Get<Mle::Mle>().GetMeshLocalPrefix());
+        prefix.Set(leaderNode->Get<Mle::Mle>().GetMeshLocalPrefix());
         fprintf(file, "    \"mesh_local_prefix\": \"%s\"\n", prefix.ToString().AsCString());
     }
     fprintf(file, "  }\n");
@@ -207,6 +227,8 @@ exit:
         fclose(file);
     }
 }
+
+void Core::AddNetworkKey(const NetworkKey &aKey) { SuccessOrQuit(mNetworkKeys.PushBack(aKey)); }
 
 Core::~Core(void) { sInUse = false; }
 
@@ -270,6 +292,7 @@ void Core::Process(Node &aNode)
 
     if (aNode.mAlarm.ShouldTrigger(mNow))
     {
+        aNode.mAlarm.mScheduled = false;
         otPlatAlarmMilliFired(&aNode.GetInstance());
     }
 }

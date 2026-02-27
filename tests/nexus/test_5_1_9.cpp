@@ -151,17 +151,17 @@ void Test5_1_9(void)
      */
     Log("Step 2: Harness configures the RSSI");
 
-    IgnoreError(leader.Get<Mac::Filter>().AddRssIn(router1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
-    IgnoreError(leader.Get<Mac::Filter>().AddRssIn(reed1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
-    IgnoreError(leader.Get<Mac::Filter>().AddRssIn(reed2.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(leader.Get<Mac::Filter>().AddRssIn(router1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(leader.Get<Mac::Filter>().AddRssIn(reed1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(leader.Get<Mac::Filter>().AddRssIn(reed2.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
 
-    IgnoreError(router1.Get<Mac::Filter>().AddRssIn(leader.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
-    IgnoreError(router1.Get<Mac::Filter>().AddRssIn(reed1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(router1.Get<Mac::Filter>().AddRssIn(leader.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(router1.Get<Mac::Filter>().AddRssIn(reed1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
 
-    IgnoreError(reed1.Get<Mac::Filter>().AddRssIn(leader.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
-    IgnoreError(reed1.Get<Mac::Filter>().AddRssIn(router1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(reed1.Get<Mac::Filter>().AddRssIn(leader.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(reed1.Get<Mac::Filter>().AddRssIn(router1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
 
-    IgnoreError(reed2.Get<Mac::Filter>().AddRssIn(leader.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(reed2.Get<Mac::Filter>().AddRssIn(leader.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
 
     // Setup DUT connectivity (only to REEDs)
     dut.AllowList(reed1);
@@ -169,10 +169,10 @@ void Test5_1_9(void)
     dut.AllowList(reed2);
     reed2.AllowList(dut);
 
-    IgnoreError(dut.Get<Mac::Filter>().AddRssIn(reed1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
-    IgnoreError(dut.Get<Mac::Filter>().AddRssIn(reed2.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
-    IgnoreError(reed1.Get<Mac::Filter>().AddRssIn(dut.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
-    IgnoreError(reed2.Get<Mac::Filter>().AddRssIn(dut.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(dut.Get<Mac::Filter>().AddRssIn(reed1.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(dut.Get<Mac::Filter>().AddRssIn(reed2.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(reed1.Get<Mac::Filter>().AddRssIn(dut.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
+    SuccessOrQuit(reed2.Get<Mac::Filter>().AddRssIn(dut.Get<Mac::Mac>().GetExtAddress(), kLq3Rssi));
 
     /**
      * Step 3: Router_2 (DUT)
@@ -187,8 +187,7 @@ void Test5_1_9(void)
      *     - Version TLV
      */
     Log("Step 3: Router_2 (DUT) begins attach process");
-    SuccessOrQuit(dut.Get<Mle::Mle>().SetRouterEligible(false));
-    dut.Join(reed1); // reed1 is just a placeholder here, it will scan.
+    dut.Join(reed1, Node::kAsFed); // reed1 is just a placeholder here, it will scan.
 
     /**
      * Step 4: REED_2, REED_1

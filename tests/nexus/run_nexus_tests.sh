@@ -85,16 +85,71 @@ DEFAULT_TESTS=(
     "5_5_4_2"
     "5_5_5"
     "5_5_7"
+    "5_6_1"
+    "5_6_2"
+    "5_6_3"
+    "5_6_4"
+    "5_6_5"
+    "5_6_6"
+    "5_6_7"
+    "5_6_9"
     "5_7_1"
     "5_7_2"
+    "5_7_3"
     "5_8_2"
     "5_8_3"
+    "5_8_4"
     "6_1_1_A"
     "6_1_1_B"
     "6_1_2_A"
     "6_1_2_B"
+    "6_1_3_A"
+    "6_1_3_B"
+    "6_1_4"
+    "6_1_5"
+    "6_1_6"
+    "6_1_7"
     "6_2_1_A"
     "6_2_1_B"
+    "6_2_2"
+    "6_3_1_A"
+    "6_3_1_B"
+    "6_3_2"
+    "6_4_1_A"
+    "6_4_1_B"
+    "6_4_2"
+    "6_5_1"
+    "6_5_2"
+    "6_5_3"
+    "6_6_1"
+    "6_6_2"
+    "7_1_1"
+    "7_1_2"
+    "7_1_3"
+    "7_1_4"
+    "7_1_5"
+    "7_1_6"
+    "7_1_7"
+    "7_1_8"
+    "9_2_1"
+    "9_2_2"
+    "9_2_3"
+    "9_2_4"
+    "9_2_5"
+    "9_2_6"
+    "9_2_7"
+    "9_2_8"
+    "9_2_9"
+    "9_2_10"
+    "9_2_11"
+    "9_2_12"
+    "9_2_13"
+    "9_2_14"
+    "9_2_15"
+    "9_2_16"
+    "9_2_17"
+    "9_2_18"
+    "9_2_19"
 )
 
 # Use provided arguments or the default test list
@@ -124,10 +179,6 @@ run_test()
     local verify_script="${REPO_ROOT}/tests/nexus/verify_${test_base}.py"
     local nexus_bin="${NEXUS_BIN_DIR}/${test_name}"
 
-    printf "========================================================================================\n"
-    printf "Running %s...\n" "$test_full"
-    printf "========================================================================================\n"
-
     if [[ ! -x $nexus_bin ]]; then
         printf "Error: %s not found or not executable in %s. Did you build the tests?\n" "$test_name" "$NEXUS_BIN_DIR" >&2
         return 1
@@ -136,6 +187,9 @@ run_test()
     # Create a temporary directory for test artifacts
     local work_dir
     work_dir=$(mktemp -d "${TEMP_DIR}/nexus_test_${test_full}.XXXXXX")
+    local log_file="${work_dir}/test.log"
+
+    printf "Running %-40s... " "$test_full"
 
     # Run the Nexus C++ test and verification in a subshell to isolate the working directory
     (
@@ -161,39 +215,37 @@ run_test()
                 printf "Verification for %s FAILED\n" "$test_full" >&2
                 exit 1
             fi
-        else
-            printf "\n"
-            printf "No verification script found for %s (%s), skipping verification.\n" "$test_full" "$verify_script"
         fi
-    )
+    ) >"$log_file" 2>&1
 
     local exit_code="$?"
 
     if [[ $exit_code -eq 0 ]]; then
-        printf "\n"
-        printf "%s PASSED\n" "$test_full"
+        printf " PASSED\n"
         if [[ -d $work_dir && $work_dir == "${TEMP_DIR}/"* ]]; then
             rm -rf "$work_dir"
         fi
         return 0
     else
-        printf "\n"
-        printf "%s FAILED. Artifacts preserved in: %s\n" "$test_full" "$work_dir" >&2
+        printf " FAILED\n"
+        printf "========================================================================================\n"
+        cat "$log_file"
+        printf "========================================================================================\n"
+        printf "Artifacts preserved in: %s\n" "$work_dir"
         return 1
     fi
 }
 
 expanded_tests=()
 for t in "${TESTS_TO_RUN[@]}"; do
-    if [[ $t == "6_1_1" ]]; then
-        expanded_tests+=("6_1_1_A" "6_1_1_B")
-    elif [[ $t == "6_1_2" ]]; then
-        expanded_tests+=("6_1_2_A" "6_1_2_B")
-    elif [[ $t == "6_2_1" ]]; then
-        expanded_tests+=("6_2_1_A" "6_2_1_B")
-    else
-        expanded_tests+=("$t")
-    fi
+    case "$t" in
+        6_1_1 | 6_1_2 | 6_1_3 | 6_1_6 | 6_2_1 | 6_2_2 | 6_3_1 | 6_3_2 | 6_4_1 | 6_4_2 | 6_5_1 | 6_5_2 | 6_5_3 | 6_6_1 | 6_6_2 | 9_2_1 | 9_2_3 | 9_2_4 | 9_2_19)
+            expanded_tests+=("${t}_A" "${t}_B")
+            ;;
+        *)
+            expanded_tests+=("$t")
+            ;;
+    esac
 done
 
 for t in "${expanded_tests[@]}"; do

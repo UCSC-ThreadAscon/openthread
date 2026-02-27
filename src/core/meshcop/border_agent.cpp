@@ -507,7 +507,6 @@ Error Manager::EvictActiveCommissioner(void)
     Error                   error = kErrorNone;
     uint16_t                sessionId;
     uint16_t                baRloc16;
-    Tmf::MessageInfo        messageInfo(GetInstance());
     OwnedPtr<Coap::Message> message;
 
     SuccessOrExit(error = Get<NetworkData::Leader>().FindBorderAgentRloc(baRloc16));
@@ -519,10 +518,8 @@ Error Manager::EvictActiveCommissioner(void)
     SuccessOrExit(error = Tlv::Append<StateTlv>(*message, StateTlv::kReject));
     SuccessOrExit(error = Tlv::Append<CommissionerSessionIdTlv>(*message, sessionId));
 
-    messageInfo.SetSockAddrToRlocPeerAddrToLeaderAloc();
-    messageInfo.SetSockPortToTmf();
-
-    error = Get<Tmf::Agent>().SendMessage(message.PassOwnership(), messageInfo);
+    SuccessOrExit(error = Get<Tmf::Agent>().SendMessageToLeaderAloc(*message));
+    message.Release();
 
 exit:
     return error;
@@ -696,7 +693,6 @@ Error Manager::CoapDtlsSession::ForwardToLeader(const Coap::Msg &aMsg, Uri aUri)
 {
     Error                    error = kErrorNone;
     OwnedPtr<ForwardContext> forwardContext;
-    Tmf::MessageInfo         messageInfo(GetInstance());
     OwnedPtr<Coap::Message>  message;
     OffsetRange              offsetRange;
     Coap::Token              token;
@@ -721,11 +717,9 @@ Error Manager::CoapDtlsSession::ForwardToLeader(const Coap::Msg &aMsg, Uri aUri)
     offsetRange.InitFromMessageOffsetToEnd(aMsg.mMessage);
     SuccessOrExit(error = message->AppendBytesFromMessage(aMsg.mMessage, offsetRange));
 
-    messageInfo.SetSockAddrToRlocPeerAddrToLeaderAloc();
-    messageInfo.SetSockPortToTmf();
-
-    SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(message.PassOwnership(), messageInfo,
-                                                        HandleLeaderResponseToFwdTmf, forwardContext.Get()));
+    SuccessOrExit(error = Get<Tmf::Agent>().SendMessageToLeaderAloc(*message, HandleLeaderResponseToFwdTmf,
+                                                                    forwardContext.Get()));
+    message.Release();
 
     // Release the ownership of `forwardContext` since `SendMessage()`
     // will own it. We take back ownership when the callback
@@ -821,7 +815,7 @@ void Manager::CoapDtlsSession::HandleLeaderResponseToFwdTmf(const ForwardContext
                       forwardMessage->Init(Coap::kTypeNonConfirmable, static_cast<Coap::Code>(aResponse->GetCode())));
     SuccessOrExit(error = forwardMessage->WriteToken(aForwardContext.mToken));
 
-    if (aResponse->mMessage.GetLength() > aResponse->mMessage.GetOffset())
+    if (aResponse->mMessage.DetermineLengthAfterOffset() > 0)
     {
         SuccessOrExit(error = forwardMessage->AppendPayloadMarker());
     }
@@ -1012,7 +1006,6 @@ void Manager::CoapDtlsSession::HandleTmfRelayTx(Coap::Msg &aMsg)
     Error                   error = kErrorNone;
     uint16_t                joinerRouterRloc;
     OwnedPtr<Coap::Message> message;
-    Tmf::MessageInfo        messageInfo(GetInstance());
     OffsetRange             offsetRange;
 
     VerifyOrExit(aMsg.IsNonConfirmablePostRequest());
@@ -1038,10 +1031,8 @@ void Manager::CoapDtlsSession::HandleTmfRelayTx(Coap::Msg &aMsg)
     offsetRange.InitFromMessageOffsetToEnd(aMsg.mMessage);
     SuccessOrExit(error = message->AppendBytesFromMessage(aMsg.mMessage, offsetRange));
 
-    messageInfo.SetSockAddrToRlocPeerAddrTo(joinerRouterRloc);
-    messageInfo.SetSockPortToTmf();
-
-    SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(message.PassOwnership(), messageInfo));
+    SuccessOrExit(error = Get<Tmf::Agent>().SendMessageToRloc(*message, joinerRouterRloc));
+    message.Release();
 
     LogInfo("Forward %s to joiner router 0x%04x", UriToString<kUriRelayTx>(), joinerRouterRloc);
 
