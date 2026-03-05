@@ -629,8 +629,11 @@ void Server::CommitSrpUpdate(Error                    aError,
 
     if (grantedKeyLease == 0)
     {
-        VerifyOrExit(existingHost != nullptr);
-        LogInfo("Fully remove host %s", aHost.GetFullName());
+        if (existingHost != nullptr)
+        {
+            LogInfo("Fully remove host %s", aHost.GetFullName());
+        }
+
         aHost.Free();
         ExitNow();
     }
@@ -2023,18 +2026,15 @@ TimeMilli Server::Service::GetKeyExpireTime(void) const { return mUpdateTime + T
 
 void Server::Service::GetLeaseInfo(LeaseInfo &aLeaseInfo) const
 {
-    TimeMilli now           = TimerMilli::GetNow();
-    TimeMilli keyExpireTime = GetKeyExpireTime();
+    TimeMilli now = TimerMilli::GetNow();
 
     aLeaseInfo.mLease             = Time::SecToMsec(GetLease());
     aLeaseInfo.mKeyLease          = Time::SecToMsec(GetKeyLease());
-    aLeaseInfo.mRemainingKeyLease = (now <= keyExpireTime) ? (keyExpireTime - now) : 0;
+    aLeaseInfo.mRemainingKeyLease = GetKeyExpireTime().DetermineRemainingDurationFrom(now);
 
     if (!mIsDeleted)
     {
-        TimeMilli expireTime = GetExpireTime();
-
-        aLeaseInfo.mRemainingLease = (now <= expireTime) ? (expireTime - now) : 0;
+        aLeaseInfo.mRemainingLease = GetExpireTime().DetermineRemainingDurationFrom(now);
     }
     else
     {
@@ -2185,18 +2185,15 @@ TimeMilli Server::Host::GetKeyExpireTime(void) const { return mUpdateTime + Time
 
 void Server::Host::GetLeaseInfo(LeaseInfo &aLeaseInfo) const
 {
-    TimeMilli now           = TimerMilli::GetNow();
-    TimeMilli keyExpireTime = GetKeyExpireTime();
+    TimeMilli now = TimerMilli::GetNow();
 
     aLeaseInfo.mLease             = Time::SecToMsec(GetLease());
     aLeaseInfo.mKeyLease          = Time::SecToMsec(GetKeyLease());
-    aLeaseInfo.mRemainingKeyLease = (now <= keyExpireTime) ? (keyExpireTime - now) : 0;
+    aLeaseInfo.mRemainingKeyLease = GetKeyExpireTime().DetermineRemainingDurationFrom(now);
 
     if (!IsDeleted())
     {
-        TimeMilli expireTime = GetExpireTime();
-
-        aLeaseInfo.mRemainingLease = (now <= expireTime) ? (expireTime - now) : 0;
+        aLeaseInfo.mRemainingLease = GetExpireTime().DetermineRemainingDurationFrom(now);
     }
     else
     {

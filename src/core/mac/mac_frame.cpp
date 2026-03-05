@@ -1122,7 +1122,7 @@ uint8_t Frame::FindPayloadIndex(void) const
     }
 
 exit:
-    return static_cast<uint8_t>(index);
+    return (index <= kMaxPsduSize) ? static_cast<uint8_t>(index) : kInvalidIndex;
 }
 
 const uint8_t *Frame::GetPayload(void) const
@@ -1154,8 +1154,8 @@ exit:
 
 const uint8_t *Frame::GetHeaderIe(uint8_t aIeId) const
 {
-    uint8_t        index        = FindHeaderIeIndex();
-    uint8_t        payloadIndex = FindPayloadIndex();
+    uint16_t       index        = FindHeaderIeIndex();
+    uint16_t       payloadIndex = FindPayloadIndex();
     const uint8_t *header       = nullptr;
 
     // `FindPayloadIndex()` verifies that Header IE(s) in frame (if present)
@@ -1163,7 +1163,7 @@ const uint8_t *Frame::GetHeaderIe(uint8_t aIeId) const
 
     VerifyOrExit((index != kInvalidIndex) && (payloadIndex != kInvalidIndex));
 
-    while (index <= payloadIndex)
+    while (index < payloadIndex)
     {
         const HeaderIe *ie = reinterpret_cast<const HeaderIe *>(&mPsdu[index]);
 
@@ -1184,15 +1184,15 @@ exit:
     OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 const uint8_t *Frame::GetThreadIe(uint8_t aSubType) const
 {
-    uint8_t        index        = FindHeaderIeIndex();
-    uint8_t        payloadIndex = FindPayloadIndex();
+    uint16_t       index        = FindHeaderIeIndex();
+    uint16_t       payloadIndex = FindPayloadIndex();
     const uint8_t *header       = nullptr;
 
     // `FindPayloadIndex()` verifies that Header IE(s) in frame (if present)
     // are well-formed.
     VerifyOrExit((index != kInvalidIndex) && (payloadIndex != kInvalidIndex));
 
-    while (index <= payloadIndex)
+    while (index < payloadIndex)
     {
         const HeaderIe *ie = reinterpret_cast<const HeaderIe *>(&mPsdu[index]);
 
