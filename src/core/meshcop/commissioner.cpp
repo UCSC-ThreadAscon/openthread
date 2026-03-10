@@ -886,7 +886,7 @@ template <> void Commissioner::HandleTmf<kUriDatasetChanged>(Coap::Msg &aMsg)
 
     LogInfo("Received %s", UriToString<kUriDatasetChanged>());
 
-    SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMsg));
+    SuccessOrExit(Get<Tmf::Agent>().SendAckResponse(aMsg));
 
     LogInfo("Sent %s ack", UriToString<kUriDatasetChanged>());
 
@@ -1013,10 +1013,9 @@ Error Commissioner::SendAnnounceBeginRequest(uint32_t            aChannelMask,
     Coap::Message *message = nullptr;
 
     VerifyOrExit(IsActive(), error = kErrorInvalidState);
-    VerifyOrExit((message = Get<Tmf::Agent>().NewPriorityMessage()) != nullptr, error = kErrorNoBufs);
 
-    SuccessOrExit(error = message->InitAsPost(aAddress, kUriAnnounceBegin));
-    SuccessOrExit(error = message->AppendPayloadMarker());
+    message = Get<Tmf::Agent>().AllocateAndInitPriorityPostMessageTo(kUriAnnounceBegin, aAddress);
+    VerifyOrExit(message != nullptr, error = kErrorNoBufs);
 
     SuccessOrExit(error = Tlv::Append<CommissionerSessionIdTlv>(*message, GetSessionId()));
 
@@ -1046,10 +1045,9 @@ Error Commissioner::SendEnergyScanQuery(uint32_t                           aChan
     Coap::Message *message = nullptr;
 
     VerifyOrExit(IsActive(), error = kErrorInvalidState);
-    VerifyOrExit((message = Get<Tmf::Agent>().NewPriorityMessage()) != nullptr, error = kErrorNoBufs);
 
-    SuccessOrExit(error = message->InitAsPost(aAddress, kUriEnergyScan));
-    SuccessOrExit(error = message->AppendPayloadMarker());
+    message = Get<Tmf::Agent>().AllocateAndInitPriorityPostMessageTo(kUriEnergyScan, aAddress);
+    VerifyOrExit(message != nullptr, error = kErrorNoBufs);
 
     SuccessOrExit(error = Tlv::Append<CommissionerSessionIdTlv>(*message, GetSessionId()));
 
@@ -1085,7 +1083,7 @@ template <> void Commissioner::HandleTmf<kUriEnergyReport>(Coap::Msg &aMsg)
 
     mEnergyReportCallback.InvokeIfSet(mask, energyListTlv.GetEnergyList(), energyListTlv.GetEnergyListLength());
 
-    SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMsg));
+    SuccessOrExit(Get<Tmf::Agent>().SendAckResponse(aMsg));
 
     LogInfo("Sent %s ack", UriToString<kUriEnergyReport>());
 
@@ -1103,10 +1101,9 @@ Error Commissioner::SendPanIdQuery(uint16_t                            aPanId,
     Coap::Message *message = nullptr;
 
     VerifyOrExit(IsActive(), error = kErrorInvalidState);
-    VerifyOrExit((message = Get<Tmf::Agent>().NewPriorityMessage()) != nullptr, error = kErrorNoBufs);
 
-    SuccessOrExit(error = message->InitAsPost(aAddress, kUriPanIdQuery));
-    SuccessOrExit(error = message->AppendPayloadMarker());
+    message = Get<Tmf::Agent>().AllocateAndInitPriorityPostMessageTo(kUriPanIdQuery, aAddress);
+    VerifyOrExit(message != nullptr, error = kErrorNoBufs);
 
     SuccessOrExit(error = Tlv::Append<CommissionerSessionIdTlv>(*message, GetSessionId()));
 
@@ -1140,7 +1137,7 @@ template <> void Commissioner::HandleTmf<kUriPanIdConflict>(Coap::Msg &aMsg)
 
     mPanIdConflictCallback.InvokeIfSet(panId, mask);
 
-    SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMsg));
+    SuccessOrExit(Get<Tmf::Agent>().SendAckResponse(aMsg));
 
     LogInfo("Sent %s response", UriToString<kUriPanIdConflict>());
 
