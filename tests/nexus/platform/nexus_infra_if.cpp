@@ -43,9 +43,9 @@ InfraIf::InfraIf(void)
 
 void InfraIf::Init(Node &aNode)
 {
-    Ip6::Address                  address;
-    otPlatInfraIfLinkLayerAddress mac;
-    Ip6::InterfaceIdentifier      iid;
+    Ip6::Address             address;
+    LinkLayerAddress         mac;
+    Ip6::InterfaceIdentifier iid;
 
     mIfIndex = 1;
     mNode    = &aNode;
@@ -188,9 +188,9 @@ exit:
 
 void InfraIf::HandlePrefixInfoOption(const Ip6::Nd::PrefixInfoOption &aPio)
 {
-    Ip6::Prefix                   prefix;
-    Ip6::Address                  address;
-    otPlatInfraIfLinkLayerAddress mac;
+    Ip6::Prefix      prefix;
+    Ip6::Address     address;
+    LinkLayerAddress mac;
 
     VerifyOrExit(aPio.IsAutoAddrConfigFlagSet());
 
@@ -255,7 +255,7 @@ void InfraIf::SendEchoRequest(const Ip6::Address &aSrcAddress,
     Ip6::Header       ip6Header;
     Ip6::Icmp::Header icmpHeader;
 
-    message = GetNode().Get<MessagePool>().Allocate(Message::kTypeIp6);
+    message = GetNode().Get<Ip6::Ip6>().NewMessage();
     VerifyOrQuit(message != nullptr);
 
     ip6Header.Clear();
@@ -272,11 +272,46 @@ void InfraIf::SendEchoRequest(const Ip6::Address &aSrcAddress,
     icmpHeader.SetId(aIdentifier);
     icmpHeader.SetSequence(0);
 
-    SuccessOrQuit(message->SetLength(aPayloadSize));
-    SuccessOrQuit(message->Prepend(icmpHeader));
-    message->SetOffset(0);
+    SuccessOrQuit(message->Append(icmpHeader));
+    SuccessOrQuit(message->IncreaseLength(aPayloadSize));
 
     Checksum::UpdateMessageChecksum(*message, aSrcAddress, aDestAddress, Ip6::kProtoIcmp6);
+
+    SuccessOrQuit(message->Prepend(ip6Header));
+
+    mPendingTxQueue.Enqueue(*message);
+}
+
+void InfraIf::SendUdp(const Ip6::Address &aSrcAddress,
+                      const Ip6::Address &aDestAddress,
+                      uint16_t            aSourcePort,
+                      uint16_t            aDestPort,
+                      uint16_t            aPayloadSize)
+{
+    Message         *message;
+    Ip6::Header      ip6Header;
+    Ip6::Udp::Header udpHeader;
+
+    message = GetNode().Get<Ip6::Ip6>().NewMessage();
+    VerifyOrQuit(message != nullptr);
+
+    ip6Header.Clear();
+    ip6Header.InitVersionTrafficClassFlow();
+    ip6Header.SetPayloadLength(sizeof(Ip6::Udp::Header) + aPayloadSize);
+    ip6Header.SetNextHeader(Ip6::kProtoUdp);
+    ip6Header.SetHopLimit(64);
+    ip6Header.SetSource(aSrcAddress);
+    ip6Header.SetDestination(aDestAddress);
+
+    udpHeader.SetSourcePort(aSourcePort);
+    udpHeader.SetDestinationPort(aDestPort);
+    udpHeader.SetLength(sizeof(Ip6::Udp::Header) + aPayloadSize);
+    udpHeader.SetChecksum(0);
+
+    SuccessOrQuit(message->Append(udpHeader));
+    SuccessOrQuit(message->IncreaseLength(aPayloadSize));
+
+    Checksum::UpdateMessageChecksum(*message, aSrcAddress, aDestAddress, Ip6::kProtoUdp);
 
     SuccessOrQuit(message->Prepend(ip6Header));
 
@@ -402,7 +437,7 @@ void InfraIf::HandleEchoRequest(const Ip6::Header &aHeader, Message &aMessage)
     mPendingTxQueue.Enqueue(*replyMessage);
 }
 
-void InfraIf::GetLinkLayerAddress(otPlatInfraIfLinkLayerAddress &aLinkLayerAddress) const
+void InfraIf::GetLinkLayerAddress(LinkLayerAddress &aLinkLayerAddress) const
 {
     // Use a unique MAC address based on Node ID
     ClearAllBytes(aLinkLayerAddress);

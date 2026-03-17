@@ -40,6 +40,8 @@ class Node;
 class InfraIf
 {
 public:
+    typedef otPlatInfraIfLinkLayerAddress LinkLayerAddress; ///< A link-layer address
+
     InfraIf(void);
 
     void Init(Node &aNode);
@@ -64,8 +66,13 @@ public:
                          const Ip6::Address &aDestAddress,
                          uint16_t            aIdentifier,
                          uint16_t            aPayloadSize);
+    void SendUdp(const Ip6::Address &aSrcAddress,
+                 const Ip6::Address &aDestAddress,
+                 uint16_t            aSourcePort,
+                 uint16_t            aDestPort,
+                 uint16_t            aPayloadSize);
     void Receive(Node &aSrcNode, const Ip6::Header &aHeader, Message &aMessage);
-    void GetLinkLayerAddress(otPlatInfraIfLinkLayerAddress &aLinkLayerAddress) const;
+    void GetLinkLayerAddress(LinkLayerAddress &aLinkLayerAddress) const;
 
     Node       &GetNode(void);
     const Node &GetNode(void) const;
