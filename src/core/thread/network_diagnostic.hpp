@@ -160,7 +160,6 @@ private:
 
     Error AppendDiagTlv(uint8_t aTlvType, Message &aMessage);
     Error AppendIp6AddressList(Message &aMessage);
-    Error AppendMacCounters(Message &aMessage);
     Error AppendRequestedTlvs(const Message &aRequest, Message &aResponse);
 
 #if OPENTHREAD_CONFIG_BLE_TCAT_ENABLE
@@ -281,8 +280,8 @@ public:
     uint16_t GetLastQueryId(void) const { return mQueryId; }
 
 private:
+    typedef otNetworkDiagData        DiagData;
     typedef otNetworkDiagIp6AddrList Ip6AddrList;
-    typedef otNetworkDiagMacCounters MacCounters;
 
     Error SendCommand(Uri                   aUri,
                       Message::Priority     aPriority,
@@ -302,8 +301,8 @@ private:
 
     template <Uri kUri> void HandleTmf(Coap::Msg &aMsg);
 
+    static void ReadDiagData(DiagData &aDiagData, const Message &aMessage, const Tlv::Info &aTlvInfo);
     static void ParseIp6AddrList(Ip6AddrList &aIp6Addrs, const Message &aMessage, OffsetRange aOffsetRange);
-    static void ParseMacCounters(const MacCountersTlv &aMacCountersTlv, MacCounters &aMacCounters);
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
     static const char *UriToString(Uri aUri);

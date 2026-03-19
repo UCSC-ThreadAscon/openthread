@@ -347,6 +347,7 @@ _LAYER_FIELDS = {
     'mle.tlv.addr16': _auto,
     'mle.tlv.channel': _auto,
     'mle.tlv.addr_reg_iid': _list(_auto),
+    'mle.tlv.addr_reg_ipv6': _list(_ipv6_addr),
     'mle.tlv.link_enh_ack_flags': _auto,
     'mle.tlv.link_forward_series': _list(_auto),
     'mle.tlv.link_requested_type_id_flags': _list(_hex),
@@ -721,6 +722,9 @@ def get_layer_field(packet: RawPacket, field_uri: str) -> Any:
         layer_name = layer_name[:-len('inner')]
         field_uri = '.'.join([layer_name] + secs[1:])
         layer_depth = 1
+
+    if field_uri == 'mle.tlv.addr_reg':
+        field_uri = 'mle.tlv.addr_reg_ipv6'
 
     if is_layer_field(field_uri):
         candidate_layers = _get_candidate_layers(packet, layer_name)
