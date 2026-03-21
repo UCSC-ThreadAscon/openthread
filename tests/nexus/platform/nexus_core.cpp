@@ -270,6 +270,27 @@ void Core::AddTestVar(const char *aName, const char *aValue)
     var->mValue.Clear().Append("%s", aValue);
 }
 
+void Core::AddOmrPrefixTestVar(const char *aName, Node &aNode)
+{
+#if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
+    BorderRouter::RoutingManager &routingManager = aNode.Get<BorderRouter::RoutingManager>();
+    Ip6::Prefix                   omrPrefix;
+    BorderRouter::RoutePreference preference;
+    String<17>                    omrPrefixString;
+
+    if (routingManager.GetFavoredOmrPrefix(omrPrefix, preference) != kErrorNone)
+    {
+        SuccessOrQuit(routingManager.GetOmrPrefix(omrPrefix));
+    }
+
+    omrPrefixString.AppendHexBytes(omrPrefix.GetBytes(), 8);
+    AddTestVar(aName, omrPrefixString.AsCString());
+#else
+    OT_UNUSED_VARIABLE(aName);
+    OT_UNUSED_VARIABLE(aNode);
+#endif
+}
+
 Core::~Core(void) { sInUse = false; }
 
 Node &Core::CreateNode(void)
@@ -282,6 +303,7 @@ Node &Core::CreateNode(void)
     node->GetInstance().SetId(mCurNodeId++);
 
     node->mInfraIf.Init(*node);
+    node->mMdns.Init(*node);
 
     mNodes.Push(*node);
 
@@ -362,7 +384,6 @@ void Core::Process(Node &aNode)
     otTaskletsProcess(&aNode.GetInstance());
 
     ProcessRadio(aNode);
-    ProcessMdns(aNode);
     ProcessInfraIf(aNode);
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
     ProcessTrel(aNode);
@@ -528,23 +549,6 @@ exit:
     return;
 }
 
-void Core::ProcessMdns(Node &aNode)
-{
-    Mdns::AddressInfo senderAddress;
-
-    aNode.mMdns.GetAddress(senderAddress);
-
-    for (Mdns::PendingTx &pendingTx : aNode.mMdns.mPendingTxList)
-    {
-        for (Node &rxNode : mNodes)
-        {
-            rxNode.mMdns.Receive(rxNode.GetInstance(), pendingTx, senderAddress);
-        }
-    }
-
-    aNode.mMdns.mPendingTxList.Free();
-}
-
 void Core::ProcessInfraIf(Node &aNode)
 {
     // Deliver pending packets on the infrastructure interface.
@@ -616,7 +620,7 @@ void Core::ProcessInfraIf(Node &aNode)
                 continue;
             }
 
-            rxNode.mInfraIf.Receive(aNode, header, *message);
+            rxNode.mInfraIf.Receive(aNode, *message);
         }
 
         message->Free();

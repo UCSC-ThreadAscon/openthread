@@ -66,6 +66,7 @@ public:
     void SaveTestInfo(const char *aFilename, Node *aLeaderNode = nullptr);
     void AddNetworkKey(const NetworkKey &aKey);
     void AddTestVar(const char *aName, const char *aValue);
+    void AddOmrPrefixTestVar(const char *aName, Node &aNode);
     void SendAndVerifyEchoRequest(Node               &aSender,
                                   const Ip6::Address &aDestination,
                                   uint16_t            aPayloadSize     = 0,
@@ -110,7 +111,6 @@ private:
 
     void Process(Node &aNode);
     void ProcessRadio(Node &aNode);
-    void ProcessMdns(Node &aNode);
     void ProcessInfraIf(Node &aNode);
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
     void ProcessTrel(Node &aNode);
