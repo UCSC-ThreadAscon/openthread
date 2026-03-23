@@ -248,6 +248,116 @@ def thread_coap_tlv_parse(t, v, layer=None):
     return kvs
 
 
+# RA constants
+ICMPV6_TYPE_ROUTER_ADVERTISEMENT = 134
+RA_FLAG_M_FALSE = 0
+RA_FLAG_O_FALSE = 0
+RA_ROUTER_LIFETIME_ZERO = 0
+
+ICMPV6_OPT_TYPE_PIO = 3
+ICMPV6_OPT_TYPE_RIO = 24
+
+PIO_FLAG_A_TRUE = 1
+
+# EXT_PAN_ID mapping offsets and lengths
+EXT_PAN_ID_GLOBAL_ID_OFFSET = 1
+EXT_PAN_ID_GLOBAL_ID_LEN = 5
+EXT_PAN_ID_SUBNET_ID_OFFSET = 6
+EXT_PAN_ID_SUBNET_ID_LEN = 2
+
+
+def as_list(x):
+    return x if isinstance(x, list) else [x]
+
+
+def get_ra_prefixes(p):
+    rio_prefixes = []
+    pio_prefixes = []
+    try:
+        opts = as_list(p.icmpv6.opt.type)
+        all_prefixes = as_list(p.icmpv6.opt.prefix)
+    except (AttributeError, IndexError):
+        return rio_prefixes, pio_prefixes
+
+    prefix_idx = 0
+    for opt_type in opts:
+        if opt_type in (ICMPV6_OPT_TYPE_PIO, ICMPV6_OPT_TYPE_RIO):
+            if prefix_idx < len(all_prefixes):
+                if opt_type == ICMPV6_OPT_TYPE_RIO:
+                    rio_prefixes.append(Ipv6Addr(all_prefixes[prefix_idx]))
+                else:  # PIO
+                    pio_prefixes.append(Ipv6Addr(all_prefixes[prefix_idx]))
+                prefix_idx += 1
+    return rio_prefixes, pio_prefixes
+
+
+def check_nwd_prefix_flags(packet, target_prefix, stable=None, **expected_flags):
+    """
+    Robustly check flags for a specific OMR prefix in Network Data.
+    Handles cases with multiple prefixes and different sub-TLVs.
+    """
+    try:
+        types = as_list(packet.thread_nwd.tlv.type)
+        prefixes = as_list(packet.thread_nwd.tlv.prefix)
+        stables = as_list(packet.thread_nwd.tlv.stable)
+    except (AttributeError, IndexError):
+        return False
+
+    prefix_idx = 0
+    br_idx = 0
+    is_target = False
+
+    # We iterate through all TLVs to find the target prefix and its BR sub-TLV
+    for i, t in enumerate(types):
+        if t == consts.NWD_PREFIX_TLV:
+            current_prefix = prefixes[prefix_idx]
+            current_stable = stables[i]
+            prefix_idx += 1
+            is_target = (Ipv6Addr(current_prefix) == Ipv6Addr(target_prefix))
+            if is_target and stable is not None and current_stable != stable:
+                is_target = False
+        elif t in (consts.NWD_COMMISSIONING_DATA_TLV, consts.NWD_SERVICE_TLV):
+            # These are also top-level TLVs, reset target prefix
+            is_target = False
+        elif t == consts.NWD_BORDER_ROUTER_TLV:
+            if is_target:
+                # This BR sub-TLV belongs to our target prefix!
+                try:
+                    # Map expected_flags keys to pktverify field names
+                    field_map = {
+                        'pref': packet.thread_nwd.tlv.border_router.pref,
+                        'r': packet.thread_nwd.tlv.border_router.flag.r,
+                        'o': packet.thread_nwd.tlv.border_router.flag.o,
+                        'p': packet.thread_nwd.tlv.border_router.flag.p,
+                        's': packet.thread_nwd.tlv.border_router.flag.s,
+                        'd': packet.thread_nwd.tlv.border_router.flag.d,
+                        'dp': packet.thread_nwd.tlv.border_router.flag.dp,
+                        'n': packet.thread_nwd.tlv.border_router.flag.n,
+                    }
+
+                    match = True
+                    for key, expected_val in expected_flags.items():
+                        if key in field_map:
+                            field_values = field_map[key]
+                            if field_values is not None:
+                                actual_val = as_list(field_values)[br_idx]
+                                if actual_val != expected_val:
+                                    match = False
+                                    break
+                            else:
+                                match = False
+                                break
+
+                    if match:
+                        return True  # Found it and all specified flags match!
+                except (AttributeError, IndexError):
+                    pass
+
+            br_idx += 1
+
+    return False
+
+
 def is_leader_aloc_or_rloc(addr_str: str) -> bool:
     """Checks if an IPv6 address is a Leader ALOC or an RLOC."""
     addr = ipaddress.ip_address(addr_str)
