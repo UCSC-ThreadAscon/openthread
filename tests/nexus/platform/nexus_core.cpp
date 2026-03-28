@@ -43,10 +43,11 @@ bool  Core::sInUse = false;
 Core::Core(void)
     : mCurNodeId(0)
     , mPendingAction(false)
+    , mSaveNodeLogs(false)
     , mNow(0)
-    , mActiveNode(nullptr)
 {
     const char *pcapFile;
+    const char *saveLogs;
 
     VerifyOrQuit(!sInUse);
     sCore  = this;
@@ -59,6 +60,26 @@ Core::Core(void)
     if ((pcapFile != nullptr) && (pcapFile[0] != '\0'))
     {
         mPcap.Open(pcapFile);
+    }
+
+    saveLogs = getenv("OT_NEXUS_SAVE_LOGS");
+
+    if (saveLogs != nullptr)
+    {
+        static const char *kActivateStrings[] = {"1", "yes", "y", "true", "t", "on"};
+
+        bool activate = false;
+
+        for (const char *activateString : kActivateStrings)
+        {
+            if (StringMatch(saveLogs, activateString, kStringCaseInsensitiveMatch))
+            {
+                activate = true;
+                break;
+            }
+        }
+
+        mSaveNodeLogs = activate;
     }
 }
 
@@ -302,6 +323,11 @@ Node &Core::CreateNode(void)
 
     node->GetInstance().SetId(mCurNodeId++);
 
+    if (mSaveNodeLogs)
+    {
+        node->mLogging.Init(node->GetId());
+    }
+
     node->mInfraIf.Init(*node);
     node->mMdns.Init(*node);
 
@@ -379,8 +405,6 @@ void Core::AdvanceTime(uint32_t aDuration)
 
 void Core::Process(Node &aNode)
 {
-    SetActiveNode(&aNode);
-
     otTaskletsProcess(&aNode.GetInstance());
 
     ProcessRadio(aNode);
@@ -400,8 +424,6 @@ void Core::Process(Node &aNode)
         aNode.mAlarmMicro.mScheduled = false;
         otPlatAlarmMicroFired(&aNode.GetInstance());
     }
-
-    SetActiveNode(nullptr);
 }
 
 void Core::ProcessRadio(Node &aNode)
@@ -620,7 +642,7 @@ void Core::ProcessInfraIf(Node &aNode)
                 continue;
             }
 
-            rxNode.mInfraIf.Receive(aNode, *message);
+            rxNode.mInfraIf.Receive(*message);
         }
 
         message->Free();
