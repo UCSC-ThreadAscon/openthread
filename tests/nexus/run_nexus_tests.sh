@@ -199,6 +199,8 @@ DEFAULT_TESTS=(
     "1_3_DBR_TC_7C"
     "1_3_DBR_TC_8"
     "1_3_DBR_TC_10"
+    "1_3_DPR_TC_1"
+    "1_3_DPR_TC_2"
     "1_3_SRP_TC_1"
     "1_3_SRP_TC_2"
     "1_3_SRP_TC_3"
@@ -213,6 +215,11 @@ DEFAULT_TESTS=(
     "1_3_SRPC_TC_1"
     "1_3_SRPC_TC_4"
     "1_3_SRPC_TC_5"
+    "1_3_SRPC_TC_7"
+    "1_3_DIAG_TC_1"
+    "1_3_DIAG_TC_2"
+    "1_4_TREL_TC_1"
+    "1_4_TREL_TC_2"
 )
 
 # Use provided arguments or the default test list
