@@ -293,21 +293,14 @@ void InfraIf::HandleRouterSolicitation(const Ip6::Address &aSrcAddress)
     }
 }
 
-void InfraIf::SendIp6(const Ip6::Address &aSrcAddress,
-                      const Ip6::Address &aDestAddress,
-                      const uint8_t      *aBuffer,
-                      uint16_t            aBufferLength)
+void InfraIf::SendIp6(const Ip6::Header &aHeader, OwnedPtr<Message> aMessagePtr)
 {
-    Message *message = GetNode().Get<MessagePool>().Allocate(Message::kTypeIp6);
+    VerifyOrQuit(aMessagePtr != nullptr);
 
-    VerifyOrQuit(message != nullptr);
+    Log("InfraIf::SendIp6 from %s to %s (len:%u)", aHeader.GetSource().ToString().AsCString(),
+        aHeader.GetDestination().ToString().AsCString(), aMessagePtr->GetLength());
 
-    Log("InfraIf::SendIp6 from %s to %s (len:%u)", aSrcAddress.ToString().AsCString(),
-        aDestAddress.ToString().AsCString(), aBufferLength);
-
-    SuccessOrQuit(message->AppendBytes(aBuffer, aBufferLength));
-
-    mPendingTxQueue.Enqueue(*message);
+    mPendingTxQueue.Enqueue(*aMessagePtr.Release());
 }
 
 void InfraIf::SendEchoRequest(const Ip6::Address &aSrcAddress,
@@ -485,6 +478,11 @@ void InfraIf::Receive(Message &aMessage)
         ExitNow();
     }
 #endif
+
+    if (headers.IsUdp() && node.mUdp.HandleReceive(aMessage, headers))
+    {
+        ExitNow();
+    }
 
     {
         // We also deliver generic IPv6 packets to the stack if they are NOT ICMPv6 ND packets.

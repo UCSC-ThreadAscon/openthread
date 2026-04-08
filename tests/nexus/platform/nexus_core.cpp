@@ -665,20 +665,24 @@ void Core::ProcessInfraIf(Node &aNode)
     }
 }
 
+Node *Core::FindNodeByAddress(const Ip6::Address &aAddress)
+{
+    return mNodes.FindMatching(aAddress, Node::kAnyNetifAddress);
+}
+
+bool Core::IsThreadAddress(const Ip6::Address &aAddress)
+{
+    return mNodes.ContainsMatching(aAddress, Node::kThreadNetifAddress);
+}
+
+Node *Core::FindNodeByThreadAddress(const Ip6::Address &aAddress)
+{
+    return mNodes.FindMatching(aAddress, Node::kThreadNetifAddress);
+}
+
 Node *Core::FindNodeByInfraIfAddress(const Ip6::Address &aAddress)
 {
-    Node *matchedNode = nullptr;
-
-    for (Node &node : mNodes)
-    {
-        if (node.mInfraIf.HasAddress(aAddress))
-        {
-            matchedNode = &node;
-            break;
-        }
-    }
-
-    return matchedNode;
+    return mNodes.FindMatching(aAddress, Node::kInfraNetifAddress);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

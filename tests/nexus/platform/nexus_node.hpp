@@ -39,6 +39,7 @@
 #include "nexus_radio.hpp"
 #include "nexus_settings.hpp"
 #include "nexus_trel.hpp"
+#include "nexus_udp.hpp"
 #include "nexus_utils.hpp"
 
 namespace ot {
@@ -53,6 +54,7 @@ public:
     Logging  mLogging;
     Mdns     mMdns;
     InfraIf  mInfraIf;
+    Udp      mUdp;
     Settings mSettings;
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
     Trel mTrel;
@@ -62,6 +64,7 @@ public:
 protected:
     explicit Platform(Instance &aInstance)
         : mInfraIf(aInstance)
+        , mUdp(aInstance)
         , mPendingTasklet(false)
     {
     }
@@ -117,13 +120,23 @@ public:
      */
     const Ip6::Address &FindGlobalAddress(void);
 
+    enum AddressNetif : uint8_t
+    {
+        kThreadNetifAddress,
+        kInfraNetifAddress,
+        kAnyNetifAddress,
+    };
+
+    bool Matches(const Ip6::Address &aAddress, AddressNetif aNetif) const;
+
     void        SetName(const char *aName) { mName.Clear().Append("%s", aName); }
     void        SetName(const char *aPrefix, uint16_t aIndex);
     const char *GetName(void) const { return mName.AsCString(); }
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    template <typename Type> Type &Get(void) { return Instance::Get<Type>(); }
+    template <typename Type> Type       &Get(void) { return Instance::Get<Type>(); }
+    template <typename Type> const Type &Get(void) const { return AsConst(AsNonConst(this)->Get<Type>()); }
 
     Instance &GetInstance(void) { return *this; }
 
@@ -132,7 +145,6 @@ public:
     static Node &From(otInstance *aInstance) { return static_cast<Node &>(*aInstance); }
 
     static void HandleIp6Receive(otMessage *aMessage, void *aContext);
-    void        HandleReceive(otMessage *aMessage);
 
     using Platform::mAlarmMicro;
     using Platform::mAlarmMilli;
@@ -142,19 +154,20 @@ public:
     using Platform::mPendingTasklet;
     using Platform::mRadio;
     using Platform::mSettings;
+    using Platform::mUdp;
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
     using Platform::mTrel;
 #endif
 
     Node *mNext;
 
-    Ip6::Address mSrpHostAddresses[OPENTHREAD_CONFIG_SRP_CLIENT_BUFFERS_MAX_HOST_ADDRESSES];
-
 private:
     Node(void)
         : Platform(static_cast<Instance &>(*this))
     {
     }
+
+    void HandleIp6Receive(OwnedPtr<Message> aMessagePtr);
 
     String<32> mName;
 };
