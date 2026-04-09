@@ -227,6 +227,9 @@ DEFAULT_TESTS=(
     "1_4_TREL_TC_5"
     "1_4_TREL_TC_6"
     "1_4_DNS_TC_1"
+    "1_4_DNS_TC_3"
+    "1_4_DNS_TC_5"
+    "1_4_PIC_TC_1"
     "1_4_CS_TC_3"
 )
 

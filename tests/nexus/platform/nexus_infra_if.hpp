@@ -36,14 +36,14 @@ namespace Nexus {
 
 class Node;
 
-class InfraIf
+class InfraIf : public InstanceLocator
 {
 public:
     using LinkLayerAddress = BorderRouter::InfraIf::LinkLayerAddress;
 
     explicit InfraIf(Instance &aInstance);
 
-    void Init(Node &aNode);
+    void AfterInit(void);
 
     bool IsInitialized(void) const { return mIfIndex != 0; }
 
@@ -57,6 +57,8 @@ public:
 
     const Ip6::Address              &GetLinkLocalAddress(void) const { return mAddresses[0]; }
     const Heap::Array<Ip6::Address> &GetAddresses(void) const { return mAddresses; }
+
+    const Ip6::Address &SelectSourceAddress(const Ip6::Address &aDestination) const;
 
     void SendIcmp6Nd(const Ip6::Address &aDestAddress, const uint8_t *aBuffer, uint16_t aBufferLength);
     void SendRouterAdvertisement(const Ip6::Address &aDestination,
@@ -74,11 +76,6 @@ public:
                  const Ip6::Address &aDestAddress,
                  uint16_t            aSourcePort,
                  uint16_t            aDestPort,
-                 uint16_t            aPayloadSize);
-    void SendUdp(const Ip6::Address &aSrcAddress,
-                 const Ip6::Address &aDestAddress,
-                 uint16_t            aSourcePort,
-                 uint16_t            aDestPort,
                  Message            &aPayload);
 
     void Receive(Message &aMessage);
@@ -88,8 +85,12 @@ public:
 
     void SetEchoReplyHandler(EchoReplyHandler aHandler, void *aContext) { mEchoReplyCallback.Set(aHandler, aContext); }
 
-    Node       &GetNode(void);
-    const Node &GetNode(void) const;
+    void SetDhcp6ListeningEnabled(bool aEnable);
+    void SetIsDnsServer(bool aEnable) { mIsDnsServer = aEnable; }
+    void SendDhcp6(Message &aMessage, const Ip6::Address &aDestAddress);
+
+    typedef bool (*UdpHook)(Instance &aInstance, Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
+    void SetUdpHook(UdpHook aHook) { mUdpHook = aHook; }
 
     MessageQueue mPendingTxQueue;
 
@@ -103,15 +104,16 @@ private:
 
     void HandleRaTimer(void);
 
-    Node                      *mNode;
-    uint32_t                   mNodeId;
     uint32_t                   mIfIndex;
     Heap::Array<Ip6::Address>  mAddresses;
     Callback<EchoReplyHandler> mEchoReplyCallback;
+    UdpHook                    mUdpHook;
 
     Ip6::Prefix mPioPrefix;
     Ip6::Prefix mRioPrefix;
     bool        mHasRioPrefix;
+    bool        mDhcp6PdListening;
+    bool        mIsDnsServer;
 
     using RaTimer = TimerMilliIn<InfraIf, &InfraIf::HandleRaTimer>;
 
