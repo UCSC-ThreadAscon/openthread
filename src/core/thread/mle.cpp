@@ -925,32 +925,34 @@ const LeaderData &Mle::GetLeaderData(void)
     return mLeaderData;
 }
 
-bool Mle::HasUnregisteredAddress(void)
+bool Mle::HasUnregisteredAddress(void) const
 {
-    bool retval = false;
+    bool has = false;
 
     // Checks whether there are any addresses in addition to the mesh-local
-    // address that need to be registered.
+    // address that need to be registered with the parent
 
     for (const Ip6::Netif::UnicastAddress &addr : Get<ThreadNetif>().GetUnicastAddresses())
     {
-        if (!addr.GetAddress().IsLinkLocalUnicast() && !IsRoutingLocator(addr.GetAddress()) &&
-            !IsAnycastLocator(addr.GetAddress()) && addr.GetAddress() != GetMeshLocalEid())
+        if (addr.GetAddress() == GetMeshLocalEid())
         {
-            ExitNow(retval = true);
+            continue;
+        }
+
+        if (ShouldRegisterUnicastAddrWithParent(addr))
+        {
+            ExitNow(has = true);
         }
     }
 
-    if (!IsRxOnWhenIdle())
+    if (ShouldRegisterMulticastAddrsWithParent())
     {
-        // For sleepy end-device, we register any external multicast
-        // addresses.
-
-        retval = Get<ThreadNetif>().HasAnyExternalMulticastAddress();
+        // We register any external multicast addresses.
+        has = Get<ThreadNetif>().HasAnyExternalMulticastAddress();
     }
 
 exit:
-    return retval;
+    return has;
 }
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
@@ -1079,6 +1081,24 @@ exit:
     return;
 }
 
+bool Mle::ShouldRegisterUnicastAddrWithParent(const Ip6::Netif::UnicastAddress &aUnicastAddress) const
+{
+    bool                shouldRegister = false;
+    const Ip6::Address &address        = aUnicastAddress.GetAddress();
+
+    VerifyOrExit(!IsFullThreadDevice());
+
+    VerifyOrExit(!address.IsLoopback());
+    VerifyOrExit(!address.IsLinkLocalUnicast());
+    VerifyOrExit(!IsRoutingLocator(address));
+    VerifyOrExit(!IsAnycastLocator(address));
+
+    shouldRegister = true;
+
+exit:
+    return shouldRegister;
+}
+
 bool Mle::ShouldRegisterMulticastAddrsWithParent(void) const
 {
     // When multicast subscription changes, SED always notifies
@@ -1087,12 +1107,21 @@ bool Mle::ShouldRegisterMulticastAddrsWithParent(void) const
     // parent of 1.2 or higher version as it could depend on its
     // parent to perform Multicast Listener Report.
 
-    bool shouldRegister = !IsRxOnWhenIdle();
+    bool shouldRegister = false;
+
+    if (!IsRxOnWhenIdle())
+    {
+        ExitNow(shouldRegister = true);
+    }
 
 #if (OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2)
-    shouldRegister |= !IsFullThreadDevice() && GetParent().IsThreadVersion1p2OrHigher();
+    if (!IsFullThreadDevice() && GetParent().IsThreadVersion1p2OrHigher())
+    {
+        ExitNow(shouldRegister = true);
+    }
 #endif
 
+exit:
     return shouldRegister;
 }
 
@@ -1305,7 +1334,6 @@ Error Mle::SendChildUpdateResponse(const ChildUpdateResponseInfo &aInfo)
 {
     Error      error = kErrorNone;
     TxMessage *message;
-    bool       checkAddress = false;
 
     VerifyOrExit((message = NewMleMessage(kCommandChildUpdateResponse)) != nullptr, error = kErrorNoBufs);
 
@@ -1332,13 +1360,30 @@ Error Mle::SendChildUpdateResponse(const ChildUpdateResponseInfo &aInfo)
         case Tlv::kAddressRegistration:
             if (!IsFullThreadDevice())
             {
-                // We only register the mesh-local address in the "Child
-                // Update Response" message and if there are additional
-                // addresses to register we follow up with a "Child Update
-                // Request".
+                AddressRegistrationMode addrRegMode = kAppendAllAddresses;
 
-                SuccessOrExit(error = message->AppendAddressRegistrationTlv(kAppendMeshLocalOnly));
-                checkAddress = true;
+                if (!aInfo.mChallenge.IsEmpty())
+                {
+                    // If the parent is restoring its link, its request
+                    // will include a Challenge. In this case, we only
+                    // register the mesh-local address in the response
+                    // message (to ensure it does not get fragmented).
+                    // If there are additional addresses to register
+                    // and the child itself is attached (it is not
+                    // itself restoring its link to the parent), we
+                    // schedule a follow-up "Child Update Request" to
+                    // register the remaining addresses.
+
+                    addrRegMode = kAppendMeshLocalOnly;
+
+                    if (IsAttached() && HasUnregisteredAddress())
+                    {
+                        mDelayedSender.RemoveScheduledChildUpdateRequestToParent();
+                        mDelayedSender.ScheduleChildUpdateRequestToParent(0);
+                    }
+                }
+
+                SuccessOrExit(error = message->AppendAddressRegistrationTlv(addrRegMode));
             }
 
             break;
@@ -1373,11 +1418,6 @@ Error Mle::SendChildUpdateResponse(const ChildUpdateResponseInfo &aInfo)
     SuccessOrExit(error = message->SendTo(aInfo.mDestination));
 
     Log(kMessageSend, kTypeChildUpdateResponseAsChild, aInfo.mDestination);
-
-    if (checkAddress && HasUnregisteredAddress())
-    {
-        IgnoreError(SendChildUpdateRequestToParent());
-    }
 
 exit:
     FreeMessageOnError(message, error);
@@ -3648,9 +3688,12 @@ Error Mle::TxMessage::AppendAddressRegistrationTlv(AddressRegistrationMode aMode
 
     for (const Ip6::Netif::UnicastAddress &addr : Get<ThreadNetif>().GetUnicastAddresses())
     {
-        if (addr.GetAddress().IsLoopback() || addr.GetAddress().IsLinkLocalUnicast() ||
-            Get<Mle>().IsRoutingLocator(addr.GetAddress()) || Get<Mle>().IsAnycastLocator(addr.GetAddress()) ||
-            addr.GetAddress() == Get<Mle>().GetMeshLocalEid())
+        if (!Get<Mle>().ShouldRegisterUnicastAddrWithParent(addr))
+        {
+            continue;
+        }
+
+        if (addr.GetAddress() == Get<Mle>().GetMeshLocalEid())
         {
             continue;
         }
