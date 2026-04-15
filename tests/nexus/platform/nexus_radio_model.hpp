@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020, The OpenThread Authors.
+ *  Copyright (c) 2026, The OpenThread Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -26,35 +26,47 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * @file
- *   This file implements HMAC-based Extract-and-Expand Key Derivation Function (HKDF) using SHA-256.
- */
+#ifndef OT_NEXUS_PLATFORM_NEXUS_RADIO_MODEL_HPP_
+#define OT_NEXUS_PLATFORM_NEXUS_RADIO_MODEL_HPP_
 
-#include "hkdf_sha256.hpp"
-
-#include <string.h>
-
-#include "common/code_utils.hpp"
-#include "common/debug.hpp"
-#include "common/error.hpp"
+#include <stdint.h>
 
 namespace ot {
-namespace Crypto {
+namespace Nexus {
 
-HkdfSha256::HkdfSha256(void) { SuccessOrAssert(otPlatCryptoHkdfInit(&mContext)); }
+class Node;
 
-HkdfSha256::~HkdfSha256(void) { SuccessOrAssert(otPlatCryptoHkdfDeinit(&mContext)); }
-
-void HkdfSha256::Extract(const uint8_t *aSalt, uint16_t aSaltLength, const Key &aInputKey)
+/**
+ * This class implements a radio model for RSSI calculation.
+ *
+ */
+class RadioModel
 {
-    SuccessOrAssert(otPlatCryptoHkdfExtract(&mContext, aSalt, aSaltLength, &aInputKey));
-}
+public:
+    RadioModel(void) = delete;
 
-void HkdfSha256::Expand(const uint8_t *aInfo, uint16_t aInfoLength, uint8_t *aOutputKey, uint16_t aOutputKeyLength)
-{
-    SuccessOrAssert(otPlatCryptoHkdfExpand(&mContext, aInfo, aInfoLength, aOutputKey, aOutputKeyLength));
-}
+    /**
+     * This static method calculates the RSSI between two nodes based on their distance.
+     *
+     * @param[in] aTxNode  The transmitter node.
+     * @param[in] aRxNode  The receiver node.
+     *
+     * @returns The calculated RSSI in dBm.
+     */
+    static int16_t CalculateRssi(const Node &aTxNode, const Node &aRxNode);
 
-} // namespace Crypto
+    /**
+     * This static method determines if a packet should be dropped based on its RSSI.
+     *
+     * @param[in] aRssi  The RSSI of the packet.
+     *
+     * @retval true if the packet should be dropped.
+     * @retval false if the packet should not be dropped.
+     */
+    static bool ShouldDropPacket(int16_t aRssi);
+};
+
+} // namespace Nexus
 } // namespace ot
+
+#endif // OT_NEXUS_PLATFORM_NEXUS_RADIO_MODEL_HPP_

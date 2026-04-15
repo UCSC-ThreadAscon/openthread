@@ -33,6 +33,8 @@
 
 #include <stdio.h>
 #include <sys/time.h>
+#include <openthread/platform/flash.h>
+
 #ifdef OPENTHREAD_CONFIG_BLE_TCAT_ENABLE
 #include <openthread/tcat.h>
 #include <openthread/platform/ble.h>
@@ -49,6 +51,12 @@ std::map<uint32_t, std::vector<std::vector<uint8_t>>> settings;
 ot::Instance *testInitInstance(void)
 {
     otInstance *instance = nullptr;
+
+    settings.clear();
+    for (uint8_t idx = 0; idx < FLASH_SWAP_NUM; idx++)
+    {
+        otPlatFlashErase(nullptr, idx);
+    }
 
 #if OPENTHREAD_CONFIG_MULTIPLE_INSTANCE_ENABLE
 #if OPENTHREAD_CONFIG_MULTIPLE_STATIC_INSTANCE_ENABLE
@@ -73,6 +81,23 @@ ot::Instance *testInitInstance(void)
 #endif
 
     return static_cast<ot::Instance *>(instance);
+}
+
+ot::Instance *testResetInstance(ot::Instance *aInstance)
+{
+    otInstanceFinalize(aInstance);
+
+#if OPENTHREAD_CONFIG_MULTIPLE_INSTANCE_ENABLE
+    {
+        size_t instanceBufferLength = sizeof(ot::Instance);
+
+        aInstance = static_cast<ot::Instance *>(otInstanceInit(aInstance, &instanceBufferLength));
+    }
+#else
+    aInstance = static_cast<ot::Instance *>(otInstanceInitSingle());
+#endif
+
+    return aInstance;
 }
 
 #if OPENTHREAD_CONFIG_MULTIPLE_INSTANCE_ENABLE && OPENTHREAD_CONFIG_MULTIPLE_STATIC_INSTANCE_ENABLE

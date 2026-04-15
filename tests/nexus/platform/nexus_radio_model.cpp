@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2020, The OpenThread Authors.
+ *  Copyright (c) 2026, The OpenThread Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -26,35 +26,40 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * @file
- *   This file implements HMAC-based Extract-and-Expand Key Derivation Function (HKDF) using SHA-256.
- */
+#include "nexus_radio_model.hpp"
 
-#include "hkdf_sha256.hpp"
+#include "nexus_node.hpp"
+#include "common/num_utils.hpp"
 
-#include <string.h>
-
-#include "common/code_utils.hpp"
-#include "common/debug.hpp"
-#include "common/error.hpp"
+#include <cmath>
 
 namespace ot {
-namespace Crypto {
+namespace Nexus {
 
-HkdfSha256::HkdfSha256(void) { SuccessOrAssert(otPlatCryptoHkdfInit(&mContext)); }
-
-HkdfSha256::~HkdfSha256(void) { SuccessOrAssert(otPlatCryptoHkdfDeinit(&mContext)); }
-
-void HkdfSha256::Extract(const uint8_t *aSalt, uint16_t aSaltLength, const Key &aInputKey)
+int16_t RadioModel::CalculateRssi(const Node &aTxNode, const Node &aRxNode)
 {
-    SuccessOrAssert(otPlatCryptoHkdfExtract(&mContext, aSalt, aSaltLength, &aInputKey));
+    static constexpr double kPathLossConstant = 40.0;
+    static constexpr double kPathLossExponent = 20.0;
+
+    // Simple path loss model
+    // RSSI = TxPower - PathLoss
+    // PathLoss = kPathLossExponent * log10(distance) + kPathLossConstant
+
+    double dx       = aTxNode.GetPositionX() - aRxNode.GetPositionX();
+    double dy       = aTxNode.GetPositionY() - aRxNode.GetPositionY();
+    double distance = std::hypot(dx, dy);
+
+    distance = Max(distance, 1.0);
+
+    // Assume TxPower = 0 dBm
+    // RSSI = - (kPathLossConstant + kPathLossExponent * std::log10(distance))
+
+    double rssi = -(kPathLossConstant + kPathLossExponent * std::log10(distance));
+
+    return static_cast<int16_t>(std::round(rssi));
 }
 
-void HkdfSha256::Expand(const uint8_t *aInfo, uint16_t aInfoLength, uint8_t *aOutputKey, uint16_t aOutputKeyLength)
-{
-    SuccessOrAssert(otPlatCryptoHkdfExpand(&mContext, aInfo, aInfoLength, aOutputKey, aOutputKeyLength));
-}
+bool RadioModel::ShouldDropPacket(int16_t aRssi) { return aRssi < Radio::kRadioSensitivity; }
 
-} // namespace Crypto
+} // namespace Nexus
 } // namespace ot
