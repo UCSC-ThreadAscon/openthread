@@ -27,6 +27,7 @@
  */
 
 #include "nexus_core.hpp"
+#include "nexus_sim.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -49,8 +50,6 @@ Core::Core(void)
     , mPendingAction(false)
     , mSaveNodeLogs(false)
     , mNow(0)
-    , mObserver(nullptr)
-
 {
     const char *pcapFile;
     const char *saveLogs;
@@ -337,6 +336,7 @@ void Core::AddOmrPrefixTestVar(const char *aName, Node &aNode)
     OT_UNUSED_VARIABLE(aNode);
 #endif
 }
+
 Core::~Core(void)
 {
     while (!mNodes.IsEmpty())
@@ -351,9 +351,25 @@ Core::~Core(void)
     sInUse = false;
 }
 
+void Core::NotifyHeartbeat(void)
+{
+    for (Observer &observer : mObservers)
+    {
+        observer.OnHeartbeat(mNow);
+    }
+}
+
+void Core::NotifyDumpState(void)
+{
+    for (Observer &observer : mObservers)
+    {
+        observer.DumpState();
+    }
+}
+
 void Core::SetNodeEnabled(uint32_t aNodeId, bool aEnabled)
 {
-    Node *node = GetNodes().FindMatching(aNodeId);
+    Node *node = FindNodeById(aNodeId);
 
     if (node != nullptr)
     {
@@ -371,6 +387,10 @@ void Core::SetNodeEnabled(uint32_t aNodeId, bool aEnabled)
         }
     }
 }
+
+Node *Core::FindNodeById(uint32_t aNodeId) { return mNodes.FindMatching(aNodeId); }
+
+Node *Core::FindNodeByExtAddress(const Mac::ExtAddress &aExtAddress) { return mNodes.FindMatching(aExtAddress); }
 
 Node &Core::CreateNode(void)
 {
@@ -399,11 +419,12 @@ Node &Core::CreateNode(void)
 
     node->Get<Ip6::Ip6>().SetReceiveCallback(Node::HandleIp6Receive, node);
 
-    if (mObserver)
+    node->Get<NeighborTable>().RegisterCallback(&Core::HandleNeighborTableChanged);
+    SuccessOrQuit(node->Get<Notifier>().RegisterCallback(&Core::HandleStateChanged, node));
+
+    for (Observer &observer : mObservers)
     {
-        node->Get<NeighborTable>().RegisterCallback(&Core::HandleNeighborTableChanged);
-        SuccessOrQuit(node->Get<Notifier>().RegisterCallback(&Core::HandleStateChanged, node));
-        mObserver->OnNodeStateChanged(node);
+        observer.OnNodeStateChanged(node);
     }
 
     return *node;
@@ -422,7 +443,7 @@ void Core::HandleNeighborTableChanged(otNeighborTableEvent aEvent, const otNeigh
 
     const Mac::ExtAddress *extAddr = nullptr;
 
-    VerifyOrExit(core.mObserver);
+    VerifyOrExit(!core.mObservers.IsEmpty());
 
     Log("HandleNeighborTableChanged: Event %d", event);
 
@@ -476,7 +497,10 @@ void Core::HandleNeighborTableChanged(otNeighborTableEvent aEvent, const otNeigh
 
     if (foundSrc && foundDst)
     {
-        core.mObserver->OnLinkUpdate(srcId, dstId, isActive);
+        for (Observer &observer : core.mObservers)
+        {
+            observer.OnLinkUpdate(srcId, dstId, isActive);
+        }
     }
     else
     {
@@ -492,12 +516,15 @@ void Core::HandleStateChanged(otChangedFlags aFlags, void *aContext)
 {
     OT_UNUSED_VARIABLE(aFlags);
 
-    Observer *observer = Core::Get().GetObserver();
-    Node     *node     = static_cast<Node *>(aContext);
+    Core &core = Core::Get();
+    Node *node = static_cast<Node *>(aContext);
 
-    VerifyOrExit(observer != nullptr && node != nullptr);
+    VerifyOrExit(!core.mObservers.IsEmpty() && node != nullptr);
 
-    observer->OnNodeStateChanged(node);
+    for (Observer &observer : core.mObservers)
+    {
+        observer.OnNodeStateChanged(node);
+    }
 
     // Decoupled from flags to capture SED parent changes
     switch (node->Get<Mle::Mle>().GetRole())
@@ -508,10 +535,9 @@ void Core::HandleStateChanged(otChangedFlags aFlags, void *aContext)
 
         if (node->Get<Mle::Mle>().GetParentInfo(parentInfo) == kErrorNone)
         {
-            uint32_t srcId = node->GetInstance().GetId();
-            uint32_t dstId = 0xffff;
-            Node    *rxNode =
-                Core::Get().mNodes.FindMatching(static_cast<const Mac::ExtAddress &>(parentInfo.mExtAddress));
+            uint32_t srcId  = node->GetInstance().GetId();
+            uint32_t dstId  = 0xffff;
+            Node    *rxNode = core.mNodes.FindMatching(AsCoreType(&parentInfo.mExtAddress));
 
             if (rxNode != nullptr)
             {
@@ -522,10 +548,16 @@ void Core::HandleStateChanged(otChangedFlags aFlags, void *aContext)
             {
                 if (node->GetLastParentId() != 0xffff)
                 {
-                    observer->OnLinkUpdate(srcId, node->GetLastParentId(), false);
+                    for (Observer &observer : core.mObservers)
+                    {
+                        observer.OnLinkUpdate(srcId, node->GetLastParentId(), false);
+                    }
                 }
                 node->SetLastParentId(dstId);
-                observer->OnLinkUpdate(srcId, dstId, true);
+                for (Observer &observer : core.mObservers)
+                {
+                    observer.OnLinkUpdate(srcId, dstId, true);
+                }
             }
         }
         break;
@@ -534,7 +566,7 @@ void Core::HandleStateChanged(otChangedFlags aFlags, void *aContext)
     {
         uint32_t srcId = node->GetInstance().GetId();
 
-        for (Node &rxNode : Core::Get().mNodes)
+        for (Node &rxNode : core.mNodes)
         {
             if (&rxNode == node)
             {
@@ -546,14 +578,20 @@ void Core::HandleStateChanged(otChangedFlags aFlags, void *aContext)
             {
                 uint32_t dstId = rxNode.GetInstance().GetId();
 
-                observer->OnLinkUpdate(srcId, dstId, false);
-                observer->OnLinkUpdate(dstId, srcId, false);
+                for (Observer &observer : core.mObservers)
+                {
+                    observer.OnLinkUpdate(srcId, dstId, false);
+                    observer.OnLinkUpdate(dstId, srcId, false);
+                }
             }
         }
 
         if (node->GetLastParentId() != 0xffff)
         {
-            observer->OnLinkUpdate(srcId, node->GetLastParentId(), false);
+            for (Observer &observer : core.mObservers)
+            {
+                observer.OnLinkUpdate(srcId, node->GetLastParentId(), false);
+            }
             node->SetLastParentId(0xffff);
         }
         break;
@@ -604,7 +642,21 @@ void Core::UpdateNextAlarmMicro(const Alarm &aAlarm)
     }
 }
 
-bool Core::IsUiConnected(void) const { return mObserver && mObserver->IsConnected(); }
+bool Core::IsUiConnected(void) const
+{
+    bool connected = false;
+
+    for (const Observer &observer : mObservers)
+    {
+        if (observer.IsConnected())
+        {
+            connected = true;
+            break;
+        }
+    }
+
+    return connected;
+}
 
 void Core::Reset(void)
 {
@@ -612,9 +664,10 @@ void Core::Reset(void)
     mCurNodeId     = 0;
     mNow           = 0;
     mNextAlarmTime = NumericLimits<uint64_t>::kMax;
-    if (mObserver)
+
+    for (Observer &observer : mObservers)
     {
-        mObserver->OnClearEvents();
+        observer.OnClearEvents();
     }
 }
 
@@ -691,7 +744,7 @@ void Core::ProcessRadio(Node &aNode)
 
     mPcap.WriteFrame(aNode.mRadio.mTxFrame, mNow);
 
-    if (mObserver)
+    if (!mObservers.IsEmpty())
     {
         uint32_t dstNodeId = 0xffff; // Default to broadcast / unknown
 
@@ -718,8 +771,11 @@ void Core::ProcessRadio(Node &aNode)
                 dstAddr.ToString().AsCString());
         }
 
-        mObserver->OnPacketEvent(aNode.GetInstance().GetId(), dstNodeId, aNode.mRadio.mTxFrame.GetPsdu(),
-                                 aNode.mRadio.mTxFrame.GetLength());
+        for (Observer &observer : mObservers)
+        {
+            observer.OnPacketEvent(aNode.GetInstance().GetId(), dstNodeId, aNode.mRadio.mTxFrame.GetPsdu(),
+                                   aNode.mRadio.mTxFrame.GetLength());
+        }
     }
 
     otPlatRadioTxStarted(&aNode.GetInstance(), &aNode.mRadio.mTxFrame);
