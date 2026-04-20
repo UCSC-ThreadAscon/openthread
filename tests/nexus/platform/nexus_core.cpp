@@ -37,7 +37,6 @@
 #include "nexus_radio_model.hpp"
 #include "thread/child_table.hpp"
 #include "thread/mle.hpp"
-#include "thread/neighbor_table.hpp"
 
 namespace ot {
 namespace Nexus {
@@ -464,11 +463,10 @@ void Core::HandleNeighborTableChanged(otNeighborTableEvent aEvent, const otNeigh
         if (event == NeighborTable::kChildRemoved)
         {
             Instance &instance = *static_cast<Instance *>(aInfo->mInstance);
-            Neighbor *neighbor = instance.Get<NeighborTable>().FindNeighbor(*extAddr, Neighbor::kInStateValid);
 
-            if (neighbor != nullptr)
+            if (instance.Get<RouterTable>().FindRouter(*extAddr) != nullptr)
             {
-                Log("Suppressing CHILD_REMOVED event because neighbor link is established");
+                Log("Suppressing CHILD_REMOVED event because neighbor is a valid router");
                 ExitNow();
             }
         }
@@ -891,9 +889,25 @@ void Core::ProcessRadio(Node &aNode)
         }
 
         ackFrame.UpdateFcs();
-        mPcap.WriteFrame(ackFrame, mNow);
 
-        otPlatRadioTxDone(&aNode.GetInstance(), &aNode.mRadio.mTxFrame, &ackFrame, kErrorNone);
+        {
+            int16_t ackRssi = RadioModel::CalculateRssi(*ackNode, aNode);
+
+            ackFrame.mInfo.mRxInfo.mRssi      = ClampToInt8(ackRssi);
+            ackFrame.mInfo.mRxInfo.mLqi       = kDefaultRxLqi;
+            ackFrame.mInfo.mRxInfo.mTimestamp = mNow;
+
+            mPcap.WriteFrame(ackFrame, mNow);
+
+            if (RadioModel::ShouldDropPacket(ackRssi))
+            {
+                otPlatRadioTxDone(&aNode.GetInstance(), &aNode.mRadio.mTxFrame, nullptr, kErrorNoAck);
+            }
+            else
+            {
+                otPlatRadioTxDone(&aNode.GetInstance(), &aNode.mRadio.mTxFrame, &ackFrame, kErrorNone);
+            }
+        }
     }
     else
     {
@@ -1012,6 +1026,7 @@ Core::IcmpEchoResponseContext::IcmpEchoResponseContext(Node &aNode, uint16_t aId
     : mNode(aNode)
     , mIdentifier(aIdentifier)
     , mResponseReceived(false)
+    , mExpectedSourceCheck(false)
 {
 }
 
@@ -1036,6 +1051,14 @@ void Core::HandleIcmpResponse(void                *aContext,
 
         Log("Received Echo Reply on Node %u (%s) from %s", context->mNode.GetId(), context->mNode.GetName(),
             messageInfo->GetPeerAddr().ToString().AsCString());
+
+        if (context->mExpectedSourceCheck)
+        {
+            Log("Verifying source address: Expected %s, Actual %s", context->mExpectedSource.ToString().AsCString(),
+                messageInfo->GetSockAddr().ToString().AsCString());
+
+            VerifyOrQuit(messageInfo->GetSockAddr() == context->mExpectedSource);
+        }
     }
 }
 
@@ -1049,6 +1072,31 @@ void Core::SendAndVerifyEchoRequest(Node               &aSender,
 
     IcmpEchoResponseContext icmpContext(aSender, kIdentifier);
     Ip6::Icmp::Handler      icmpHandler(HandleIcmpResponse, &icmpContext);
+
+    SuccessOrQuit(aSender.Get<Ip6::Icmp>().RegisterHandler(icmpHandler));
+
+    aSender.SendEchoRequest(aDestination, kIdentifier, aPayloadSize, aHopLimit);
+    AdvanceTime(aResponseTimeout);
+
+    SuccessOrQuit(aSender.Get<Ip6::Icmp>().UnregisterHandler(icmpHandler));
+
+    VerifyOrQuit(icmpContext.mResponseReceived);
+}
+
+void Core::SendAndVerifyEchoRequest(Node               &aSender,
+                                    const Ip6::Address &aExpectedSource,
+                                    const Ip6::Address &aDestination,
+                                    uint16_t            aPayloadSize,
+                                    uint8_t             aHopLimit,
+                                    uint32_t            aResponseTimeout)
+{
+    static constexpr uint16_t kIdentifier = 0x1234;
+
+    IcmpEchoResponseContext icmpContext(aSender, kIdentifier);
+    icmpContext.mExpectedSource      = aExpectedSource;
+    icmpContext.mExpectedSourceCheck = true;
+
+    Ip6::Icmp::Handler icmpHandler(HandleIcmpResponse, &icmpContext);
 
     SuccessOrQuit(aSender.Get<Ip6::Icmp>().RegisterHandler(icmpHandler));
 
