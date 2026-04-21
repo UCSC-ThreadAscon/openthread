@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  Copyright (c) 2019, The OpenThread Authors.
+#  Copyright (c) 2026, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -27,58 +27,43 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-import unittest
+import sys
+import os
 
-import common
-import config
-import thread_cert
+# Add the current directory to sys.path to find verify_utils
+CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(CUR_DIR)
 
-LEADER = 1
-ROUTER = 2
+import verify_utils
+from pktverify.packet_filter import PacketFilter
+
+DEFAULT_LEASE_TIME = 7200
+NEW_LEASE_TIME = 120
+NEW_TTL = 10
 
 
-class TestIPv6Fragmentation(thread_cert.TestCase):
-    SUPPORT_NCP = False
+def verify(pv):
+    pkts: PacketFilter = pv.pkts
+    pv.summary.show()
 
-    TOPOLOGY = {
-        LEADER: {
-            'mode': 'rdn',
-            'panid': 0xcafe,
-            'allowlist': [ROUTER]
-        },
-        ROUTER: {
-            'mode': 'rdn',
-            'panid': 0xcafe,
-            'allowlist': [LEADER]
-        },
-    }
+    CLIENT_EXT_ADDR = pv.vars['SRP_CLIENT']
 
-    def test(self):
-        self.nodes[LEADER].start()
-        self.simulator.go(config.LEADER_STARTUP_DELAY)
-        self.assertEqual(self.nodes[LEADER].get_state(), 'leader')
+    # 1. Register with default lease
+    pkts.filter_wpan_src64(CLIENT_EXT_ADDR).filter('dns.flags.response == 0 and dns.resp.ttl == {DEFAULT_LEASE_TIME}',
+                                                   DEFAULT_LEASE_TIME=DEFAULT_LEASE_TIME).must_next()
 
-        self.nodes[ROUTER].start()
-        self.simulator.go(config.ROUTER_STARTUP_DELAY)
-        self.assertEqual(self.nodes[ROUTER].get_state(), 'router')
+    # 2. Change server lease range and client lease interval to NEW_LEASE_TIME
+    pkts.filter_wpan_src64(CLIENT_EXT_ADDR).filter('dns.flags.response == 0 and dns.resp.ttl == {NEW_LEASE_TIME}',
+                                                   NEW_LEASE_TIME=NEW_LEASE_TIME).must_next()
 
-        mleid_leader = self.nodes[LEADER].get_ip6_address(config.ADDRESS_TYPE.ML_EID)
-        mleid_router = self.nodes[ROUTER].get_ip6_address(config.ADDRESS_TYPE.ML_EID)
+    # 4. Change client TTL to NEW_TTL
+    pkts.filter_wpan_src64(CLIENT_EXT_ADDR).filter('dns.flags.response == 0 and dns.resp.ttl == {NEW_TTL}',
+                                                   NEW_TTL=NEW_TTL).must_next()
 
-        self.nodes[LEADER].udp_start("::", common.UDP_TEST_PORT)
-        self.nodes[ROUTER].udp_start("::", common.UDP_TEST_PORT)
-
-        self.nodes[LEADER].udp_send(1952, mleid_router, common.UDP_TEST_PORT)
-        self.simulator.go(5)
-        self.nodes[ROUTER].udp_check_rx(1952)
-
-        self.nodes[ROUTER].udp_send(1831, mleid_leader, common.UDP_TEST_PORT)
-        self.simulator.go(5)
-        self.nodes[LEADER].udp_check_rx(1831)
-
-        self.nodes[ROUTER].udp_stop()
-        self.nodes[LEADER].udp_stop()
+    # 5. Set TTL to 0 (which should use NEW_LEASE_TIME)
+    pkts.filter_wpan_src64(CLIENT_EXT_ADDR).filter('dns.flags.response == 0 and dns.resp.ttl == {NEW_LEASE_TIME}',
+                                                   NEW_LEASE_TIME=NEW_LEASE_TIME).must_next()
 
 
 if __name__ == '__main__':
-    unittest.main()
+    verify_utils.run_main(verify)
