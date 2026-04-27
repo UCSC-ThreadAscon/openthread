@@ -49,7 +49,7 @@ static constexpr uint32_t kAttachToRouterTime = 200 * 1000;
 /**
  * Time to advance for the network to stabilize after nodes have attached.
  */
-static constexpr uint32_t kStabilizationTime = 30 * 1000;
+static constexpr uint32_t kStabilizationTime = 60 * 1000;
 
 static void AddPrefix(Node &aNode, const char *aPrefixString, const char *aFlags)
 {
@@ -162,14 +162,19 @@ void TestAnycast(void)
     VerifyOrQuit(r1.Get<Mle::Mle>().IsLeader());
 
     r2.Join(r1);
-    r3.Join(r1);
-    r4.Join(r1);
-    r5.Join(r1);
-
     nexus.AdvanceTime(kAttachToRouterTime);
     VerifyOrQuit(r2.Get<Mle::Mle>().IsRouter());
+
+    r3.Join(r2);
+    nexus.AdvanceTime(kAttachToRouterTime);
     VerifyOrQuit(r3.Get<Mle::Mle>().IsRouter());
+
+    r4.Join(r3);
+    nexus.AdvanceTime(kAttachToRouterTime);
     VerifyOrQuit(r4.Get<Mle::Mle>().IsRouter());
+
+    r5.Join(r4);
+    nexus.AdvanceTime(kAttachToRouterTime);
     VerifyOrQuit(r5.Get<Mle::Mle>().IsRouter());
 
     const char *kPrefix      = "2001:dead:beef:cafe::/64";
