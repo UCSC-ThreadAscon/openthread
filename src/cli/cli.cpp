@@ -5618,7 +5618,7 @@ exit:
  * Specifies the preferred router ID that the leader should provide when solicited.
  * @sa otThreadSetPreferredRouterId
  */
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD && OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
 template <> otError Interpreter::Process<Cmd("preferrouterid")>(Arg aArgs[])
 {
     return ProcessSet(aArgs, otThreadSetPreferredRouterId);
@@ -7627,6 +7627,53 @@ template <> otError Interpreter::Process<Cmd("vendor")>(Arg aArgs[])
         error = ProcessGetSet(aArgs, otThreadGetVendorAppUrl, otThreadSetVendorAppUrl);
 #endif
     }
+    /**
+     * @cli vendor oui
+     * @code
+     * vendor oui
+     * B4-A6-61
+     * Done
+     * @endcode
+     * @par api_copy
+     * #otThreadGetVendorOui
+     */
+    else if (aArgs[0] == "oui")
+    {
+        if (aArgs[1].IsEmpty())
+        {
+            uint32_t oui = otThreadGetVendorOui(GetInstancePtr());
+
+            if (oui == OT_THREAD_UNSPECIFIED_VENDOR_OUI)
+            {
+                OutputLine("unspecified");
+            }
+            else
+            {
+                OutputLine("%02X-%02X-%02X", static_cast<uint8_t>((oui >> 16) & 0xff),
+                           static_cast<uint8_t>((oui >> 8) & 0xff), static_cast<uint8_t>(oui & 0xff));
+            }
+
+            error = OT_ERROR_NONE;
+        }
+        else
+        {
+#if OPENTHREAD_CONFIG_NET_DIAG_VENDOR_INFO_SET_API_ENABLE
+            /**
+             * @cli vendor oui (set)
+             * @code
+             * vendor oui 0xb4a661
+             * Done
+             * @endcode
+             * @par api_copy
+             * #otThreadSetVendorOui
+             * @cparam vendor oui @ca{oui}
+             */
+            error = ProcessSet(aArgs + 1, otThreadSetVendorOui);
+#else
+            error = OT_ERROR_INVALID_ARGS;
+#endif
+        }
+    }
 
     return error;
 }
@@ -8656,7 +8703,7 @@ otError Interpreter::ProcessCommand(Arg aArgs[])
 #endif
         CmdEntry("platform"),
         CmdEntry("pollperiod"),
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD && OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
         CmdEntry("preferrouterid"),
 #endif
 #if OPENTHREAD_CONFIG_BORDER_ROUTER_ENABLE

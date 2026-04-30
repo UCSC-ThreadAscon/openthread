@@ -1799,7 +1799,7 @@ void Mle::HandleTimeTick(void)
             continue;
         }
 
-        if (IsLeader() && (mRouterTable.FindNextHopOf(router) == nullptr) &&
+        if (IsLeader() && (mRouterTable.FindNextHopTowards(router) == nullptr) &&
             (mRouterTable.GetLinkCost(router) >= kMaxRouteCost) && (age >= kMaxLeaderToRouterTimeout))
         {
             LogInfo("Router 0x%04x ID timeout expired (no route)", router.GetRloc16());
@@ -3296,6 +3296,7 @@ exit:
     return;
 }
 
+#if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
 Error Mle::SetPreferredRouterId(uint8_t aRouterId)
 {
     Error error = kErrorNone;
@@ -3307,6 +3308,7 @@ Error Mle::SetPreferredRouterId(uint8_t aRouterId)
 exit:
     return error;
 }
+#endif
 
 void Mle::SetRouterId(uint8_t aRouterId)
 {
