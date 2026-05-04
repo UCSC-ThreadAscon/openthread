@@ -49,6 +49,7 @@
 #endif
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -201,7 +202,11 @@ void HdlcInterface::Read(void)
     {
         Decode(buffer, static_cast<uint16_t>(rval));
     }
-    else if ((rval < 0) && (errno != EAGAIN) && (errno != EINTR))
+    else if (rval == 0)
+    {
+        DieNowWithMessage("RCP device disconnected (EOF)", OT_EXIT_FAILURE);
+    }
+    else if ((errno != EAGAIN) && (errno != EWOULDBLOCK) && (errno != EINTR))
     {
         DieNow(OT_EXIT_ERROR_ERRNO);
     }
@@ -457,6 +462,26 @@ int HdlcInterface::OpenFile(const Url::Url &aRadioUrl)
     {
         perror("open uart failed");
         ExitNow();
+    }
+
+    if (aRadioUrl.HasParam("uart-exclusive"))
+    {
+        // Lock the device early to prevent concurrent access
+        if (flock(fd, LOCK_EX | LOCK_NB) == -1)
+        {
+            perror("flock uart failed, device already in use");
+            close(fd);
+            fd = -1;
+            ExitNow();
+        }
+
+#ifdef TIOCEXCL
+        // Set exclusive access mode if supported by the platform
+        if (ioctl(fd, TIOCEXCL) == -1)
+        {
+            LogWarn("ioctl(TIOCEXCL) failed: %s", strerror(errno));
+        }
+#endif
     }
 
     if (isatty(fd))
