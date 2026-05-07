@@ -548,8 +548,6 @@ exit:
     OutputResult(aError);
 }
 
-void MeshDiag::OutputResult(otError aError) { Interpreter::GetInterpreter().OutputResult(aError); }
-
 } // namespace Cli
 } // namespace ot
 

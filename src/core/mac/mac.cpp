@@ -1536,6 +1536,7 @@ Error Mac::ProcessReceiveSecurity(RxFrame &aFrame, const Address &aSrcAddr, Neig
     switch (keyIdMode)
     {
     case Frame::kKeyIdMode0:
+        VerifyOrExit(keyManager.IsKekSet(), error = kErrorSecurity);
         macKey     = &keyManager.GetKek();
         extAddress = &aSrcAddr.GetExtended();
         break;
@@ -2490,7 +2491,12 @@ void Mac::ProcessCsl(const RxFrame &aFrame, const Address &aSrcAddr)
     CslNeighbor *neighbor = nullptr;
     const CslIe *csl;
 
+    uint8_t keyIdMode;
+
     VerifyOrExit(aFrame.IsVersion2015() && aFrame.GetSecurityEnabled());
+
+    IgnoreError(aFrame.GetKeyIdMode(keyIdMode));
+    VerifyOrExit(keyIdMode == Frame::kKeyIdMode1);
 
     csl = aFrame.GetCslIe();
     VerifyOrExit(csl != nullptr);

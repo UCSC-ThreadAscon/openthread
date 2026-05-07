@@ -210,6 +210,11 @@ public:
 
 #if OPENTHREAD_CONFIG_MULTIPLE_STATIC_INSTANCE_ENABLE
     /**
+     * Specifies number of static OpenThread instances.
+     */
+    static constexpr uint16_t kNumStaticInstances = OPENTHREAD_CONFIG_MULTIPLE_INSTANCE_NUM;
+
+    /**
      * This static method initializes the OpenThread instance.
      *
      * This method utilizes static buffer to initialize the OpenThread instance.
@@ -761,7 +766,7 @@ private:
 #endif
 
 #if OPENTHREAD_CONFIG_MLR_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE)
-    MlrManager mMlrManager;
+    Mlr::Manager mMlrManager;
 #endif
 
 #if OPENTHREAD_CONFIG_DUA_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE)
@@ -1251,7 +1256,7 @@ template <> inline BackboneRouter::BackboneTmfAgent &Instance::Get(void)
 #endif
 
 #if OPENTHREAD_CONFIG_MLR_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE)
-template <> inline MlrManager &Instance::Get(void) { return mMlrManager; }
+template <> inline Mlr::Manager &Instance::Get(void) { return mMlrManager; }
 #endif
 
 #if OPENTHREAD_CONFIG_DUA_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE)

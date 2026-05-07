@@ -349,6 +349,7 @@ private:
                                  const Header      &aHeader,
                                  uint8_t           &aNextHeader,
                                  bool              &aReceive);
+    bool  HasIp6InIpTunnel(const Message &aMessage, uint8_t aNextHeader) const;
     Error FragmentDatagram(Message &aMessage, uint8_t aIpProto);
     Error HandleFragment(Message &aMessage);
 #if OPENTHREAD_CONFIG_IP6_FRAGMENTATION_ENABLE
@@ -362,7 +363,7 @@ private:
     Error PrepareMulticastToLargerThanRealmLocal(Message &aMessage, const Header &aHeader);
     Error InsertMplOption(Message &aMessage, Header &aHeader);
     Error RemoveMplOption(Message &aMessage);
-    Error HandleOptions(Message &aMessage, const Header &aHeader, bool &aReceive);
+    Error HandleOptions(Message &aMessage, const Header &aHeader, bool &aReceive, bool aIsHopByHop);
     Error Receive(Header            &aIp6Header,
                   OwnedPtr<Message> &aMessagePtr,
                   uint8_t            aIpProto,

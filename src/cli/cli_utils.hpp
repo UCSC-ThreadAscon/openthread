@@ -73,28 +73,24 @@ constexpr static CommandId Cmd(const char *aString)
 }
 
 class Utils;
+class Interpreter;
 
 /**
- * Implements the basic output functions.
+ * Implements the basic output functions acting as a base class for `Interpreter`.
  */
 class OutputImplementer
 {
     friend class Utils;
 
 public:
-    /**
-     * Initializes the `OutputImplementer` object.
-     *
-     * @param[in] aCallback           A pointer to an `otCliOutputCallback` to deliver strings to the CLI console.
-     * @param[in] aCallbackContext    An arbitrary context to pass in when invoking @p aCallback.
-     */
-    OutputImplementer(otCliOutputCallback aCallback, void *aCallbackContext);
-
 #if OPENTHREAD_CONFIG_CLI_LOG_INPUT_OUTPUT_ENABLE
     void SetEmittingCommandOutput(bool aEmittingOutput) { mEmittingCommandOutput = aEmittingOutput; }
 #else
     void SetEmittingCommandOutput(bool) {}
 #endif
+
+protected:
+    OutputImplementer(otCliOutputCallback aCallback, void *aCallbackContext);
 
 private:
     static constexpr uint16_t kInputOutputLogStringSize = OPENTHREAD_CONFIG_CLI_LOG_INPUT_OUTPUT_LOG_STRING_SIZE;
@@ -198,6 +194,13 @@ public:
     otInstance *GetInstancePtr(void) { return mInstance; }
 
     /**
+     * Returns the associated CLI `Interpreter`.
+     *
+     * @returns A reference to the associated CLI `Interpreter`.
+     */
+    Interpreter &GetInterpreter(void);
+
+    /**
      * Converts a boolean to "yes" or "no" string.
      *
      * @param[in] aBool  A boolean value to convert.
@@ -225,6 +228,16 @@ public:
      * @returns A pointer to the start of the string (null-terminated) representation of @p aUint64.
      */
     static const char *Uint64ToString(uint64_t aUint64, Uint64StringBuffer &aBuffer);
+
+    /**
+     * Outputs the command result.
+     *
+     * This is called to end the current command. `OT_ERROR_PENDING` can be used to indicate command execution is
+     * continuing asynchronously.
+     *
+     * @param[in]  aError Error code value.
+     */
+    void OutputResult(otError aError);
 
     /**
      * Delivers a formatted output string to the CLI console.

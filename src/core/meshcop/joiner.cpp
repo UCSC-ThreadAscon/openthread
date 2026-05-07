@@ -184,6 +184,7 @@ void Joiner::Finish(Error aError)
     case kStateJoined:
         Get<Tmf::SecureAgent>().Disconnect();
         mTimer.Stop();
+        Get<KeyManager>().ClearKek();
 
         OT_FALL_THROUGH;
 
@@ -421,7 +422,8 @@ template <> void Joiner::HandleTmf<kUriJoinerEntrust>(Coap::Msg &aMsg)
     Error         error;
     Dataset::Info datasetInfo;
 
-    VerifyOrExit(mState == kStateEntrust && aMsg.IsConfirmable(), error = kErrorDrop);
+    VerifyOrExit(mState == kStateEntrust && aMsg.IsConfirmable() && aMsg.mMessage.IsLinkSecurityEnabled(),
+                 error = kErrorDrop);
 
     LogInfo("Received %s", UriToString<kUriJoinerEntrust>());
     LogCert("[THCI] direction=recv | type=JOIN_ENT.ntf");
