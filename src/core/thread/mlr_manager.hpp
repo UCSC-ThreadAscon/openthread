@@ -143,10 +143,19 @@ public:
 #endif
 
 private:
+    static constexpr uint32_t kLongRenewTimeout = 4 * Time::kOneHourInSec; // `MLR_TIMEOUT_LONG` (in sec)
+    static constexpr uint32_t kRenewGuardTime   = 9;                       // (in sec).
+
+    enum RegistrationRequest : uint8_t
+    {
+        kReregister,
+        kRenew,
+    };
+
     class AddressArray : public Array<Ip6::Address, kMaxIp6Addresses>
     {
     public:
-        void AddUnique(const Ip6::Address &aAddress);
+        Error AddUnique(const Ip6::Address &aAddress);
     };
 
     void  HandleNotifierEvents(Events aEvents);
@@ -158,6 +167,9 @@ private:
                       Coap::ResponseHandler aResponseHandler);
 
     DeclareTmfResponseHandlerIn(Manager, HandleResponse);
+
+    static uint16_t DetermineReregistrationDelay(const BackboneRouter::Config &aConfig);
+    static uint32_t DetermineRenewDelay(const BackboneRouter::Config &aConfig);
 
     static Error ParseResponse(Error aResult, Coap::Msg *aMsg, uint8_t &aStatus, AddressArray &aFailedAddresses);
     static bool  DidRegisterSuccessfully(const Ip6::Address &aAddress,
@@ -184,16 +196,12 @@ private:
 
     void SetMulticastAddressState(State aFromState, State aToState);
     void Finish(bool aSuccess, const AddressArray &aFailedAddresses);
-
     void ScheduleSend(uint16_t aDelay);
     void UpdateTimeTickerRegistration(void);
-    void UpdateReregistrationDelay(bool aRereg);
+    void ScheduleNextRegistration(RegistrationRequest aRequest);
     void Reregister(void);
     void HandleTimeTick(void);
-
-    void        LogMulticastAddresses(void);
-    void        CheckInvariants(void) const;
-    static void LogResponse(Error aResult, Error aError, uint8_t aStatus, const AddressArray &aFailedAddresses);
+    void LogMulticastAddresses(void);
 
 #if (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE) && OPENTHREAD_CONFIG_COMMISSIONER_ENABLE
     Callback<RegisterCallback> mRegisterCallback;
