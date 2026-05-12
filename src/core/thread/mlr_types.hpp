@@ -36,6 +36,10 @@
 
 #include "openthread-core-config.h"
 
+#include "common/array.hpp"
+#include "common/error.hpp"
+#include "net/ip6_address.hpp"
+
 namespace ot {
 namespace Mlr {
 
@@ -47,20 +51,6 @@ namespace Mlr {
 
 constexpr uint8_t kMinIp6Addresses = 1;                        ///< Min number of addresses in IPv6 Addresses TLV.
 constexpr uint8_t kMaxIp6Addresses = OT_IP6_MAX_MLR_ADDRESSES; ///< Max number of addresses in IPv6 Addresses TLV.
-
-#if OPENTHREAD_CONFIG_MLR_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE)
-
-/**
- * MLR registration state for a multicast address.
- */
-enum State : uint8_t
-{
-    kStateToRegister,  ///< The multicast address is to be registered.
-    kStateRegistering, ///< The multicast address is being registered.
-    kStateRegistered,  ///< The multicast address is registered.
-};
-
-#endif // OPENTHREAD_CONFIG_MLR_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE)
 
 /**
  * Multicast Listener Registration (MLR) Status values.
@@ -76,6 +66,23 @@ enum Status : uint8_t
 };
 
 constexpr uint8_t kMaxStatusValue = kStatusGeneralFailure;
+
+/**
+ * Represents an array of IPv6 addresses.
+ */
+class AddressArray : public Array<Ip6::Address, kMaxIp6Addresses>
+{
+public:
+    /**
+     * Adds an IPv6 address to the array if it is not already present.
+     *
+     * @param[in] aAddress  The IPv6 address to add.
+     *
+     * @retval kErrorNone    Successfully added the address or it was already present.
+     * @retval kErrorNoBufs  The array is full.
+     */
+    Error AddUnique(const Ip6::Address &aAddress);
+};
 
 } // namespace Mlr
 } // namespace ot
