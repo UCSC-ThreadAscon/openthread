@@ -863,8 +863,7 @@ Error Server::TlvTypeListIterator::ReadNextTlvType(uint8_t &aTlvType)
 
     while (!mOffsetRange.IsEmpty())
     {
-        SuccessOrExit(error = mMessage->Read(mOffsetRange, aTlvType));
-        mOffsetRange.AdvanceOffset(sizeof(uint8_t));
+        SuccessOrExit(error = mMessage->ReadAndAdvance(mOffsetRange, aTlvType));
 
         if (!mProcessedTlvs.Has(aTlvType))
         {
@@ -1010,24 +1009,22 @@ Error Client::SendDiagnosticReset(const Ip6::Address &aDestination, const uint8_
     return SendCommand(kUriDiagnosticReset, Message::kPriorityNormal, aDestination, aTlvTypes, aCount);
 }
 
-static void ParseRoute(const RouteTlv &aRouteTlv, otNetworkDiagRoute &aNetworkDiagRoute)
+void Client::GetRouteInfo(const RouteTlv::Data &aRouteTlvData, RouteInfo &aNetDiagRouteInfo)
 {
     uint8_t routeCount = 0;
 
-    for (uint8_t i = 0; i <= Mle::kMaxRouterId; ++i)
+    aNetDiagRouteInfo.mIdSequence = aRouteTlvData.GetRouterIdSequence();
+
+    for (const RouteTlv::Data::Entry &entry : aRouteTlvData.GetEntries())
     {
-        if (!aRouteTlv.IsRouterIdSet(i))
-        {
-            continue;
-        }
-        aNetworkDiagRoute.mRouteData[routeCount].mRouterId       = i;
-        aNetworkDiagRoute.mRouteData[routeCount].mRouteCost      = aRouteTlv.GetRouteCost(routeCount);
-        aNetworkDiagRoute.mRouteData[routeCount].mLinkQualityIn  = aRouteTlv.GetLinkQualityIn(routeCount);
-        aNetworkDiagRoute.mRouteData[routeCount].mLinkQualityOut = aRouteTlv.GetLinkQualityOut(routeCount);
-        ++routeCount;
+        aNetDiagRouteInfo.mRouteData[routeCount].mRouterId       = entry.GetRouterId();
+        aNetDiagRouteInfo.mRouteData[routeCount].mRouteCost      = entry.GetRouteCost();
+        aNetDiagRouteInfo.mRouteData[routeCount].mLinkQualityIn  = entry.GetLinkQualityIn();
+        aNetDiagRouteInfo.mRouteData[routeCount].mLinkQualityOut = entry.GetLinkQualityOut();
+        routeCount++;
     }
-    aNetworkDiagRoute.mRouteCount = routeCount;
-    aNetworkDiagRoute.mIdSequence = aRouteTlv.GetRouterIdSequence();
+
+    aNetDiagRouteInfo.mRouteCount = routeCount;
 }
 
 static Error ParseEnhancedRoute(const Message &aMessage, uint16_t aOffset, otNetworkDiagEnhRoute &aNetworkDiagEnhRoute)
@@ -1060,8 +1057,7 @@ static Error ParseEnhancedRoute(const Message &aMessage, uint16_t aOffset, otNet
             continue;
         }
 
-        SuccessOrExit(error = aMessage.Read(offsetRange, entry));
-        offsetRange.AdvanceOffset(sizeof(entry));
+        SuccessOrExit(error = aMessage.ReadAndAdvance(offsetRange, entry));
 
         aNetworkDiagEnhRoute.mRouteData[index].mRouterId = routerId;
         entry.Parse(aNetworkDiagEnhRoute.mRouteData[index]);
@@ -1097,8 +1093,7 @@ Error Client::ParseChildTable(ChildTable &aChildTable, const Message &aMessage, 
     {
         ChildTableTlvEntry entry;
 
-        SuccessOrExit(error = aMessage.Read(aOffsetRange, entry));
-        aOffsetRange.AdvanceOffset(sizeof(ChildTableTlvEntry));
+        SuccessOrExit(error = aMessage.ReadAndAdvance(aOffsetRange, entry));
 
         entry.Parse(aChildTable.mTable[aChildTable.mCount]);
         aChildTable.mCount++;
@@ -1114,8 +1109,7 @@ void Client::ParseIp6AddrList(Ip6AddrList &aIp6Addrs, const Message &aMessage, O
 
     while (aOffsetRange.Contains(sizeof(Ip6::Address)) && (aIp6Addrs.mCount < GetArrayLength(aIp6Addrs.mList)))
     {
-        IgnoreError(aMessage.Read(aOffsetRange, aIp6Addrs.mList[aIp6Addrs.mCount]));
-        aOffsetRange.AdvanceOffset(sizeof(Ip6::Address));
+        IgnoreError(aMessage.ReadAndAdvance(aOffsetRange, aIp6Addrs.mList[aIp6Addrs.mCount]));
 
         aIp6Addrs.mCount++;
     }
@@ -1167,13 +1161,10 @@ Error Client::GetNextDiagTlv(const Coap::Message &aMessage, Iterator &aIterator,
 
         case Tlv::kRoute:
         {
-            RouteTlv routeTlv;
-            uint16_t bytesToRead = Min<uint16_t>(tlvInfo.GetSize(), sizeof(routeTlv));
+            RouteTlv::Data routeTlvData;
 
-            VerifyOrExit(!tlvInfo.IsExtended(), error = kErrorParse);
-            SuccessOrExit(error = aMessage.Read(offset, &routeTlv, bytesToRead));
-            VerifyOrExit(routeTlv.IsValid(), error = kErrorParse);
-            ParseRoute(routeTlv, aDiagTlv.mData.mRoute);
+            SuccessOrExit(error = routeTlvData.ParseFrom(aMessage, tlvInfo.GetValueOffsetRange()));
+            GetRouteInfo(routeTlvData, aDiagTlv.mData.mRoute);
             break;
         }
 

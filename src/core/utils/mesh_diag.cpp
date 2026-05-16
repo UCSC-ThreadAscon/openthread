@@ -390,8 +390,7 @@ bool MeshDiag::ProcessChildrenIp6AddrsAnswer(Coap::Message &aMessage, const Ip6:
         // Read the `ChildIp6AddressListTlvValue` (which contains the
         // child RLOC16) and then prepare the `Ip6AddrIterator`.
 
-        SuccessOrExit(aMessage.Read(offsetRange, tlvValue));
-        offsetRange.AdvanceOffset(sizeof(tlvValue));
+        SuccessOrExit(aMessage.ReadAndAdvance(offsetRange, tlvValue));
 
         ip6AddrIterator.mMessage     = &aMessage;
         ip6AddrIterator.mOffsetRange = offsetRange;
@@ -467,15 +466,15 @@ void MeshDiag::HandleTimer(void) { Finalize(kErrorResponseTimeout); }
 
 Error MeshDiag::RouterInfo::ParseFrom(const Message &aMessage)
 {
-    Error     error = kErrorNone;
-    Mle::Mle &mle   = aMessage.Get<Mle::Mle>();
-    RouteTlv  routeTlv;
+    Error          error = kErrorNone;
+    Mle::Mle      &mle   = aMessage.Get<Mle::Mle>();
+    RouteTlv::Data routeTlvData;
 
     Clear();
 
     SuccessOrExit(error = Tlv::Find<Address16Tlv>(aMessage, mRloc16));
     SuccessOrExit(error = Tlv::Find<ExtMacAddressTlv>(aMessage, AsCoreType(&mExtAddress)));
-    SuccessOrExit(error = Tlv::FindTlv(aMessage, routeTlv));
+    SuccessOrExit(error = RouteTlv::FindIn(aMessage, routeTlvData));
 
     switch (error = Tlv::Find<VersionTlv>(aMessage, mVersion))
     {
@@ -495,13 +494,9 @@ Error MeshDiag::RouterInfo::ParseFrom(const Message &aMessage)
     mIsLeader           = (mRouterId == mle.GetLeaderId());
     mIsBorderRouter     = aMessage.Get<NetworkData::Leader>().ContainsBorderRouterWithRloc(mRloc16);
 
-    for (uint8_t id = 0, index = 0; id <= Mle::kMaxRouterId; id++)
+    for (const RouteTlv::Data::Entry &entry : routeTlvData.GetEntries())
     {
-        if (routeTlv.IsRouterIdSet(id))
-        {
-            mLinkQualities[id] = routeTlv.GetLinkQualityIn(index);
-            index++;
-        }
+        mLinkQualities[entry.GetRouterId()] = entry.GetLinkQualityIn();
     }
 
 exit:
@@ -524,12 +519,12 @@ exit:
 
 Error MeshDiag::Ip6AddrIterator::GetNextAddress(Ip6::Address &aAddress)
 {
-    Error error = kErrorNone;
+    Error error = kErrorNotFound;
 
-    VerifyOrExit(mMessage != nullptr, error = kErrorNotFound);
+    VerifyOrExit(mMessage != nullptr);
+    SuccessOrExit(mMessage->ReadAndAdvance(mOffsetRange, aAddress));
 
-    VerifyOrExit(mMessage->Read(mOffsetRange, aAddress) == kErrorNone, error = kErrorNotFound);
-    mOffsetRange.AdvanceOffset(sizeof(Ip6::Address));
+    error = kErrorNone;
 
 exit:
     return error;
@@ -559,8 +554,7 @@ Error MeshDiag::ChildIterator::GetNextChildInfo(ChildInfo &aChildInfo)
 
     VerifyOrExit(mMessage != nullptr);
 
-    SuccessOrExit(mMessage->Read(mOffsetRange, entry));
-    mOffsetRange.AdvanceOffset(sizeof(ChildTableTlvEntry));
+    SuccessOrExit(mMessage->ReadAndAdvance(mOffsetRange, entry));
 
     entry.Parse(info);
 
