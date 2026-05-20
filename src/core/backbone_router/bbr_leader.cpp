@@ -42,6 +42,54 @@ namespace BackboneRouter {
 
 RegisterLogModule("BbrLeader");
 
+//---------------------------------------------------------------------------------------------------------------------
+// Config
+
+void Config::AdjustMlrTimeout(void)
+{
+    uint32_t origTimeout;
+
+    VerifyOrExit(IsPresent());
+
+    origTimeout = GetMlrTimeout();
+    mMlrTimeout = Clamp(mMlrTimeout, kMinMlrTimeout, kMaxMlrTimeout);
+
+    VerifyOrExit(mMlrTimeout != origTimeout);
+    LogNote("MLR timeout adjusted: %lu -> %lu", ToUlong(origTimeout), ToUlong(mMlrTimeout));
+
+exit:
+    return;
+}
+
+uint16_t Config::SelectRandomReregistrationDelay(void) const
+{
+    uint16_t delay = 1;
+
+    VerifyOrExit(mReregistrationDelay > 1);
+    delay = Random::NonCrypto::GetUint16InRange(1, mReregistrationDelay + 1);
+
+exit:
+    return delay;
+}
+
+#if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
+void Config::Log(const char *aTitle) const
+{
+    if (IsPresent())
+    {
+        LogInfo("  %s: 0x%04x seqno:%u delay:%u timeout:%lu", aTitle, mServer16, mSequenceNumber, mReregistrationDelay,
+                ToUlong(mMlrTimeout));
+    }
+    else
+    {
+        LogInfo("  %s: none", aTitle);
+    }
+}
+#endif
+
+//---------------------------------------------------------------------------------------------------------------------
+// Leader
+
 Leader::Leader(Instance &aInstance)
     : InstanceLocator(aInstance)
 {
@@ -50,14 +98,13 @@ Leader::Leader(Instance &aInstance)
 
 void Leader::Reset(void)
 {
-    // Invalid server short address indicates no available Backbone Router service in the Thread Network.
-    mConfig.mServer16 = Mle::kInvalidRloc16;
+    mConfig.MarkAsAbsent();
 
     // Domain Prefix Length 0 indicates no available Domain Prefix in the Thread network.
     mDomainPrefix.SetLength(0);
 }
 
-Error Leader::GetConfig(Config &aConfig) const
+Error Leader::ReadConfig(Config &aConfig) const
 {
     Error error = kErrorNone;
 
@@ -82,32 +129,17 @@ exit:
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
 
-void Leader::LogBackboneRouterPrimary(State aState, const Config &aConfig) const
+const char *Leader::PrimaryEventToString(PrimaryEvent aEvent)
 {
-    OT_UNUSED_VARIABLE(aConfig);
+#define PrimaryEventMapList(_)              \
+    _(kPrimaryAdded, "Added")               \
+    _(kPrimaryRemoved, "Removed")           \
+    _(kPrimaryUpdatedReregister, "Updated") \
+    _(kPrimaryConfigParameterChanged, "ConfigChanged")
 
-    LogInfo("PBBR state: %s", StateToString(aState));
+    DefineEnumStringArray(PrimaryEventMapList);
 
-    if (aState != kStateRemoved && aState != kStateNone)
-    {
-        LogInfo("Rloc16:0x%4x, seqno:%u, delay:%u, timeout:%lu", aConfig.mServer16, aConfig.mSequenceNumber,
-                aConfig.mReregistrationDelay, ToUlong(aConfig.mMlrTimeout));
-    }
-}
-
-const char *Leader::StateToString(State aState)
-{
-#define StateMapList(_)                        \
-    _(kStateNone, "None")                      \
-    _(kStateAdded, "Added")                    \
-    _(kStateRemoved, "Removed")                \
-    _(kStateToTriggerRereg, "Rereg triggered") \
-    _(kStateRefreshed, "Refreshed")            \
-    _(kStateUnchanged, "Unchanged")
-
-    DefineEnumStringArray(StateMapList);
-
-    return kStrings[aState];
+    return kStrings[aEvent];
 }
 
 const char *Leader::DomainPrefixEventToString(DomainPrefixEvent aEvent)
@@ -135,73 +167,59 @@ void Leader::HandleNotifierEvents(Events aEvents)
 
 void Leader::UpdateBackboneRouterPrimary(void)
 {
-    Config config;
-    State  state;
+    Config       newConfig;
+    PrimaryEvent event;
 
-    Get<NetworkData::Service::Manager>().GetBackboneRouterPrimary(config);
+    Get<NetworkData::Service::Manager>().GetBackboneRouterPrimary(newConfig);
 
-    if (config.mServer16 != mConfig.mServer16)
+    newConfig.AdjustMlrTimeout();
+
+    if (!mConfig.IsPresent())
     {
-        if (config.mServer16 == Mle::kInvalidRloc16)
-        {
-            state = kStateRemoved;
-        }
-        else if (mConfig.mServer16 == Mle::kInvalidRloc16)
-        {
-            state = kStateAdded;
-        }
-        else
-        {
-            // Short Address of PBBR changes.
-            state = kStateToTriggerRereg;
-        }
+        VerifyOrExit(newConfig.IsPresent());
+        event = kPrimaryAdded;
     }
-    else if (config.mServer16 == Mle::kInvalidRloc16)
+    else if (!newConfig.IsPresent())
     {
-        // If no Primary all the time.
-        state = kStateNone;
+        event = kPrimaryRemoved;
     }
-    else if (config.mSequenceNumber != mConfig.mSequenceNumber)
+    else if (newConfig.GetServer16() != mConfig.GetServer16() ||
+             newConfig.GetSequenceNumber() != mConfig.GetSequenceNumber())
     {
-        state = kStateToTriggerRereg;
+        event = kPrimaryUpdatedReregister;
     }
-    else if (config.mReregistrationDelay != mConfig.mReregistrationDelay || config.mMlrTimeout != mConfig.mMlrTimeout)
+    else if (newConfig.GetReregistrationDelay() != mConfig.GetReregistrationDelay() ||
+             newConfig.GetMlrTimeout() != mConfig.GetMlrTimeout())
     {
-        state = kStateRefreshed;
+        event = kPrimaryConfigParameterChanged;
     }
     else
     {
-        state = kStateUnchanged;
+        ExitNow(); // No changes
     }
 
-    // Restrain the range of MLR timeout to be always valid
-    if (config.mServer16 != Mle::kInvalidRloc16)
-    {
-        uint32_t origTimeout = config.mMlrTimeout;
+#if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
+    LogInfo("PrimaryEvent: %s", PrimaryEventToString(event));
+    mConfig.Log("Old");
+    newConfig.Log("New");
+#endif
 
-        config.mMlrTimeout = Clamp(config.mMlrTimeout, kMinMlrTimeout, kMaxMlrTimeout);
-
-        if (config.mMlrTimeout != origTimeout)
-        {
-            LogNote("Leader MLR Timeout is normalized from %lu to %lu", ToUlong(origTimeout),
-                    ToUlong(config.mMlrTimeout));
-        }
-    }
-
-    mConfig = config;
-    LogBackboneRouterPrimary(state, mConfig);
+    mConfig = newConfig;
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
-    Get<BackboneRouter::Local>().HandleBackboneRouterPrimaryUpdate(state, mConfig);
+    Get<BackboneRouter::Local>().HandleBackboneRouterPrimaryUpdate(event);
 #endif
 
 #if OPENTHREAD_CONFIG_MLR_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE)
-    Get<Mlr::Manager>().HandleBackboneRouterPrimaryUpdate(state, mConfig);
+    Get<Mlr::Manager>().HandleBackboneRouterPrimaryUpdate(event);
 #endif
 
 #if OPENTHREAD_CONFIG_DUA_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE)
-    Get<DuaManager>().HandleBackboneRouterPrimaryUpdate(state, mConfig);
+    Get<DuaManager>().HandleBackboneRouterPrimaryUpdate(event);
 #endif
+
+exit:
+    OT_UNUSED_VARIABLE(event);
 }
 
 void Leader::UpdateDomainPrefixConfig(void)

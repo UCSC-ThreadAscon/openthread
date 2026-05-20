@@ -114,12 +114,11 @@ public:
     void HandleDomainPrefixUpdate(BackboneRouter::DomainPrefixEvent aEvent);
 
     /**
-     * Notifies Primary Backbone Router status.
+     * Notifies the `DuaManager` of a Primary Backbone Router event.
      *
-     * @param[in]  aState   The state or state change of Primary Backbone Router.
-     * @param[in]  aConfig  The Primary Backbone Router service.
+     * @param[in]  aEvent   The Primary Backbone Router event.
      */
-    void HandleBackboneRouterPrimaryUpdate(BackboneRouter::Leader::State aState, const BackboneRouter::Config &aConfig);
+    void HandleBackboneRouterPrimaryUpdate(BackboneRouter::PrimaryEvent aEvent);
 
 #if OPENTHREAD_CONFIG_DUA_ENABLE
 

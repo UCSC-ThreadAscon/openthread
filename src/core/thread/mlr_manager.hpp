@@ -92,12 +92,11 @@ public:
     explicit Manager(Instance &aInstance);
 
     /**
-     * Notifies Primary Backbone Router status.
+     * Notifies the `MlrManager` of a Primary Backbone Router event.
      *
-     * @param[in]  aState   The state or state change of Primary Backbone Router.
-     * @param[in]  aConfig  The Primary Backbone Router service.
+     * @param[in]  aEvent   The Primary Backbone Router event.
      */
-    void HandleBackboneRouterPrimaryUpdate(BackboneRouter::Leader::State aState, const BackboneRouter::Config &aConfig);
+    void HandleBackboneRouterPrimaryUpdate(BackboneRouter::PrimaryEvent aEvent);
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
     static constexpr uint16_t kMaxChildAddresses = OPENTHREAD_CONFIG_MLE_IP_ADDRS_PER_CHILD - 1; ///< Max MLR addresses
@@ -163,9 +162,9 @@ private:
 
     DeclareTmfResponseHandlerIn(Manager, HandleResponse);
 
-    static uint16_t DetermineReregistrationDelay(const BackboneRouter::Config &aConfig);
-    static uint32_t DetermineRenewDelay(const BackboneRouter::Config &aConfig);
-    static Error    ParseResponse(Error aResult, Coap::Msg *aMsg, uint8_t &aStatus, AddressArray &aFailedAddresses);
+    uint32_t DetermineRenewDelay(void);
+
+    static Error ParseResponse(Error aResult, Coap::Msg *aMsg, uint8_t &aStatus, AddressArray &aFailedAddresses);
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_COMMISSIONER_ENABLE
     DeclareTmfResponseHandlerIn(Manager, HandleRegisterResponse);

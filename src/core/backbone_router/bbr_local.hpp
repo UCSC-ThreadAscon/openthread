@@ -59,6 +59,7 @@
 #include "common/locator.hpp"
 #include "common/log.hpp"
 #include "common/non_copyable.hpp"
+#include "common/notifier.hpp"
 #include "common/time_ticker.hpp"
 #include "net/netif.hpp"
 #include "thread/network_data.hpp"
@@ -73,6 +74,7 @@ namespace BackboneRouter {
 class Local : public InstanceLocator, private NonCopyable
 {
     friend class ot::TimeTicker;
+    friend class ot::Notifier;
 
 public:
     typedef otBackboneRouterDomainPrefixCallback DomainPrefixCallback; ///< Domain Prefix callback.
@@ -182,12 +184,11 @@ public:
     uint8_t GetRegistrationJitter(void) const { return mRegistrationJitter; }
 
     /**
-     * Notifies Primary Backbone Router status.
+     * Notifies the `Local` of a Primary Backbone Router event.
      *
-     * @param[in]  aState   The state or state change of Primary Backbone Router.
-     * @param[in]  aConfig  The Primary Backbone Router service.
+     * @param[in]  aEvent   The Primary Backbone Router event.
      */
-    void HandleBackboneRouterPrimaryUpdate(Leader::State aState, const Config &aConfig);
+    void HandleBackboneRouterPrimaryUpdate(PrimaryEvent aEvent);
 
     /**
      * Gets the Domain Prefix configuration.
@@ -266,6 +267,8 @@ private:
     };
 
     void SetState(State aState);
+    void HandleNotifierEvents(Events aEvents);
+    void UpdateState(void);
     void RemoveService(void);
     void HandleTimeTick(void);
     void AddDomainPrefixToNetworkData(void);
