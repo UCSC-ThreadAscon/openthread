@@ -66,7 +66,7 @@ uint16_t Config::SelectRandomReregistrationDelay(void) const
     uint16_t delay = 1;
 
     VerifyOrExit(mReregistrationDelay > 1);
-    delay = Random::NonCrypto::GetUint16InRange(1, mReregistrationDelay + 1);
+    delay = 1 + Random::NonCrypto::GetUint16InRange(0, mReregistrationDelay);
 
 exit:
     return delay;
@@ -257,9 +257,6 @@ void Leader::UpdateDomainPrefixConfig(void)
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
     Get<Local>().HandleDomainPrefixUpdate(event);
-#if OPENTHREAD_CONFIG_BACKBONE_ROUTER_DUA_NDPROXYING_ENABLE
-    Get<NdProxyTable>().HandleDomainPrefixUpdate(event);
-#endif
 #endif
 
 #if OPENTHREAD_CONFIG_DUA_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_DUA_ENABLE)

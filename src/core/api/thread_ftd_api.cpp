@@ -259,6 +259,8 @@ otError otThreadGetNextCacheEntry(otInstance *aInstance, otCacheEntryInfo *aEntr
                                                                           AsCoreType(aIterator));
 }
 
+void otThreadClearEidCache(otInstance *aInstance) { AsCoreType(aInstance).Get<AddressResolver>().Clear(); }
+
 #if OPENTHREAD_CONFIG_MLE_STEERING_DATA_SET_OOB_ENABLE
 void otThreadSetSteeringData(otInstance *aInstance, const otExtAddress *aExtAddress)
 {
@@ -341,17 +343,6 @@ void otThreadSendAddressNotification(otInstance               *aInstance,
     AsCoreType(aInstance).Get<AddressResolver>().SendAddressQueryResponse(AsCoreType(aTarget), AsCoreType(aMlIid),
                                                                           nullptr, AsCoreType(aDestination));
 }
-
-#if OPENTHREAD_CONFIG_BACKBONE_ROUTER_DUA_NDPROXYING_ENABLE
-otError otThreadSendProactiveBackboneNotification(otInstance               *aInstance,
-                                                  otIp6Address             *aTarget,
-                                                  otIp6InterfaceIdentifier *aMlIid,
-                                                  uint32_t                  aTimeSinceLastTransaction)
-{
-    return AsCoreType(aInstance).Get<BackboneRouter::Manager>().SendProactiveBackboneNotification(
-        AsCoreType(aTarget), AsCoreType(aMlIid), aTimeSinceLastTransaction);
-}
-#endif
 
 void otThreadSetCcmEnabled(otInstance *aInstance, bool aEnabled)
 {

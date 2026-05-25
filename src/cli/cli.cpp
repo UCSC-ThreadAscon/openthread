@@ -2938,35 +2938,53 @@ void Interpreter::OutputEidCacheEntry(const otCacheEntryInfo &aEntry)
     OutputNewLine();
 }
 
-/**
- * @cli eidcache
- * @code
- * eidcache
- * fd49:caf4:a29f:dc0e:97fc:69dd:3c16:df7d 2000 cache canEvict=1 transTime=0 eid=fd49:caf4:a29f:dc0e:97fc:69dd:3c16:df7d
- * fd49:caf4:a29f:dc0e:97fc:69dd:3c16:df7f fffe retry canEvict=1 timeout=10 retryDelay=30
- * Done
- * @endcode
- * @par
- * Returns the EID-to-RLOC cache entries.
- * @sa otThreadGetNextCacheEntry
- */
 template <> otError Interpreter::Process<Cmd("eidcache")>(Arg aArgs[])
 {
-    OT_UNUSED_VARIABLE(aArgs);
+    otError error = OT_ERROR_NONE;
 
-    otCacheEntryIterator iterator;
-    otCacheEntryInfo     entry;
-
-    ClearAllBytes(iterator);
-
-    while (true)
+    /**
+     * @cli eidcache
+     * @code
+     * eidcache
+     * fd49:caf4:a29f:dc0e:97fc:69dd:3c16:df7d 2000 cache canEvict=1 transTime=0
+     * eid=fd49:caf4:a29f:dc0e:97fc:69dd:3c16:df7d fd49:caf4:a29f:dc0e:97fc:69dd:3c16:df7f fffe retry
+     * canEvict=1 timeout=10 retryDelay=30 Done
+     * @endcode
+     * @par
+     * Returns the EID-to-RLOC cache entries.
+     * @sa otThreadGetNextCacheEntry
+     */
+    if (aArgs[0].IsEmpty())
     {
-        SuccessOrExit(otThreadGetNextCacheEntry(GetInstancePtr(), &entry, &iterator));
-        OutputEidCacheEntry(entry);
-    }
+        otCacheEntryIterator iterator;
+        otCacheEntryInfo     entry;
 
+        ClearAllBytes(iterator);
+        while (true)
+        {
+            SuccessOrExit(otThreadGetNextCacheEntry(GetInstancePtr(), &entry, &iterator));
+            OutputEidCacheEntry(entry);
+        }
+    }
+    /**
+     * @cli eidcache clear
+     * @code
+     * eidcache clear
+     * Done
+     * @endcode
+     * @par api_copy
+     * #otThreadClearEidCache
+     */
+    else if (aArgs[0] == "clear")
+    {
+        otThreadClearEidCache(GetInstancePtr());
+    }
+    else
+    {
+        error = OT_ERROR_INVALID_ARGS;
+    }
 exit:
-    return OT_ERROR_NONE;
+    return error;
 }
 #endif
 
@@ -3197,20 +3215,6 @@ template <> otError Interpreter::Process<Cmd("fake")>(Arg aArgs[])
         SuccessOrExit(error = aArgs[3].ParseAsHexString(mlIid.mFields.m8));
         otThreadSendAddressNotification(GetInstancePtr(), &destination, &target, &mlIid);
     }
-#if OPENTHREAD_CONFIG_BACKBONE_ROUTER_DUA_NDPROXYING_ENABLE
-    else if (aArgs[0] == "/b/ba")
-    {
-        otIp6Address             target;
-        otIp6InterfaceIdentifier mlIid;
-        uint32_t                 timeSinceLastTransaction;
-
-        SuccessOrExit(error = aArgs[1].ParseAsIp6Address(target));
-        SuccessOrExit(error = aArgs[2].ParseAsHexString(mlIid.mFields.m8));
-        SuccessOrExit(error = aArgs[3].ParseAsUint32(timeSinceLastTransaction));
-
-        error = otThreadSendProactiveBackboneNotification(GetInstancePtr(), &target, &mlIid, timeSinceLastTransaction);
-    }
-#endif
 
 exit:
     return error;
