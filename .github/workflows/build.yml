@@ -78,8 +78,11 @@ jobs:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
     - name: Run linkspector
       uses: umbrelladocs/action-linkspector@963b6264d7de32c904942a70b488d3407453049e # v1.5.1
+      env:
+        PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         reporter: github-pr-review
@@ -238,6 +241,9 @@ jobs:
           - gcc_ver: 14
             gcc_download_url: https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz
             gcc_extract_dir: arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi
+          - gcc_ver: 15
+            gcc_download_url: https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz
+            gcc_extract_dir: arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi
     steps:
     - name: Harden Runner
       uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2

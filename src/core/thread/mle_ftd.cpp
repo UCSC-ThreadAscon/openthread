@@ -552,7 +552,7 @@ void Mle::ScheduleUnicastAdvertisementTo(const Router &aRouter)
 {
     Ip6::Address destination;
 
-    destination.SetToLinkLocalAddress(aRouter.GetExtAddress());
+    destination.InitAsLinkLocalAddress(aRouter.GetExtAddress());
     mDelayedSender.ScheduleAdvertisement(destination, GenerateRandomDelay(kMaxUnicastAdvertisementDelay));
 }
 
@@ -671,7 +671,7 @@ void Mle::SendLinkRequest(Router *aRouter)
             SuccessOrExit(error = message->AppendChallengeTlv(challenge));
         }
 
-        destination.SetToLinkLocalAddress(aRouter->GetExtAddress());
+        destination.InitAsLinkLocalAddress(aRouter->GetExtAddress());
         aRouter->RestartLinkAcceptTimeout();
     }
 
@@ -870,7 +870,7 @@ Error Mle::SendLinkAccept(const LinkAcceptInfo &aInfo)
     }
 #endif
 
-    destination.SetToLinkLocalAddress(aInfo.mExtAddress);
+    destination.InitAsLinkLocalAddress(aInfo.mExtAddress);
 
     SuccessOrExit(error = message->SendTo(destination));
 
@@ -1809,7 +1809,7 @@ void Mle::SendParentResponse(const ParentResponseInfo &aInfo)
     SuccessOrExit(error = message->AppendConnectivityTlv());
     SuccessOrExit(error = message->AppendVersionTlv());
 
-    destination.SetToLinkLocalAddress(aInfo.mChildExtAddress);
+    destination.InitAsLinkLocalAddress(aInfo.mChildExtAddress);
 
     SuccessOrExit(error = message->SendTo(destination));
 
@@ -1830,7 +1830,7 @@ Error Mle::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
     Ip6::Address oldDua;
 #endif
 #if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
-    Mlr::Manager::ChildAddressArray oldMlrRegisteredAddresses;
+    Child::Ip6AddressArray oldMlrRegisteredAddresses;
 #endif
 
     OT_UNUSED_VARIABLE(storedCount);
@@ -1845,16 +1845,7 @@ Error Mle::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
 #endif
 
 #if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
-    if (aChild.HasAnyMlrRegisteredAddress())
-    {
-        for (const Child::Ip6AddrEntry &addrEntry : aChild.GetIp6Addresses())
-        {
-            if (addrEntry.IsMlrRegistered(aChild))
-            {
-                IgnoreError(oldMlrRegisteredAddresses.PushBack(addrEntry));
-            }
-        }
-    }
+    aChild.GetAllMlrRegisteredAddresses(oldMlrRegisteredAddresses);
 #endif
 
     aChild.ClearIp6Addresses();
@@ -1946,7 +1937,7 @@ Error Mle::ProcessAddressRegistrationTlv(RxInfo &aRxInfo, Child &aChild)
 #endif
 
 #if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
-    Get<Mlr::Manager>().UpdateProxiedSubscriptions(aChild, oldMlrRegisteredAddresses);
+    Get<Mlr::Manager>().UpdateChildRegistrations(aChild, oldMlrRegisteredAddresses);
 #endif
 
     if (count == 0)
@@ -2877,7 +2868,7 @@ Error Mle::SendChildIdResponse(Child &aChild)
     }
 #endif
 
-    destination.SetToLinkLocalAddress(aChild.GetExtAddress());
+    destination.InitAsLinkLocalAddress(aChild.GetExtAddress());
     SuccessOrExit(error = message->SendTo(destination));
 
     SetChildStateToValid(aChild);
@@ -2941,7 +2932,7 @@ Error Mle::SendChildUpdateRequestToChild(Child &aChild)
         SuccessOrExit(error = message->AppendChallengeTlv(aChild.GetChallenge()));
     }
 
-    destination.SetToLinkLocalAddress(aChild.GetExtAddress());
+    destination.InitAsLinkLocalAddress(aChild.GetExtAddress());
     SuccessOrExit(error = message->SendTo(destination));
 
     if (aChild.IsRxOnWhenIdle())
@@ -3812,7 +3803,7 @@ void Mle::SetChildStateToValid(Child &aChild)
     IgnoreError(mChildTable.StoreChild(aChild));
 
 #if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
-    Get<Mlr::Manager>().UpdateProxiedSubscriptions(aChild, Mlr::Manager::ChildAddressArray());
+    Get<Mlr::Manager>().UpdateChildRegistrations(aChild);
 #endif
 
     mNeighborTable.Signal(NeighborTable::kChildAdded, aChild);
